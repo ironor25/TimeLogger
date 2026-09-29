@@ -6,8 +6,8 @@ FROM node:20-alpine AS builder
 # Install build essentials & OpenSSL for Prisma
 RUN apk add --no-cache openssl libc6-compat python3 make g++
 
-# Enable Corepack and PNPM
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install stable PNPM v9 to avoid PNPM v10 ignored builds error
+RUN npm install -g pnpm@9.15.5
 
 WORKDIR /app
 
@@ -41,8 +41,8 @@ FROM node:20-alpine AS runner
 # Install OpenSSL and dumb-init for signal handling on Alpine
 RUN apk add --no-cache openssl ca-certificates dumb-init bash
 
-# Enable Corepack and PNPM for runtime migrations/seeds
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install stable PNPM v9 for runtime migrations/seeds
+RUN npm install -g pnpm@9.15.5
 
 WORKDIR /app
 
