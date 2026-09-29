@@ -221,8 +221,10 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           setSelectedTaskId(taskList[0].id);
         }
       }
-    } catch (err) {
-      console.error('Failed to load projects:', err);
+    } catch (err: any) {
+      if (!err?.message?.includes('Session expired')) {
+        console.warn('Projects/tasks fetch warning:', err);
+      }
     }
   };
 
