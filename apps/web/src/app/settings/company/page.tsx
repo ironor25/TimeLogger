@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Sliders,
   Lock,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
@@ -51,6 +52,27 @@ export default function CompanySettingsPage() {
       setStrictSchedule(Boolean(settings.strictScheduleEnforcement));
     }
   }, [settings]);
+
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+
+  const resetMutation = useMutation({
+    mutationFn: () => api.resetActivityData(),
+    onSuccess: (data: any) => {
+      setResetSuccess(data?.message || 'All activity data reset successfully to clean slate.');
+      setTimeout(() => setResetSuccess(null), 5000);
+      queryClient.invalidateQueries();
+    },
+  });
+
+  const handleResetData = () => {
+    if (
+      window.confirm(
+        '⚠️ ARE YOU SURE? This will permanently delete all live work sessions, screenshots, heartbeats, and attendance records on the live database to start with a pristine clean slate. Employee logins and account passwords will be preserved.',
+      )
+    ) {
+      resetMutation.mutate();
+    }
+  };
 
   const updateMutation = useMutation({
     mutationFn: (body: any) => api.updateSettings(body),
@@ -298,13 +320,42 @@ export default function CompanySettingsPage() {
               </div>
             </div>
 
+            {/* Testing Clean-Slate Reset */}
+            {hasPermission('settings.edit') && (
+              <div className="bg-red-50/70 border border-red-200 rounded-xl p-5 space-y-3">
+                <div className="flex items-center gap-2 text-red-700">
+                  <RotateCcw className="w-4 h-4" />
+                  <h3 className="text-sm font-bold">Testing & Clean-Slate Database Reset</h3>
+                </div>
+                <p className="text-xs text-red-600/90 leading-relaxed">
+                  Reset all recorded work sessions, breaks, heartbeats, screenshots, and attendance records on the live hosted database.
+                  <strong> All employee accounts, login passwords, projects, and tasks are preserved.</strong>
+                </p>
+                {resetSuccess && (
+                  <div className="p-3 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-medium">
+                    {resetSuccess}
+                  </div>
+                )}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={handleResetData}
+                    disabled={resetMutation.isPending}
+                    className="px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white font-semibold text-xs transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {resetMutation.isPending ? 'Resetting Database...' : 'Reset Live Activity Data (Clean Slate)'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Save Button */}
             {hasPermission('settings.edit') && (
               <div className="flex justify-end">
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   <span>{updateMutation.isPending ? 'Saving...' : 'Save Organization Settings'}</span>

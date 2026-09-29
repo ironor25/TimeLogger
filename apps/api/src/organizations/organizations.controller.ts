@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body } from '@nestjs/common';
+import { Controller, Get, Put, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { OrganizationsService } from './organizations.service';
 import { UpdateOrganizationSettingsDto } from './dto/update-settings.dto';
@@ -28,5 +28,16 @@ export class OrganizationsController {
     @Body() dto: UpdateOrganizationSettingsDto,
   ) {
     return this.orgsService.updateSettings(orgId, dto, userId);
+  }
+
+  @Post('reset-activity-data')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('settings.update')
+  @ApiOperation({ summary: 'Reset all sessions, screenshots, heartbeats, and attendance to clean slate' })
+  async resetActivityData(
+    @CurrentTenant() orgId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.orgsService.resetActivityData(orgId, userId);
   }
 }

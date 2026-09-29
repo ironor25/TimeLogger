@@ -76,6 +76,7 @@ export const api = {
   // Organizations
   getSettings: () => apiFetch('/organizations/settings'),
   updateSettings: (body: any) => apiFetch('/organizations/settings', { method: 'PUT', body: JSON.stringify(body) }),
+  resetActivityData: () => apiFetch('/organizations/reset-activity-data', { method: 'POST' }),
 
   // Employees
   getEmployees: (params?: any) => apiFetch('/employees', { params }),

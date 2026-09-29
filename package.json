@@ -15,6 +15,7 @@
     "prisma:migrate": "prisma migrate dev --schema=./prisma/schema.prisma",
     "prisma:seed": "ts-node ./prisma/seed.ts",
     "prisma:studio": "prisma studio --schema=./prisma/schema.prisma",
+    "db:clean-live": "node ./scripts/clean-live-db.mjs",
     "mock-agent": "pnpm --filter @pulsetime/mock-agent start",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down"

@@ -47,4 +47,51 @@ export class OrganizationsService {
 
     return updated;
   }
+
+  async resetActivityData(organizationId: string, actorUserId: string) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+    if (!org) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    const [deletedBreaks, deletedActivity, deletedScreenshots, deletedSessions, deletedAttendance] =
+      await this.prisma.$transaction([
+        this.prisma.workSessionBreak.deleteMany({ where: { organizationId } }),
+        this.prisma.activityRecord.deleteMany({ where: { organizationId } }),
+        this.prisma.screenshot.deleteMany({ where: { organizationId } }),
+        this.prisma.workSession.deleteMany({ where: { organizationId } }),
+        this.prisma.attendanceRecord.deleteMany({ where: { organizationId } }),
+      ]);
+
+    await this.prisma.auditLog.create({
+      data: {
+        organizationId,
+        actorUserId,
+        action: 'RESET_ACTIVITY_DATA',
+        entityType: 'Organization',
+        entityId: organizationId,
+        newValues: {
+          deletedBreaks: deletedBreaks.count,
+          deletedActivity: deletedActivity.count,
+          deletedScreenshots: deletedScreenshots.count,
+          deletedSessions: deletedSessions.count,
+          deletedAttendance: deletedAttendance.count,
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'All runtime activity, sessions, screenshots, and attendance reset to clean slate. Employee logins and structure preserved.',
+      details: {
+        deletedSessions: deletedSessions.count,
+        deletedScreenshots: deletedScreenshots.count,
+        deletedBreaks: deletedBreaks.count,
+        deletedActivityRecords: deletedActivity.count,
+        deletedAttendanceRecords: deletedAttendance.count,
+      },
+    };
+  }
 }
