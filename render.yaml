@@ -1,4 +1,7 @@
 services:
+  # ----------------------------------------------------
+  # 1. NestJS Backend API Service
+  # ----------------------------------------------------
   - type: web
     name: pulsetime-api
     env: docker
@@ -33,6 +36,31 @@ services:
       - key: SEED_DATABASE
         value: "true"
 
+  # ----------------------------------------------------
+  # 2. Next.js Admin Panel Frontend Service
+  # ----------------------------------------------------
+  - type: web
+    name: pulsetime-web
+    env: docker
+    dockerfilePath: ./Dockerfile.web
+    plan: free
+    region: oregon
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: pulsetime-api
+          type: web
+          property: host
+          format: https://{host}
+
+# ----------------------------------------------------
+# 3. PostgreSQL Database
+# ----------------------------------------------------
 databases:
   - name: pulsetime-db
     databaseName: pulsetime

@@ -1,0 +1,60 @@
+# ==========================================
+# Next.js Admin Panel Production Dockerfile
+# ==========================================
+FROM node:20-alpine AS builder
+
+# Install build essentials
+RUN apk add --no-cache libc6-compat
+
+# Install stable PNPM v9
+RUN npm install -g pnpm@9.15.5
+
+WORKDIR /app
+
+# Copy monorepo configuration
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.json ./
+COPY packages/types/package.json ./packages/types/
+COPY packages/config/package.json ./packages/config/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
+COPY apps/web/package.json ./apps/web/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY packages ./packages
+COPY apps/web ./apps/web
+
+# Build arguments for public env
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+
+# Build packages and Next.js frontend
+RUN pnpm --filter @pulsetime/types build
+RUN pnpm --filter @pulsetime/web build
+
+# ==========================================
+# Stage 2: Production Runner Stage
+# ==========================================
+FROM node:20-alpine AS runner
+
+RUN apk add --no-cache dumb-init
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Copy necessary files from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
+COPY --from=builder /app/apps/web/.next ./apps/web/.next
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app/apps/web/node_modules ./apps/web/node_modules
+
+EXPOSE 3000
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["node", "apps/web/node_modules/next/dist/bin/next", "start", "apps/web", "-p", "3000"]
