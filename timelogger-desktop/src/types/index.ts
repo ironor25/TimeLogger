@@ -1,0 +1,96 @@
+export type SessionStatus = 'OFFLINE' | 'ACTIVE' | 'BREAK';
+
+export interface EmployeeInfo {
+  id: string;
+  userId: string;
+  organizationId: string;
+  employeeCode: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  email: string;
+  timezone: string;
+}
+
+export interface OrganizationInfo {
+  id: string;
+  name: string;
+  slug: string;
+  timezone: string;
+  dayResetTime: string;
+  screenshotIntervalMinutes: number;
+  idleThresholdMinutes: number;
+  allowManualTime: boolean;
+}
+
+export interface DeviceInfo {
+  id: string;
+  deviceIdentifier: string;
+  deviceName: string;
+  platform: 'WINDOWS' | 'MACOS' | 'LINUX';
+  platformVersion: string;
+  appVersion: string;
+}
+
+export interface WorkScheduleInfo {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  allowedPunchInBeforeMinutes: number;
+  autoPunchOutTime: string | null;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  status: string;
+}
+
+export interface Task {
+  id: string;
+  projectId: string;
+  title: string;
+  description?: string;
+  priority: string;
+  status: string;
+}
+
+export interface ActiveSession {
+  id: string;
+  organizationId: string;
+  employeeId: string;
+  deviceId?: string;
+  projectId?: string;
+  taskId?: string;
+  startedAt: string;
+  endedAt?: string;
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+  durationSeconds: number;
+  breaks?: Array<{
+    id: string;
+    startedAt: string;
+    endedAt?: string;
+    durationSeconds: number;
+    reason?: string;
+  }>;
+}
+
+export interface CapturedScreenshot {
+  id: string;
+  timestamp: string;
+  dataUrl: string;
+  activityPercentage: number;
+  storageKey: string;
+}
+
+export interface OfflineQueueItem {
+  id: string;
+  type: 'HEARTBEAT' | 'SCREENSHOT_METADATA';
+  endpoint: string;
+  payload: any;
+  createdAt: string;
+  retries: number;
+}

@@ -1,0 +1,637 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  DISABLED
+}
+
+enum PlatformType {
+  WINDOWS
+  MACOS
+  LINUX
+}
+
+enum WorkSessionStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  AUTO_ENDED
+  FORCED_ENDED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  HOLIDAY
+  WORK_FROM_HOME
+  PARTIAL_DAY
+  LATE
+  EARLY_LEAVE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum TimeApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  COMPLETED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+model Organization {
+  id                        String   @id @default(uuid())
+  name                      String
+  slug                      String   @unique
+  logoUrl                   String?
+  timezone                  String   @default("Asia/Kolkata")
+  dayResetTime              String   @default("04:00")
+  screenshotIntervalMinutes Int      @default(5)
+  idleThresholdMinutes      Int      @default(5)
+  autoPunchOutTime          String?  @default("19:00")
+  allowManualTime           Boolean  @default(true)
+  allowEmployeeEditTime     Boolean  @default(false)
+  allowScreenshotDelete     Boolean  @default(false)
+  activityTrackingEnabled   Boolean  @default(true)
+  screenshotTrackingEnabled Boolean  @default(true)
+  projectTrackingEnabled    Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  roles                Role[]
+  userRoles            UserOrganizationRole[]
+  departments          Department[]
+  employees            Employee[]
+  workSchedules        WorkSchedule[]
+  scheduleAssignments ScheduleAssignment[]
+  devices              Device[]
+  projects             Project[]
+  projectMembers       ProjectMember[]
+  tasks                Task[]
+  workSessions         WorkSession[]
+  workSessionBreaks    WorkSessionBreak[]
+  activityRecords      ActivityRecord[]
+  screenshots          Screenshot[]
+  attendanceRecords    AttendanceRecord[]
+  leaveTypes           LeaveType[]
+  leaveBalances        LeaveBalance[]
+  leaveRequests        LeaveRequest[]
+  manualTimeEntries    ManualTimeEntry[]
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  status       UserStatus  @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  userRoles     UserOrganizationRole[]
+  employees     Employee[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+}
+
+model Role {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  isSystem       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+  userRoles      UserOrganizationRole[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  description String
+
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  id           String @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+}
+
+model UserOrganizationRole {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String
+  roleId         String
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model Department {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  code           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employees    Employee[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Employee {
+  id             String     @id @default(uuid())
+  organizationId String
+  userId         String
+  employeeCode   String
+  firstName      String
+  lastName       String
+  displayName    String
+  email          String
+  phone          String?
+  departmentId   String?
+  managerId      String?
+  status         UserStatus @default(ACTIVE)
+  joiningDate    DateTime   @default(now())
+  timezone       String     @default("Asia/Kolkata")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department     Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  manager        Employee?    @relation("ManagerSubordinates", fields: [managerId], references: [id], onDelete: SetNull)
+  subordinates   Employee[]   @relation("ManagerSubordinates")
+
+  scheduleAssignments ScheduleAssignment[]
+  devices              Device[]
+  projectMembers       ProjectMember[]
+  assignedTasks        Task[]
+  workSessions         WorkSession[]
+  workSessionBreaks    WorkSessionBreak[]
+  activityRecords      ActivityRecord[]
+  screenshots          Screenshot[]
+  attendanceRecords    AttendanceRecord[]
+  leaveBalances        LeaveBalance[]
+  leaveRequests        LeaveRequest[]
+  manualTimeEntries    ManualTimeEntry[]
+
+  @@unique([organizationId, employeeCode])
+  @@unique([organizationId, userId])
+  @@index([organizationId, status])
+  @@index([organizationId, departmentId])
+  @@index([managerId])
+}
+
+model WorkSchedule {
+  id                        String   @id @default(uuid())
+  organizationId            String
+  name                      String
+  timezone                  String   @default("Asia/Kolkata")
+  punchInAllowedFrom        String   @default("08:30")
+  workStarts                String   @default("09:00")
+  workEnds                  String   @default("18:30")
+  dayResetTime              String   @default("04:00")
+  screenshotIntervalMinutes Int      @default(5)
+  idleThresholdMinutes      Int      @default(5)
+  autoPunchOut              Boolean  @default(true)
+  autoPunchOutTime          String?  @default("19:00")
+  isDefault                 Boolean  @default(false)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignments  ScheduleAssignment[]
+
+  @@index([organizationId])
+}
+
+model ScheduleAssignment {
+  id             String    @id @default(uuid())
+  organizationId String
+  employeeId     String
+  workScheduleId String
+  effectiveFrom  DateTime  @default(now())
+  effectiveTo    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workSchedule WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, employeeId])
+  @@index([workScheduleId])
+}
+
+model Device {
+  id               String       @id @default(uuid())
+  organizationId   String
+  employeeId       String
+  deviceIdentifier String
+  deviceName       String
+  platform         PlatformType
+  platformVersion  String?
+  appVersion       String?
+  lastSeenAt       DateTime     @default(now())
+  status           String       @default("ACTIVE")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workSessions WorkSession[]
+  activityRecords ActivityRecord[]
+
+  @@unique([organizationId, employeeId, deviceIdentifier])
+  @@index([organizationId, lastSeenAt])
+}
+
+model Project {
+  id             String        @id @default(uuid())
+  organizationId String
+  name           String
+  code           String
+  description    String?
+  status         ProjectStatus @default(ACTIVE)
+  startDate      DateTime?
+  endDate        DateTime?
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      ProjectMember[]
+  tasks        Task[]
+  workSessions WorkSession[]
+  screenshots  Screenshot[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+}
+
+model ProjectMember {
+  id             String   @id @default(uuid())
+  organizationId String
+  projectId      String
+  employeeId     String
+  role           String   @default("MEMBER")
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, employeeId])
+  @@index([organizationId, employeeId])
+}
+
+model Task {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  projectId          String
+  title              String
+  description        String?
+  status             TaskStatus   @default(TODO)
+  priority           TaskPriority @default(MEDIUM)
+  assignedEmployeeId String?
+  estimatedMinutes   Int?
+  dueDate            DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project          Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedEmployee Employee?    @relation(fields: [assignedEmployeeId], references: [id], onDelete: SetNull)
+  workSessions     WorkSession[]
+  screenshots      Screenshot[]
+
+  @@index([organizationId, projectId])
+  @@index([assignedEmployeeId, status])
+}
+
+model WorkSession {
+  id              String            @id @default(uuid())
+  organizationId  String
+  employeeId      String
+  deviceId        String?
+  projectId       String?
+  taskId          String?
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSeconds Int               @default(0)
+  status          WorkSessionStatus @default(ACTIVE)
+  timezone        String            @default("Asia/Kolkata")
+  startSource     String            @default("DESKTOP_AGENT")
+  endSource       String?
+  notes           String?
+  ipAddress       String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee        Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  device          Device?            @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  project         Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task            Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  breaks          WorkSessionBreak[]
+  activityRecords ActivityRecord[]
+  screenshots     Screenshot[]
+
+  @@index([organizationId, employeeId, startedAt])
+  @@index([organizationId, startedAt])
+  @@index([employeeId, status])
+}
+
+model WorkSessionBreak {
+  id              String    @id @default(uuid())
+  organizationId  String
+  workSessionId   String
+  employeeId      String
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSeconds Int       @default(0)
+  reason          String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workSession  WorkSession  @relation(fields: [workSessionId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, workSessionId])
+  @@index([employeeId, startedAt])
+}
+
+model ActivityRecord {
+  id                String   @id @default(uuid())
+  organizationId    String
+  employeeId        String
+  workSessionId     String
+  deviceId          String?
+  capturedAt        DateTime
+  activeSeconds     Int      @default(0)
+  idleSeconds       Int      @default(0)
+  activeApplication String?
+  windowTitle       String?
+  keysPressed       Int      @default(0)
+  mouseClicks       Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workSession  WorkSession  @relation(fields: [workSessionId], references: [id], onDelete: Cascade)
+  device       Device?      @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, employeeId, capturedAt])
+  @@index([workSessionId, capturedAt])
+}
+
+model Screenshot {
+  id                 String    @id @default(uuid())
+  organizationId     String
+  employeeId         String
+  workSessionId      String
+  projectId          String?
+  taskId             String?
+  capturedAt         DateTime
+  storageKey         String
+  mimeType           String    @default("image/jpeg")
+  fileSize           Int
+  width              Int?
+  height             Int?
+  activityPercentage Float?
+  isDeleted          Boolean   @default(false)
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  workSession  WorkSession  @relation(fields: [workSessionId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task         Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, employeeId, capturedAt])
+  @@index([organizationId, capturedAt])
+  @@index([workSessionId])
+}
+
+model AttendanceRecord {
+  id                 String           @id @default(uuid())
+  organizationId     String
+  employeeId         String
+  date               DateTime
+  status             AttendanceStatus @default(PRESENT)
+  firstPunchIn       DateTime?
+  lastPunchOut       DateTime?
+  totalWorkSeconds   Int              @default(0)
+  totalActiveSeconds Int              @default(0)
+  totalIdleSeconds   Int              @default(0)
+  totalBreakSeconds  Int              @default(0)
+  notes              String?
+  isManual           Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, employeeId, date])
+  @@index([organizationId, date])
+}
+
+model LeaveType {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  daysAllowed    Int      @default(12)
+  isPaid         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  balances     LeaveBalance[]
+  requests     LeaveRequest[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model LeaveBalance {
+  id             String   @id @default(uuid())
+  organizationId String
+  employeeId     String
+  leaveTypeId    String
+  year           Int
+  totalDays      Float
+  usedDays       Float    @default(0)
+  remainingDays  Float
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, leaveTypeId, year])
+  @@index([organizationId, employeeId])
+}
+
+model LeaveRequest {
+  id              String      @id @default(uuid())
+  organizationId  String
+  employeeId      String
+  leaveTypeId     String
+  startDate       DateTime
+  endDate         DateTime
+  daysCount       Float
+  reason          String
+  status          LeaveStatus @default(PENDING)
+  approvedById    String?
+  rejectionReason String?
+  actionedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, employeeId, status])
+  @@index([organizationId, status])
+}
+
+model ManualTimeEntry {
+  id              String             @id @default(uuid())
+  organizationId  String
+  employeeId      String
+  date            DateTime
+  startTime       DateTime
+  endTime         DateTime
+  durationSeconds Int
+  reason          String
+  status          TimeApprovalStatus @default(PENDING)
+  createdById     String
+  approvedById    String?
+  actionedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([organizationId, employeeId, date])
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String
+  actorUserId    String?
+  action         String
+  entityType     String
+  entityId       String
+  oldValues      Json?
+  newValues      Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorUser    User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entityType, entityId])
+}
+
+model Notification {
+  id              String   @id @default(uuid())
+  organizationId  String
+  recipientUserId String
+  type            String
+  title           String
+  message         String
+  data            Json?
+  isRead          Boolean  @default(false)
+  readAt          DateTime?
+  createdAt       DateTime @default(now())
+
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipientUser User         @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([recipientUserId, isRead])
+  @@index([organizationId, createdAt])
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String
+  deviceId   String?
+  userAgent  String?
+  isRevoked  Boolean  @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRevoked])
+}

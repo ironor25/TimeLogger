@@ -1,0 +1,161 @@
+import React from 'react';
+import { Play, Square, Coffee, PlayCircle, FileText, AlertTriangle } from 'lucide-react';
+import { SessionStatus } from '../types';
+
+interface TimerCardProps {
+  status: SessionStatus;
+  elapsedSeconds: number;
+  breakSeconds: number;
+  isIdle: boolean;
+  idleSeconds: number;
+  loading: boolean;
+  lastPunchOutTime?: string;
+  onStartSession: () => void;
+  onStopSession: () => void;
+  onStartBreak: () => void;
+  onEndBreak: () => void;
+  onOpenNotes: () => void;
+}
+
+export const TimerCard: React.FC<TimerCardProps> = ({
+  status,
+  elapsedSeconds,
+  breakSeconds,
+  isIdle,
+  idleSeconds,
+  loading,
+  lastPunchOutTime,
+  onStartSession,
+  onStopSession,
+  onStartBreak,
+  onEndBreak,
+  onOpenNotes,
+}) => {
+  const formatTime = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatHoursMins = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    return `${hrs}h ${mins}m`;
+  };
+
+  const isActive = status === 'ACTIVE';
+  const isBreak = status === 'BREAK';
+
+  return (
+    <div className="bg-slate-800/80 rounded-2xl border border-slate-700/80 p-5 backdrop-blur-sm shadow-xl space-y-4">
+      {/* Status Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span
+            className={`w-2.5 h-2.5 rounded-full ${
+              isActive
+                ? 'bg-emerald-500 animate-ping'
+                : isBreak
+                ? 'bg-amber-400'
+                : 'bg-slate-500'
+            }`}
+          />
+          <span
+            className={`text-xs font-bold uppercase tracking-wider ${
+              isActive
+                ? 'text-emerald-400'
+                : isBreak
+                ? 'text-amber-400'
+                : 'text-slate-400'
+            }`}
+          >
+            {status === 'ACTIVE' ? 'Working' : status === 'BREAK' ? 'On Break' : 'Offline'}
+          </span>
+        </div>
+
+        {/* Idle Warning Badge */}
+        {isActive && isIdle && (
+          <div className="flex items-center gap-1 text-[11px] bg-amber-500/10 border border-amber-500/30 text-amber-300 px-2 py-0.5 rounded-full animate-pulse">
+            <AlertTriangle className="w-3 h-3" />
+            <span>Idle ({Math.floor(idleSeconds / 60)}m)</span>
+          </div>
+        )}
+
+        {/* Work Notes Button */}
+        {status !== 'OFFLINE' && (
+          <button
+            onClick={onOpenNotes}
+            className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 bg-slate-700/50 hover:bg-slate-700 px-2 py-1 rounded-lg transition-colors border border-slate-600/40"
+          >
+            <FileText className="w-3 h-3 text-blue-400" />
+            <span>Memo</span>
+          </button>
+        )}
+      </div>
+
+      {/* Big Digital Timer Display */}
+      <div className="text-center py-2">
+        <div className="font-mono text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
+          {isBreak ? formatHoursMins(breakSeconds) : formatTime(elapsedSeconds)}
+        </div>
+        <p className="text-[11px] text-slate-400 font-medium mt-1">
+          {isBreak
+            ? `Break Duration (Work Paused at ${formatTime(elapsedSeconds)})`
+            : isActive
+            ? 'Today Total Tracked'
+            : lastPunchOutTime
+            ? `Punched Out at ${lastPunchOutTime} • Total Worked: ${formatTime(elapsedSeconds)}`
+            : elapsedSeconds > 0
+            ? `Total Recorded Today: ${formatTime(elapsedSeconds)}`
+            : 'Ready to Start Work'}
+        </p>
+      </div>
+
+      {/* Main Action Buttons */}
+      <div className="grid grid-cols-2 gap-2.5 pt-1">
+        {status === 'OFFLINE' ? (
+          <button
+            onClick={onStartSession}
+            disabled={loading}
+            className="col-span-2 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50"
+          >
+            <Play className="w-4 h-4 fill-white" />
+            <span>{loading ? 'Starting...' : elapsedSeconds > 0 ? 'Resume Work' : 'Punch In (Start Work)'}</span>
+          </button>
+        ) : (
+          <>
+            {isBreak ? (
+              <button
+                onClick={onEndBreak}
+                disabled={loading}
+                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                <PlayCircle className="w-3.5 h-3.5" />
+                <span>Resume Work</span>
+              </button>
+            ) : (
+              <button
+                onClick={onStartBreak}
+                disabled={loading}
+                className="py-2.5 px-3 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-amber-300 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-600/50 transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                <Coffee className="w-3.5 h-3.5" />
+                <span>Take Break</span>
+              </button>
+            )}
+
+            <button
+              onClick={onStopSession}
+              disabled={loading}
+              className="py-2.5 px-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-red-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              <Square className="w-3.5 h-3.5 fill-white" />
+              <span>Punch Out</span>
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
