@@ -8,6 +8,7 @@ import { RecentScreenshots } from '../components/RecentScreenshots';
 import { SettingsModal } from '../components/SettingsModal';
 import { agentApi } from '../services/api';
 import { storage } from '../services/storage';
+import { LogOut } from 'lucide-react';
 import { SessionStatus, Project, Task, ActiveSession, CapturedScreenshot } from '../types';
 
 interface TrackerPageProps {
@@ -502,24 +503,43 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 scrollbar-thin scrollbar-thumb-slate-800">
         {/* Employee Bar */}
         <div className="flex items-center justify-between bg-slate-850 border border-slate-800 rounded-xl px-3 py-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center">
-              {employee?.firstName?.[0]}
-              {employee?.lastName?.[0]}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold text-[11px] flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-500/30">
+              {employee?.firstName?.[0] || employee?.displayName?.[0] || 'U'}
+              {employee?.lastName?.[0] || ''}
             </div>
-            <div>
-              <div className="font-semibold text-slate-200">{employee?.displayName}</div>
-              <div className="text-[10px] text-slate-400">
-                {organization?.name} • {schedule?.name || 'Standard Shift'}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-slate-100 truncate">{employee?.displayName || 'PulseTime User'}</span>
+                {employee?.employeeCode && (
+                  <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-800 text-blue-400 border border-slate-700">
+                    {employee.employeeCode}
+                  </span>
+                )}
+              </div>
+              <div className="text-[10px] text-slate-400 truncate">
+                {employee?.email ? <span className="text-slate-300">{employee.email} • </span> : null}
+                {organization?.name || 'Workspace'} • {schedule?.name || 'Standard Shift'}
               </div>
             </div>
           </div>
 
-          {lastPunchOutTime && status === 'OFFLINE' && (
-            <div className="text-[10px] text-slate-400 bg-slate-800/80 px-2 py-1 rounded-md border border-slate-700/60">
-              Last Punch Out: <span className="text-slate-200 font-semibold">{lastPunchOutTime}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {lastPunchOutTime && status === 'OFFLINE' && (
+              <div className="text-[10px] text-slate-400 bg-slate-800/80 px-2 py-1 rounded-md border border-slate-700/60 hidden sm:block">
+                Last Punch Out: <span className="text-slate-200 font-semibold">{lastPunchOutTime}</span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onLogout}
+              title="Sign out / Switch user"
+              className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/40 border border-slate-700 text-slate-300 text-[10px] font-medium flex items-center gap-1 transition-all cursor-pointer"
+            >
+              <LogOut className="w-3 h-3" />
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
 
         {/* Live Timer Card */}

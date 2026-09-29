@@ -36,8 +36,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const fillDemoEmployee = () => {
+  const fillJohnDoe = () => {
     setEmail('employee@demo.local');
+    setPassword('Password123!');
+    setError('');
+  };
+
+  const fillRobertChen = () => {
+    setEmail('robert.chen@acme.local');
     setPassword('Password123!');
     setError('');
   };
@@ -54,15 +60,37 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           <p className="text-xs text-slate-400">Sign in to track work time and manage shift tasks</p>
         </div>
 
-        {/* Quick Demo Fill Pill */}
-        <button
-          type="button"
-          onClick={fillDemoEmployee}
-          className="w-full py-2 px-3 rounded-xl bg-blue-950/50 hover:bg-blue-900/50 border border-blue-800/60 text-blue-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-all"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-          <span>Quick Demo: employee@demo.local</span>
-        </button>
+        {/* Quick Demo Fill Pills */}
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center">
+            Quick 1-Click Login
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={fillJohnDoe}
+              className="py-2 px-2.5 rounded-xl bg-blue-950/50 hover:bg-blue-900/60 border border-blue-800/60 text-blue-200 text-left transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-1 font-semibold text-xs text-blue-300 group-hover:text-blue-200">
+                <Sparkles className="w-3 h-3 text-blue-400" />
+                <span>John Doe</span>
+              </div>
+              <div className="text-[9px] text-slate-400 truncate mt-0.5">employee@demo.local</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={fillRobertChen}
+              className="py-2 px-2.5 rounded-xl bg-indigo-950/50 hover:bg-indigo-900/60 border border-indigo-800/60 text-indigo-200 text-left transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-1 font-semibold text-xs text-indigo-300 group-hover:text-indigo-200">
+                <Sparkles className="w-3 h-3 text-indigo-400" />
+                <span>Robert Chen</span>
+              </div>
+              <div className="text-[9px] text-slate-400 truncate mt-0.5">robert.chen@acme.local</div>
+            </button>
+          </div>
+        </div>
 
         {/* Error Alert */}
         {error && (
