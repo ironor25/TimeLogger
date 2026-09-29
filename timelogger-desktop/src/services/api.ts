@@ -123,6 +123,12 @@ export const agentApi = {
       }),
     });
 
+    const prevEmployee = storage.getEmployee();
+    if (prevEmployee && prevEmployee.id !== data.employee.id) {
+      storage.clearAuth();
+    }
+    localStorage.removeItem('pulsetime_daily_state');
+
     storage.setTokens(data.tokens.accessToken, data.tokens.refreshToken);
     storage.setEmployee(data.employee);
     storage.setOrganization(data.organization);
