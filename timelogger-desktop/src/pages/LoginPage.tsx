@@ -122,7 +122,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   value={serverUrl}
                   onChange={(e) => setServerUrl(e.target.value)}
                   className="w-full bg-slate-850 border border-slate-700 rounded-xl px-3 py-2 text-[11px] font-mono text-slate-300 focus:outline-none focus:border-blue-500"
-                  placeholder="http://localhost:4000/api/v1"
+                  placeholder="https://timelogger-dy6t.onrender.com/api/v1"
                 />
               </div>
             )}

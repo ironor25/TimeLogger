@@ -15,11 +15,15 @@ const STORAGE_KEYS = {
   DAILY_STATE: 'pulsetime_daily_state',
 };
 
-const DEFAULT_SERVER_URL = 'http://localhost:4000/api/v1';
+const DEFAULT_SERVER_URL = 'https://timelogger-dy6t.onrender.com/api/v1';
 
 export const storage = {
   getServerUrl(): string {
-    return localStorage.getItem(STORAGE_KEYS.SERVER_URL) || DEFAULT_SERVER_URL;
+    const saved = localStorage.getItem(STORAGE_KEYS.SERVER_URL);
+    if (!saved || saved.includes('localhost:4000')) {
+      return DEFAULT_SERVER_URL;
+    }
+    return saved;
   },
 
   setServerUrl(url: string) {

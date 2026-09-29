@@ -104,7 +104,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               value={serverUrl}
               onChange={(e) => setServerUrl(e.target.value)}
               className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500 transition-colors"
-              placeholder="http://localhost:4000/api/v1"
+              placeholder="https://timelogger-dy6t.onrender.com/api/v1"
             />
             <button
               onClick={handleSaveUrl}
