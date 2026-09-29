@@ -9,9 +9,9 @@ dist-app
 dist-package
 release
 uploads
-apps/web
 timelogger-desktop
 tools/mock-agent
+.next
 *.log
 *.md
 .idea

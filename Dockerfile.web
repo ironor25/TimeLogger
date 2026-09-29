@@ -39,6 +39,7 @@ RUN pnpm --filter @pulsetime/web build
 FROM node:20-alpine AS runner
 
 RUN apk add --no-cache dumb-init
+RUN npm install -g pnpm@9.15.5
 
 WORKDIR /app
 
@@ -47,7 +48,7 @@ ENV PORT=3000
 
 # Copy necessary files from builder
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
 COPY --from=builder /app/apps/web/.next ./apps/web/.next
@@ -57,4 +58,4 @@ COPY --from=builder /app/apps/web/node_modules ./apps/web/node_modules
 EXPOSE 3000
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["node", "apps/web/node_modules/next/dist/bin/next", "start", "apps/web", "-p", "3000"]
+CMD ["pnpm", "--filter", "@pulsetime/web", "start"]
