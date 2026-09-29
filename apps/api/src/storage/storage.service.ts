@@ -49,6 +49,17 @@ export class StorageService implements StorageProvider {
     }
   }
 
+  private getBaseUrl(): string {
+    const configured = this.configService.get<string>('API_BASE_URL');
+    if (configured) return configured.replace(/\/+$/, '');
+
+    const renderUrl = this.configService.get<string>('RENDER_EXTERNAL_URL');
+    if (renderUrl) return renderUrl.replace(/\/+$/, '');
+
+    const port = this.configService.get('PORT', 4000);
+    return `http://localhost:${port}`;
+  }
+
   async getUploadUrl(key: string, mimeType: string): Promise<UploadUrlResult> {
     if (this.provider === 's3' && this.s3Client) {
       const command = new PutObjectCommand({
@@ -67,7 +78,7 @@ export class StorageService implements StorageProvider {
     }
 
     // Local storage upload URL handled by StorageController
-    const baseUrl = this.configService.get<string>('API_BASE_URL', `http://localhost:${this.configService.get('PORT', 4000)}`);
+    const baseUrl = this.getBaseUrl();
     return {
       uploadUrl: `${baseUrl}/api/v1/storage/upload?key=${encodeURIComponent(key)}`,
       storageKey: key,
@@ -85,7 +96,7 @@ export class StorageService implements StorageProvider {
       return await getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
     }
 
-    const baseUrl = this.configService.get<string>('API_BASE_URL', `http://localhost:${this.configService.get('PORT', 4000)}`);
+    const baseUrl = this.getBaseUrl();
     return `${baseUrl}/api/v1/storage/files?key=${encodeURIComponent(key)}`;
   }
 

@@ -35,6 +35,12 @@ services:
         value: ./uploads
       - key: SEED_DATABASE
         value: "true"
+      - key: API_BASE_URL
+        fromService:
+          name: pulsetime-api
+          type: web
+          property: host
+          format: https://{host}
 
   # ----------------------------------------------------
   # 2. Next.js Admin Panel Frontend Service

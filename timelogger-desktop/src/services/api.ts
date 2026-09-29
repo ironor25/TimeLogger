@@ -276,9 +276,26 @@ export const agentApi = {
 
     // STEP 3
     console.log('[UPLOAD] STEP 3: Uploading binary to storage URL');
-    const method = uploadInfo.method || 'PUT';
+    const method = uploadInfo.method || 'POST';
     const uploadBlob = new Blob([uint8Array.buffer as ArrayBuffer], { type: payload.mimeType });
-    const uploadRes = await fetch(uploadInfo.uploadUrl, {
+
+    const serverUrl = storage.getServerUrl();
+    let targetUploadUrl = uploadInfo.uploadUrl;
+    try {
+      if (targetUploadUrl.startsWith('/')) {
+        const serverOrigin = new URL(serverUrl).origin;
+        targetUploadUrl = `${serverOrigin}${targetUploadUrl}`;
+      } else if (targetUploadUrl.includes('localhost') && !serverUrl.includes('localhost')) {
+        const serverOrigin = new URL(serverUrl).origin;
+        const parsed = new URL(targetUploadUrl);
+        targetUploadUrl = `${serverOrigin}${parsed.pathname}${parsed.search}`;
+      }
+    } catch {
+      // fallback to original
+    }
+    console.log('[UPLOAD] targetUploadUrl:', targetUploadUrl);
+
+    const uploadRes = await fetch(targetUploadUrl, {
       method,
       headers: {
         'Content-Type': payload.mimeType,
