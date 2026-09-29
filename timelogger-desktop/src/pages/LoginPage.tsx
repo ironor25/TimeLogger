@@ -48,46 +48,82 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setError('');
   };
 
+  const fillEmilyWatson = () => {
+    setEmail('emily.watson@acme.local');
+    setPassword('Password123!');
+    setError('');
+  };
+
+  const fillPriyaSharma = () => {
+    setEmail('priya.sharma@acme.local');
+    setPassword('Password123!');
+    setError('');
+  };
+
   return (
     <div className="flex-1 flex flex-col justify-center px-6 py-8 overflow-y-auto select-none">
-      <div className="w-full max-w-sm mx-auto space-y-6">
+      <div className="w-full max-w-sm mx-auto space-y-5">
         {/* Brand Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/30 mb-1">
+        <div className="text-center space-y-1.5">
+          <div className="inline-flex w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/30 mb-0.5">
             PT
           </div>
-          <h1 className="text-xl font-bold text-slate-100 tracking-tight">PulseTime Desktop</h1>
-          <p className="text-xs text-slate-400">Sign in to track work time and manage shift tasks</p>
+          <h1 className="text-lg font-bold text-slate-100 tracking-tight">PulseTime Desktop</h1>
+          <p className="text-[11px] text-slate-400">Sign in to track work time & screenshot activity</p>
         </div>
 
         {/* Quick Demo Fill Pills */}
         <div className="space-y-1.5">
-          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center">
-            Quick 1-Click Login
+          <div className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider text-center">
+            Quick 1-Click Login (Demo Accounts)
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             <button
               type="button"
               onClick={fillJohnDoe}
-              className="py-2 px-2.5 rounded-xl bg-blue-950/50 hover:bg-blue-900/60 border border-blue-800/60 text-blue-200 text-left transition-all group cursor-pointer"
+              className="py-1.5 px-2 rounded-xl bg-blue-950/50 hover:bg-blue-900/60 border border-blue-800/60 text-blue-200 text-left transition-all group cursor-pointer"
             >
-              <div className="flex items-center gap-1 font-semibold text-xs text-blue-300 group-hover:text-blue-200">
+              <div className="flex items-center gap-1 font-semibold text-[11px] text-blue-300 group-hover:text-blue-200">
                 <Sparkles className="w-3 h-3 text-blue-400" />
                 <span>John Doe</span>
               </div>
-              <div className="text-[9px] text-slate-400 truncate mt-0.5">employee@demo.local</div>
+              <div className="text-[9px] text-slate-400 truncate">employee@demo.local</div>
             </button>
 
             <button
               type="button"
               onClick={fillRobertChen}
-              className="py-2 px-2.5 rounded-xl bg-indigo-950/50 hover:bg-indigo-900/60 border border-indigo-800/60 text-indigo-200 text-left transition-all group cursor-pointer"
+              className="py-1.5 px-2 rounded-xl bg-indigo-950/50 hover:bg-indigo-900/60 border border-indigo-800/60 text-indigo-200 text-left transition-all group cursor-pointer"
             >
-              <div className="flex items-center gap-1 font-semibold text-xs text-indigo-300 group-hover:text-indigo-200">
+              <div className="flex items-center gap-1 font-semibold text-[11px] text-indigo-300 group-hover:text-indigo-200">
                 <Sparkles className="w-3 h-3 text-indigo-400" />
                 <span>Robert Chen</span>
               </div>
-              <div className="text-[9px] text-slate-400 truncate mt-0.5">robert.chen@acme.local</div>
+              <div className="text-[9px] text-slate-400 truncate">robert.chen@acme.local</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={fillEmilyWatson}
+              className="py-1.5 px-2 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-800/60 text-emerald-200 text-left transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-1 font-semibold text-[11px] text-emerald-300 group-hover:text-emerald-200">
+                <Sparkles className="w-3 h-3 text-emerald-400" />
+                <span>Emily Watson</span>
+              </div>
+              <div className="text-[9px] text-slate-400 truncate">emily.watson@acme.local</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={fillPriyaSharma}
+              className="py-1.5 px-2 rounded-xl bg-purple-950/50 hover:bg-purple-900/60 border border-purple-800/60 text-purple-200 text-left transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-1 font-semibold text-[11px] text-purple-300 group-hover:text-purple-200">
+                <Sparkles className="w-3 h-3 text-purple-400" />
+                <span>Priya Sharma</span>
+              </div>
+              <div className="text-[9px] text-slate-400 truncate">priya.sharma@acme.local</div>
             </button>
           </div>
         </div>

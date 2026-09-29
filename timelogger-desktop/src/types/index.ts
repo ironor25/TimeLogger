@@ -60,15 +60,16 @@ export interface Task {
 
 export interface ActiveSession {
   id: string;
-  organizationId: string;
-  employeeId: string;
+  organizationId?: string;
+  employeeId?: string;
   deviceId?: string;
-  projectId?: string;
-  taskId?: string;
+  projectId?: string | null;
+  taskId?: string | null;
+  notes?: string | null;
   startedAt: string;
   endedAt?: string;
   status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
-  durationSeconds: number;
+  durationSeconds?: number;
   breaks?: Array<{
     id: string;
     startedAt: string;
@@ -88,7 +89,14 @@ export interface CapturedScreenshot {
 
 export interface OfflineQueueItem {
   id: string;
-  type: 'HEARTBEAT' | 'SCREENSHOT_METADATA';
+  type:
+    | 'HEARTBEAT'
+    | 'SCREENSHOT_METADATA'
+    | 'SESSION_START'
+    | 'SESSION_STOP'
+    | 'SESSION_BREAK_START'
+    | 'SESSION_BREAK_END'
+    | 'OFFLINE_SESSION';
   endpoint: string;
   payload: any;
   createdAt: string;

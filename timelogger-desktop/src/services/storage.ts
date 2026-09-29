@@ -45,12 +45,19 @@ export const storage = {
   },
 
   clearAuth() {
+    const empId = this.getEmployee()?.id;
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.EMPLOYEE);
     localStorage.removeItem(STORAGE_KEYS.ORGANIZATION);
     localStorage.removeItem(STORAGE_KEYS.DEVICE);
     localStorage.removeItem(STORAGE_KEYS.SCHEDULE);
+    localStorage.removeItem(STORAGE_KEYS.LAST_PROJECT_ID);
+    localStorage.removeItem(STORAGE_KEYS.LAST_TASK_ID);
+    if (empId) {
+      localStorage.removeItem(`${STORAGE_KEYS.DAILY_STATE}_${empId}`);
+    }
+    localStorage.removeItem(STORAGE_KEYS.DAILY_STATE);
   },
 
   getEmployee(): EmployeeInfo | null {
@@ -127,7 +134,52 @@ export const storage = {
     localStorage.setItem(STORAGE_KEYS.OFFLINE_QUEUE, JSON.stringify(queue));
   },
 
-  getDailyState(): {
+  getOfflineScreenshots(): Array<{
+    id: string;
+    sessionId: string;
+    capturedAt: string;
+    fileSize: number;
+    mimeType: string;
+    width: number;
+    height: number;
+    activityPercentage: number;
+    projectId?: string;
+    taskId?: string;
+    base64: string;
+    dataUrl?: string;
+  }> {
+    const raw = localStorage.getItem('pulsetime_offline_screenshots');
+    return raw ? JSON.parse(raw) : [];
+  },
+
+  addOfflineScreenshot(sc: {
+    sessionId: string;
+    capturedAt: string;
+    fileSize: number;
+    mimeType: string;
+    width: number;
+    height: number;
+    activityPercentage: number;
+    projectId?: string;
+    taskId?: string;
+    base64: string;
+    dataUrl?: string;
+  }) {
+    const list = this.getOfflineScreenshots();
+    const item = {
+      ...sc,
+      id: `offline_sc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    };
+    list.push(item);
+    localStorage.setItem('pulsetime_offline_screenshots', JSON.stringify(list));
+    return item;
+  },
+
+  setOfflineScreenshots(list: any[]) {
+    localStorage.setItem('pulsetime_offline_screenshots', JSON.stringify(list));
+  },
+
+  getDailyState(employeeId?: string): {
     date: string;
     workedSeconds: number;
     activeSeconds: number;
@@ -135,18 +187,24 @@ export const storage = {
     breakSeconds: number;
     lastPunchOutTime?: string;
   } | null {
-    const raw = localStorage.getItem(STORAGE_KEYS.DAILY_STATE);
-    return raw ? JSON.parse(raw) : null;
+    const empId = employeeId || this.getEmployee()?.id || 'default';
+    const raw = localStorage.getItem(`${STORAGE_KEYS.DAILY_STATE}_${empId}`);
+    if (raw) return JSON.parse(raw);
+    return null;
   },
 
-  setDailyState(state: {
-    date: string;
-    workedSeconds: number;
-    activeSeconds: number;
-    idleSeconds: number;
-    breakSeconds: number;
-    lastPunchOutTime?: string;
-  }) {
-    localStorage.setItem(STORAGE_KEYS.DAILY_STATE, JSON.stringify(state));
+  setDailyState(
+    state: {
+      date: string;
+      workedSeconds: number;
+      activeSeconds: number;
+      idleSeconds: number;
+      breakSeconds: number;
+      lastPunchOutTime?: string;
+    },
+    employeeId?: string,
+  ) {
+    const empId = employeeId || this.getEmployee()?.id || 'default';
+    localStorage.setItem(`${STORAGE_KEYS.DAILY_STATE}_${empId}`, JSON.stringify(state));
   },
 };

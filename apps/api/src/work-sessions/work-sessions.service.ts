@@ -482,4 +482,147 @@ export class WorkSessionsService {
       data: { notes },
     });
   }
+
+  async getTodaySummary(organizationId: string, employeeId: string, clientDate?: string) {
+    const todayStr = clientDate || new Date().toISOString().split('T')[0];
+    const startOfDay = new Date(`${todayStr}T00:00:00.000Z`);
+    const endOfDay = new Date(`${todayStr}T23:59:59.999Z`);
+    const now = new Date();
+
+    const [sessions, screenshots, breaks] = await Promise.all([
+      this.prisma.workSession.findMany({
+        where: {
+          organizationId,
+          employeeId,
+          startedAt: { gte: startOfDay, lte: endOfDay },
+        },
+        include: {
+          project: true,
+          task: true,
+          breaks: true,
+        },
+        orderBy: { startedAt: 'asc' },
+      }),
+      this.prisma.screenshot.findMany({
+        where: {
+          organizationId,
+          employeeId,
+          capturedAt: { gte: startOfDay, lte: endOfDay },
+          isDeleted: false,
+        },
+        select: {
+          id: true,
+          capturedAt: true,
+          storageKey: true,
+          activityPercentage: true,
+        },
+        orderBy: { capturedAt: 'desc' },
+      }),
+      this.prisma.workSessionBreak.findMany({
+        where: {
+          organizationId,
+          employeeId,
+          startedAt: { gte: startOfDay, lte: endOfDay },
+        },
+      }),
+    ]);
+
+    let totalWorkedSeconds = 0;
+    let totalBreakSeconds = 0;
+    let activeSession: any = null;
+    let lastPunchOutTime: string = '';
+
+    for (const sess of sessions) {
+      if (sess.status === WorkSessionStatus.ACTIVE || sess.status === WorkSessionStatus.PAUSED) {
+        activeSession = sess;
+        const currentElapsed = Math.max(0, Math.floor((now.getTime() - sess.startedAt.getTime()) / 1000));
+        totalWorkedSeconds += currentElapsed;
+      } else {
+        const dur = sess.durationSeconds || Math.max(0, Math.floor(((sess.endedAt || sess.startedAt).getTime() - sess.startedAt.getTime()) / 1000));
+        totalWorkedSeconds += dur;
+        if (sess.endedAt) {
+          lastPunchOutTime = new Date(sess.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+      }
+    }
+
+    for (const b of breaks) {
+      if (b.durationSeconds) {
+        totalBreakSeconds += b.durationSeconds;
+      } else if (!b.endedAt && b.startedAt) {
+        totalBreakSeconds += Math.max(0, Math.floor((now.getTime() - b.startedAt.getTime()) / 1000));
+      }
+    }
+
+    const totalActiveSeconds = Math.max(0, totalWorkedSeconds - totalBreakSeconds);
+    const totalIdleSeconds = 0;
+
+    return {
+      date: todayStr,
+      workedSeconds: totalWorkedSeconds,
+      activeSeconds: totalActiveSeconds,
+      idleSeconds: totalIdleSeconds,
+      breakSeconds: totalBreakSeconds,
+      screenshotCount: screenshots.length,
+      recentScreenshots: screenshots.slice(0, 10),
+      lastPunchOutTime,
+      activeSession: activeSession
+        ? {
+            ...activeSession,
+            currentDurationSeconds: Math.max(0, Math.floor((now.getTime() - activeSession.startedAt.getTime()) / 1000)),
+            currentBreak: activeSession.breaks?.find((b: any) => !b.endedAt) || null,
+          }
+        : null,
+    };
+  }
+
+  async syncOfflineSession(
+    organizationId: string,
+    employeeId: string,
+    dto: {
+      clientSessionId?: string;
+      startedAt: string;
+      endedAt?: string;
+      durationSeconds?: number;
+      projectId?: string;
+      taskId?: string;
+      notes?: string;
+      deviceId?: string;
+    },
+  ) {
+    const startedAt = new Date(dto.startedAt);
+    const endedAt = dto.endedAt ? new Date(dto.endedAt) : null;
+    const durationSeconds =
+      dto.durationSeconds ||
+      (endedAt ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)) : 0);
+    const status = endedAt ? WorkSessionStatus.COMPLETED : WorkSessionStatus.ACTIVE;
+
+    const employee = await this.prisma.employee.findFirst({
+      where: { id: employeeId, organizationId },
+    });
+
+    const session = await this.prisma.workSession.create({
+      data: {
+        organizationId,
+        employeeId,
+        deviceId: dto.deviceId || null,
+        projectId: dto.projectId || null,
+        taskId: dto.taskId || null,
+        startedAt,
+        endedAt,
+        durationSeconds,
+        status,
+        timezone: employee?.timezone || 'UTC',
+        startSource: 'DESKTOP_AGENT',
+        endSource: endedAt ? 'OFFLINE_SYNC' : null,
+        notes: dto.notes ? `[Offline Sync] ${dto.notes}` : '[Offline Sync]',
+      },
+      include: {
+        project: true,
+        task: true,
+      },
+    });
+
+    return session;
+  }
 }

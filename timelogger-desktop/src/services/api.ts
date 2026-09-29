@@ -343,27 +343,123 @@ export const agentApi = {
     return await request<Task[]>(`/agent/tasks${query}`);
   },
 
-  async flushOfflineQueue(): Promise<number> {
-    const queue = storage.getOfflineQueue();
-    if (queue.length === 0) return 0;
+  async getTodaySummary(date?: string): Promise<any> {
+    try {
+      const query = date ? `?date=${date}` : '';
+      return await request(`/agent/work-sessions/today-summary${query}`);
+    } catch {
+      return null;
+    }
+  },
 
-    const remaining: typeof queue = [];
-    let synced = 0;
+  async syncOfflineSession(payload: {
+    clientSessionId?: string;
+    startedAt: string;
+    endedAt?: string;
+    durationSeconds?: number;
+    projectId?: string;
+    taskId?: string;
+    notes?: string;
+  }): Promise<any> {
+    const device = storage.getDevice();
+    return await request('/agent/work-sessions/sync-offline', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...payload,
+        deviceId: device?.id,
+      }),
+    });
+  },
+
+  async syncAllOfflineData(): Promise<{
+    syncedSessions: number;
+    syncedScreenshots: number;
+    syncedTelemetry: number;
+  }> {
+    let syncedSessions = 0;
+    let syncedScreenshots = 0;
+    let syncedTelemetry = 0;
+
+    // 1. Flush offline session events and heartbeats
+    const queue = storage.getOfflineQueue();
+    const remainingQueue: typeof queue = [];
+
+    // Track local sessionId -> server sessionId mappings
+    const sessionIdMap: Record<string, string> = {};
 
     for (const item of queue) {
       try {
-        await request(item.endpoint, {
-          method: 'POST',
-          body: JSON.stringify(item.payload),
-        });
-        synced++;
+        if (item.type === 'SESSION_START' || item.type === 'OFFLINE_SESSION') {
+          const res = await request('/agent/work-sessions/sync-offline', {
+            method: 'POST',
+            body: JSON.stringify(item.payload),
+          });
+          if (item.payload.clientSessionId && res?.id) {
+            sessionIdMap[item.payload.clientSessionId] = res.id;
+          }
+          syncedSessions++;
+        } else {
+          // Re-map sessionId if needed
+          let payload = { ...item.payload };
+          if (payload.sessionId && sessionIdMap[payload.sessionId]) {
+            payload.sessionId = sessionIdMap[payload.sessionId];
+          }
+          await request(item.endpoint, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          syncedTelemetry++;
+        }
       } catch {
         item.retries += 1;
-        remaining.push(item);
+        remainingQueue.push(item);
       }
     }
+    storage.setOfflineQueue(remainingQueue);
 
-    storage.setOfflineQueue(remaining);
-    return synced;
+    // 2. Upload offline screenshots
+    const offlineScreenshots = storage.getOfflineScreenshots();
+    const remainingScreenshots: typeof offlineScreenshots = [];
+
+    for (const sc of offlineScreenshots) {
+      try {
+        const targetSessionId = sessionIdMap[sc.sessionId] || sc.sessionId;
+        // Skip upload if sessionId is dummy offline and was never synced
+        if (targetSessionId.startsWith('offline_') && !sessionIdMap[sc.sessionId]) {
+          remainingScreenshots.push(sc);
+          continue;
+        }
+
+        await this.uploadScreenshotPipeline({
+          sessionId: targetSessionId,
+          base64: sc.base64,
+          dataUrl: sc.dataUrl,
+          width: sc.width,
+          height: sc.height,
+          fileSize: sc.fileSize,
+          mimeType: sc.mimeType,
+          capturedAt: sc.capturedAt,
+          activityPercentage: sc.activityPercentage,
+          projectId: sc.projectId,
+          taskId: sc.taskId,
+        });
+        syncedScreenshots++;
+      } catch (err) {
+        console.error('Failed to upload queued offline screenshot:', err);
+        remainingScreenshots.push(sc);
+      }
+    }
+    storage.setOfflineScreenshots(remainingScreenshots);
+
+    return {
+      syncedSessions,
+      syncedScreenshots,
+      syncedTelemetry,
+    };
+  },
+
+  async flushOfflineQueue(): Promise<number> {
+    const res = await this.syncAllOfflineData();
+    return res.syncedSessions + res.syncedScreenshots + res.syncedTelemetry;
   },
 };

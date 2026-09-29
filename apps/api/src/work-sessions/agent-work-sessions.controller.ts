@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Body,
+  Query,
   Req,
   HttpCode,
   HttpStatus,
@@ -101,6 +102,33 @@ export class AgentWorkSessionsController {
       throw new BadRequestException('Authenticated user is not linked to an active employee profile');
     }
     return this.sessionsService.getCurrentSession(orgId, employeeId);
+  }
+
+  @Get('today-summary')
+  @ApiOperation({ summary: 'Desktop Agent: Get authoritative today summary and active session' })
+  async getTodaySummary(
+    @CurrentTenant() orgId: string,
+    @CurrentUser('employeeId') employeeId: string,
+    @Query('date') date?: string,
+  ) {
+    if (!employeeId) {
+      throw new BadRequestException('Authenticated user is not linked to an active employee profile');
+    }
+    return this.sessionsService.getTodaySummary(orgId, employeeId, date);
+  }
+
+  @Post('sync-offline')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Desktop Agent: Sync an offline recorded work session' })
+  async syncOffline(
+    @CurrentTenant() orgId: string,
+    @CurrentUser('employeeId') employeeId: string,
+    @Body() dto: any,
+  ) {
+    if (!employeeId) {
+      throw new BadRequestException('Authenticated user is not linked to an active employee profile');
+    }
+    return this.sessionsService.syncOfflineSession(orgId, employeeId, dto);
   }
 
   @Get('history')
