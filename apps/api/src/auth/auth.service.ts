@@ -229,7 +229,10 @@ export class AuthService {
       },
       employee: {
         id: employee.id,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
         displayName: employee.displayName,
+        email: employee.email,
         employeeCode: employee.employeeCode,
         timezone: employee.timezone,
         department: employee.department?.name,

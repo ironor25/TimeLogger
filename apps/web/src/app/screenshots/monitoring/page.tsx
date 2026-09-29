@@ -43,7 +43,13 @@ export default function MonitoringRoomPage() {
     refetchInterval: 20000,
   });
 
-  const records = overview?.records || [];
+  const employees: any[] = overview?.employees || [];
+  const metrics = overview?.metrics || {
+    totalEmployees: 0,
+    workingCount: 0,
+    breakCount: 0,
+    offlineCount: 0,
+  };
   const screenshotsList: any[] = Array.isArray(latestScreenshots) ? latestScreenshots : (latestScreenshots?.data || []);
 
   // Map latest screenshot per employee
@@ -54,13 +60,13 @@ export default function MonitoringRoomPage() {
     }
   });
 
-  const filteredRecords = records.filter((r: any) => {
-    if (filterDepartment && r.employee?.departmentId !== filterDepartment) return false;
+  const filteredEmployees = employees.filter((emp: any) => {
+    if (filterDepartment && emp.department !== filterDepartment) return false;
     return true;
   });
 
-  const activeEmployees = filteredRecords.filter((r: any) => r.status === 'CHECKED_IN' || r.status === 'ON_BREAK');
-  const inactiveEmployees = filteredRecords.filter((r: any) => r.status !== 'CHECKED_IN' && r.status !== 'ON_BREAK');
+  const activeEmployees = filteredEmployees.filter((emp: any) => emp.status === 'WORKING' || emp.status === 'ON_BREAK');
+  const inactiveEmployees = filteredEmployees.filter((emp: any) => emp.status === 'OFFLINE');
 
   return (
     <AppLayout>
@@ -89,7 +95,7 @@ export default function MonitoringRoomPage() {
               >
                 <option value="">All Departments</option>
                 {departments?.map((d: any) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
+                  <option key={d.id} value={d.name}>{d.name}</option>
                 ))}
               </select>
             </div>
@@ -110,7 +116,7 @@ export default function MonitoringRoomPage() {
           <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-[11px] font-semibold text-slate-400 uppercase">Active Now</p>
-              <p className="text-xl font-bold text-emerald-600">{overview?.checkedIn || 0}</p>
+              <p className="text-xl font-bold text-emerald-600">{metrics.workingCount || 0}</p>
             </div>
             <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
               <Activity className="w-4 h-4" />
@@ -120,7 +126,7 @@ export default function MonitoringRoomPage() {
           <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-[11px] font-semibold text-slate-400 uppercase">On Break</p>
-              <p className="text-xl font-bold text-amber-600">{overview?.onBreak || 0}</p>
+              <p className="text-xl font-bold text-amber-600">{metrics.breakCount || 0}</p>
             </div>
             <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
               <Coffee className="w-4 h-4" />
@@ -129,23 +135,21 @@ export default function MonitoringRoomPage() {
 
           <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase">On Leave</p>
-              <p className="text-xl font-bold text-blue-600">{overview?.onLeave || 0}</p>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase">Offline</p>
+              <p className="text-xl font-bold text-slate-600">{metrics.offlineCount || 0}</p>
             </div>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
-              <Layers className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600">
+              <User className="w-4 h-4" />
             </div>
           </div>
 
           <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase">Offline / Total</p>
-              <p className="text-xl font-bold text-slate-700">
-                {(overview?.absent || 0)} / {overview?.totalEmployees || 0}
-              </p>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase">Total Workforce</p>
+              <p className="text-xl font-bold text-slate-900">{metrics.totalEmployees || 0}</p>
             </div>
-            <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600">
-              <User className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+              <Layers className="w-4 h-4" />
             </div>
           </div>
         </div>
@@ -169,25 +173,24 @@ export default function MonitoringRoomPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {activeEmployees.map((record: any) => {
-                const emp = record.employee;
+              {activeEmployees.map((emp: any) => {
                 const latestSc = employeeLatestScreenshotMap.get(emp.id);
-                const isBreak = record.status === 'ON_BREAK';
+                const isBreak = emp.status === 'ON_BREAK';
 
                 return (
                   <div
-                    key={record.id}
+                    key={emp.id}
                     className="bg-white rounded-xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col hover:border-blue-400 transition-all hover:shadow-md"
                   >
                     {/* Header */}
                     <div className="p-3.5 border-b border-slate-100 flex items-start justify-between bg-slate-50/60">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">
-                          {emp.firstName?.[0]}{emp.lastName?.[0]}
+                          {emp.displayName?.[0] || 'U'}
                         </div>
                         <div>
                           <p className="font-bold text-xs text-slate-900 leading-tight">{emp.displayName}</p>
-                          <p className="text-[10px] text-slate-500">{emp.designation || 'Staff'} • {emp.department?.name || 'General'}</p>
+                          <p className="text-[10px] text-slate-500">{emp.employeeCode} • {emp.department || 'General'}</p>
                         </div>
                       </div>
 
@@ -237,28 +240,30 @@ export default function MonitoringRoomPage() {
                         <div className="flex items-center justify-between text-[11px] text-slate-500">
                           <span>Clocked in:</span>
                           <span className="font-semibold text-slate-700">
-                            {record.clockInTime ? new Date(record.clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                            {emp.firstPunchIn ? new Date(emp.firstPunchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-[11px] text-slate-500">
                           <span>Total Today:</span>
                           <span className="font-semibold text-blue-600 font-mono">
-                            {formatDuration(record.totalTrackedSeconds || 0)}
+                            {emp.formattedWorked || formatDuration(emp.todayWorkedSeconds || 0)}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-[11px] text-slate-500">
-                          <span>Productivity Score:</span>
-                          <span className="font-bold text-emerald-600">
-                            {record.productivityScore !== null ? `${record.productivityScore}%` : 'N/A'}
-                          </span>
-                        </div>
+                        {emp.activeSession?.project && (
+                          <div className="flex items-center justify-between text-[11px] text-slate-500">
+                            <span>Project:</span>
+                            <span className="font-medium text-slate-800 truncate max-w-[130px]">
+                              {emp.activeSession.project.name}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
-                      {latestSc?.task && (
+                      {emp.activeSession?.task && (
                         <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600">
                           <span className="text-slate-400">Task: </span>
                           <span className="font-medium truncate inline-block max-w-[180px] align-bottom">
-                            {latestSc.task.title}
+                            {emp.activeSession.task.title}
                           </span>
                         </div>
                       )}
@@ -278,17 +283,17 @@ export default function MonitoringRoomPage() {
             </h3>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
-              {inactiveEmployees.map((r: any) => (
+              {inactiveEmployees.map((emp: any) => (
                 <div
-                  key={r.id}
+                  key={emp.id}
                   className="p-2.5 rounded-lg border border-slate-100 bg-slate-50/50 flex items-center gap-2 text-xs"
                 >
                   <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 font-bold text-[10px] flex items-center justify-center shrink-0">
-                    {r.employee?.firstName?.[0]}
+                    {emp.displayName?.[0] || 'U'}
                   </div>
                   <div className="truncate">
-                    <p className="font-medium text-slate-700 truncate text-[11px]">{r.employee?.displayName}</p>
-                    <p className="text-[10px] text-slate-400 capitalize">{r.status?.toLowerCase().replace('_', ' ')}</p>
+                    <p className="font-medium text-slate-700 truncate text-[11px]">{emp.displayName}</p>
+                    <p className="text-[10px] text-slate-400 capitalize">{emp.department || 'General'}</p>
                   </div>
                 </div>
               ))}
