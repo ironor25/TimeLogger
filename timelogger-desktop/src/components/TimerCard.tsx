@@ -105,19 +105,17 @@ export const TimerCard: React.FC<TimerCardProps> = ({
         <div className="font-mono text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
           {isBreak
             ? formatTime(breakSeconds)
-            : isActive
-            ? formatTime(sessionSeconds)
-            : '00:00:00'}
+            : formatTime(todayWorkedSeconds)}
         </div>
         <p className="text-[11px] text-slate-400 font-medium mt-1">
           {isBreak
-            ? `Break Duration • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
+            ? `On Break (${formatHoursMins(breakSeconds)}) • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
             : isActive
-            ? `Current Shift • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
+            ? `Active Shift: ${formatHoursMins(sessionSeconds)} • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
             : lastPunchOutTime
-            ? `Last Out: ${lastPunchOutTime} • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
+            ? `Last Out: ${lastPunchOutTime} • Previous Total: ${formatHoursMins(todayWorkedSeconds)}`
             : todayWorkedSeconds > 0
-            ? `Today Total: ${formatHoursMins(todayWorkedSeconds)}`
+            ? `Previous Today Total: ${formatHoursMins(todayWorkedSeconds)}`
             : 'Ready to Punch In'}
         </p>
       </div>

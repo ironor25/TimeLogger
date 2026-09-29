@@ -570,9 +570,54 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     }
   };
 
-  const handleLogoutWithReset = () => {
+  const handleLogoutWithReset = async () => {
+    const now = new Date();
+    const punchOutStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const todayStr = getTodayDateStr();
+
+    // 1. If currently in an active session or break, gracefully punch out on the backend first!
+    if (activeSession) {
+      if (activeSession.id.startsWith('offline_')) {
+        storage.addToOfflineQueue({
+          type: 'SESSION_STOP',
+          endpoint: '/agent/work-sessions/sync-offline',
+          payload: {
+            clientSessionId: activeSession.id,
+            startedAt: activeSession.startedAt,
+            endedAt: now.toISOString(),
+            notes: workNotes || undefined,
+          },
+        });
+      } else if (navigator.onLine) {
+        try {
+          await agentApi.stopWorkSession({
+            sessionId: activeSession.id,
+            notes: workNotes || undefined,
+          });
+        } catch {
+          storage.addToOfflineQueue({
+            type: 'SESSION_STOP',
+            endpoint: '/agent/work-sessions/stop',
+            payload: {
+              sessionId: activeSession.id,
+              notes: workNotes || undefined,
+            },
+          });
+        }
+      } else {
+        storage.addToOfflineQueue({
+          type: 'SESSION_STOP',
+          endpoint: '/agent/work-sessions/stop',
+          payload: {
+            sessionId: activeSession.id,
+            notes: workNotes || undefined,
+          },
+        });
+      }
+    }
+
+    // 2. Save final daily state to employee array
     if (employee) {
-      const todayStr = getTodayDateStr();
       storage.setDailyState(
         {
           date: todayStr,
@@ -580,12 +625,13 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           activeSeconds: todayActiveSeconds,
           idleSeconds: todayIdleSeconds,
           breakSeconds: todayBreakSeconds,
-          lastPunchOutTime,
+          lastPunchOutTime: activeSession ? punchOutStr : lastPunchOutTime,
         },
         employee,
       );
     }
 
+    // 3. Clear local in-memory states and update tray
     setStatus('OFFLINE');
     setActiveSession(null);
     setSessionSeconds(0);
@@ -595,6 +641,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     setTodayBreakSeconds(0);
     setScreenshots([]);
     setLastPunchOutTime('');
+    window.electronAPI?.updateTrayStatus('Offline');
+
+    // 4. Trigger logout
     onLogout();
   };
 
