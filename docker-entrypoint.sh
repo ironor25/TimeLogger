@@ -10,11 +10,9 @@ if [ -n "$DATABASE_URL" ]; then
   echo "📦 Applying database migrations..."
   npx prisma migrate deploy --schema=./prisma/schema.prisma || echo "⚠️ Migration command finished with warning."
 
-  # Optional auto-seed if SEED_DATABASE is true
-  if [ "$SEED_DATABASE" = "true" ]; then
-    echo "🌱 Checking and seeding database with initial accounts..."
-    npx ts-node ./prisma/seed.ts || echo "⚠️ Seed script completed or skipped."
-  fi
+  # Automatically ensure demo accounts & roles are seeded
+  echo "🌱 Ensuring database has initial demo accounts and permissions..."
+  node ./prisma/seed.js || echo "⚠️ Seed script completed with notices."
 else
   echo "⚠️ DATABASE_URL environment variable is not set!"
 fi

@@ -24,6 +24,7 @@ RUN pnpm install --frozen-lockfile
 # Copy Prisma schema & generate client for multiple targets
 COPY prisma ./prisma
 RUN pnpm prisma:generate
+RUN npx tsc ./prisma/seed.ts --outDir ./prisma --target es2022 --module commonjs --esModuleInterop --skipLibCheck
 
 # Copy source code for packages and backend
 COPY packages ./packages

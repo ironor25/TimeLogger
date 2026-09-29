@@ -139,55 +139,70 @@ async function main() {
 
   // 4. Create Work Schedules
   console.log('4. Seeding Work Schedules...');
-  const defaultSchedule = await prisma.workSchedule.create({
-    data: {
-      organizationId: org.id,
-      name: 'General Shift (9:00 - 18:30)',
-      timezone: 'Asia/Kolkata',
-      punchInAllowedFrom: '08:30',
-      workStarts: '09:00',
-      workEnds: '18:30',
-      dayResetTime: '04:00',
-      screenshotIntervalMinutes: 5,
-      idleThresholdMinutes: 5,
-      autoPunchOut: true,
-      autoPunchOutTime: '19:00',
-      isDefault: true,
-    },
+  let defaultSchedule = await prisma.workSchedule.findFirst({
+    where: { organizationId: org.id, name: 'General Shift (9:00 - 18:30)' },
   });
+  if (!defaultSchedule) {
+    defaultSchedule = await prisma.workSchedule.create({
+      data: {
+        organizationId: org.id,
+        name: 'General Shift (9:00 - 18:30)',
+        timezone: 'Asia/Kolkata',
+        punchInAllowedFrom: '08:30',
+        workStarts: '09:00',
+        workEnds: '18:30',
+        dayResetTime: '04:00',
+        screenshotIntervalMinutes: 5,
+        idleThresholdMinutes: 5,
+        autoPunchOut: true,
+        autoPunchOutTime: '19:00',
+        isDefault: true,
+      },
+    });
+  }
 
-  await prisma.workSchedule.create({
-    data: {
-      organizationId: org.id,
-      name: 'Night Shift (21:00 - 05:30)',
-      timezone: 'Asia/Kolkata',
-      punchInAllowedFrom: '20:30',
-      workStarts: '21:00',
-      workEnds: '05:30',
-      dayResetTime: '14:00',
-      screenshotIntervalMinutes: 5,
-      idleThresholdMinutes: 5,
-      autoPunchOut: true,
-      autoPunchOutTime: '06:00',
-      isDefault: false,
-    },
+  const existingNight = await prisma.workSchedule.findFirst({
+    where: { organizationId: org.id, name: 'Night Shift (21:00 - 05:30)' },
   });
+  if (!existingNight) {
+    await prisma.workSchedule.create({
+      data: {
+        organizationId: org.id,
+        name: 'Night Shift (21:00 - 05:30)',
+        timezone: 'Asia/Kolkata',
+        punchInAllowedFrom: '20:30',
+        workStarts: '21:00',
+        workEnds: '05:30',
+        dayResetTime: '14:00',
+        screenshotIntervalMinutes: 5,
+        idleThresholdMinutes: 5,
+        autoPunchOut: true,
+        autoPunchOutTime: '06:00',
+        isDefault: false,
+      },
+    });
+  }
 
-  await prisma.workSchedule.create({
-    data: {
-      organizationId: org.id,
-      name: 'Flexible Hours (Open)',
-      timezone: 'Asia/Kolkata',
-      punchInAllowedFrom: '00:00',
-      workStarts: '09:00',
-      workEnds: '18:00',
-      dayResetTime: '04:00',
-      screenshotIntervalMinutes: 5,
-      idleThresholdMinutes: 5,
-      autoPunchOut: false,
-      isDefault: false,
-    },
+  const existingFlex = await prisma.workSchedule.findFirst({
+    where: { organizationId: org.id, name: 'Flexible Hours (Open)' },
   });
+  if (!existingFlex) {
+    await prisma.workSchedule.create({
+      data: {
+        organizationId: org.id,
+        name: 'Flexible Hours (Open)',
+        timezone: 'Asia/Kolkata',
+        punchInAllowedFrom: '00:00',
+        workStarts: '09:00',
+        workEnds: '18:00',
+        dayResetTime: '04:00',
+        screenshotIntervalMinutes: 5,
+        idleThresholdMinutes: 5,
+        autoPunchOut: false,
+        isDefault: false,
+      },
+    });
+  }
 
   // 5. Create Departments
   console.log('5. Seeding Departments...');
@@ -390,13 +405,22 @@ async function main() {
     }
 
     // Assign schedule
-    await prisma.scheduleAssignment.create({
-      data: {
+    const existingAssignment = await prisma.scheduleAssignment.findFirst({
+      where: {
         organizationId: org.id,
         employeeId: emp.id,
         workScheduleId: defaultSchedule.id,
       },
     });
+    if (!existingAssignment) {
+      await prisma.scheduleAssignment.create({
+        data: {
+          organizationId: org.id,
+          employeeId: emp.id,
+          workScheduleId: defaultSchedule.id,
+        },
+      });
+    }
 
     // Seed Leave Balances for 2026
     for (const [ltName, ltId] of Object.entries(leaveTypeMap)) {
@@ -514,19 +538,29 @@ async function main() {
     for (let tIdx = 0; tIdx < p.tasks.length; tIdx++) {
       const t = p.tasks[tIdx];
       const assignedEmp = createdEmployees[tIdx % createdEmployees.length];
-      const task = await prisma.task.create({
-        data: {
+      const existingTask = await prisma.task.findFirst({
+        where: {
           organizationId: org.id,
           projectId: project.id,
           title: t.title,
-          description: `Detailed technical criteria for ${t.title}`,
-          status: t.status,
-          priority: t.priority,
-          assignedEmployeeId: assignedEmp.id,
-          estimatedMinutes: t.est,
-          dueDate: new Date(Date.now() + 86400000 * 7),
         },
       });
+      let task = existingTask;
+      if (!task) {
+        task = await prisma.task.create({
+          data: {
+            organizationId: org.id,
+            projectId: project.id,
+            title: t.title,
+            description: `Detailed technical criteria for ${t.title}`,
+            status: t.status,
+            priority: t.priority,
+            assignedEmployeeId: assignedEmp.id,
+            estimatedMinutes: t.est,
+            dueDate: new Date(Date.now() + 86400000 * 7),
+          },
+        });
+      }
       createdTasks.push(task);
     }
   }
@@ -565,237 +599,254 @@ async function main() {
       },
     });
 
-    // Seed Yesterday's Session (Completed)
-    const yesterdayStart = new Date(now.getTime() - 24 * 3600 * 1000);
-    yesterdayStart.setHours(9, 30, 0, 0);
-    const yesterdayEnd = new Date(yesterdayStart.getTime() + 8.5 * 3600 * 1000); // 8.5 hours
-    const durationSec = Math.floor((yesterdayEnd.getTime() - yesterdayStart.getTime()) / 1000);
-
-    const pastSession = await prisma.workSession.create({
-      data: {
-        organizationId: org.id,
-        employeeId: emp.id,
-        deviceId: device.id,
-        projectId: createdProjects[i % createdProjects.length].id,
-        taskId: createdTasks[i % createdTasks.length].id,
-        startedAt: yesterdayStart,
-        endedAt: yesterdayEnd,
-        durationSeconds: durationSec,
-        status: WorkSessionStatus.COMPLETED,
-        timezone: 'Asia/Kolkata',
-        startSource: 'DESKTOP_AGENT',
-        endSource: 'MANUAL_STOP',
-        notes: 'Feature development and unit testing',
-        ipAddress: '192.168.1.10' + i,
-      },
+    // Check if session already seeded for this employee
+    const existingSessionsCount = await prisma.workSession.count({
+      where: { organizationId: org.id, employeeId: emp.id },
     });
 
-    // Add a lunch break to past session
-    const breakStart = new Date(yesterdayStart.getTime() + 4 * 3600 * 1000);
-    const breakEnd = new Date(breakStart.getTime() + 45 * 60 * 1000); // 45 min
-    await prisma.workSessionBreak.create({
-      data: {
-        organizationId: org.id,
-        workSessionId: pastSession.id,
-        employeeId: emp.id,
-        startedAt: breakStart,
-        endedAt: breakEnd,
-        durationSeconds: 45 * 60,
-        reason: 'Lunch break',
-      },
-    });
+    if (existingSessionsCount === 0) {
+      // Seed Yesterday's Session (Completed)
+      const yesterdayStart = new Date(now.getTime() - 24 * 3600 * 1000);
+      yesterdayStart.setHours(9, 30, 0, 0);
+      const yesterdayEnd = new Date(yesterdayStart.getTime() + 8.5 * 3600 * 1000); // 8.5 hours
+      const durationSec = Math.floor((yesterdayEnd.getTime() - yesterdayStart.getTime()) / 1000);
 
-    // Attendance record for yesterday
-    const attDate = new Date(yesterdayStart);
-    attDate.setHours(0, 0, 0, 0);
-    await prisma.attendanceRecord.upsert({
-      where: {
-        organizationId_employeeId_date: {
-          organizationId: org.id,
-          employeeId: emp.id,
-          date: attDate,
-        },
-      },
-      update: {},
-      create: {
-        organizationId: org.id,
-        employeeId: emp.id,
-        date: attDate,
-        status: AttendanceStatus.PRESENT,
-        firstPunchIn: yesterdayStart,
-        lastPunchOut: yesterdayEnd,
-        totalWorkSeconds: durationSec,
-        totalActiveSeconds: Math.floor(durationSec * 0.85),
-        totalIdleSeconds: Math.floor(durationSec * 0.15) - 45 * 60,
-        totalBreakSeconds: 45 * 60,
-        notes: 'Full workday completed normally',
-      },
-    });
-
-    // Seed Today's Session (Active for first 6 employees, Paused for next 2)
-    const todayStart = new Date();
-    todayStart.setHours(9, 15, 0, 0);
-    const isOngoing = i < 8;
-
-    if (isOngoing) {
-      const todaySession = await prisma.workSession.create({
+      const pastSession = await prisma.workSession.create({
         data: {
           organizationId: org.id,
           employeeId: emp.id,
           deviceId: device.id,
           projectId: createdProjects[i % createdProjects.length].id,
           taskId: createdTasks[i % createdTasks.length].id,
-          startedAt: todayStart,
-          endedAt: null,
-          durationSeconds: Math.floor((now.getTime() - todayStart.getTime()) / 1000),
-          status: i === 3 ? WorkSessionStatus.PAUSED : WorkSessionStatus.ACTIVE,
+          startedAt: yesterdayStart,
+          endedAt: yesterdayEnd,
+          durationSeconds: durationSec,
+          status: WorkSessionStatus.COMPLETED,
           timezone: 'Asia/Kolkata',
           startSource: 'DESKTOP_AGENT',
-          notes: 'Daily sprint backlog execution',
+          endSource: 'MANUAL_STOP',
+          notes: 'Feature development and unit testing',
           ipAddress: '192.168.1.10' + i,
         },
       });
 
-      if (i === 3) {
-        // Paused on coffee break
-        await prisma.workSessionBreak.create({
-          data: {
-            organizationId: org.id,
-            workSessionId: todaySession.id,
-            employeeId: emp.id,
-            startedAt: new Date(now.getTime() - 15 * 60 * 1000),
-            endedAt: null,
-            durationSeconds: 15 * 60,
-            reason: 'Coffee & Stretch Break',
-          },
-        });
-      }
+      // Add a lunch break to past session
+      const breakStart = new Date(yesterdayStart.getTime() + 4 * 3600 * 1000);
+      const breakEnd = new Date(breakStart.getTime() + 45 * 60 * 1000); // 45 min
+      await prisma.workSessionBreak.create({
+        data: {
+          organizationId: org.id,
+          workSessionId: pastSession.id,
+          employeeId: emp.id,
+          startedAt: breakStart,
+          endedAt: breakEnd,
+          durationSeconds: 45 * 60,
+          reason: 'Lunch break',
+        },
+      });
 
-      // Generate realistic periodic activity heartbeats (every 5 mins over the past 3 hours)
-      const numHeartbeats = 15;
-      for (let h = 0; h < numHeartbeats; h++) {
-        const hbTime = new Date(now.getTime() - (numHeartbeats - h) * 5 * 60 * 1000);
-        const isActive = Math.random() > 0.15;
-        const activeSec = isActive ? 270 + Math.floor(Math.random() * 30) : 60;
-        const idleSec = 300 - activeSec;
-        const app = appPool[Math.floor(Math.random() * appPool.length)];
-
-        await prisma.activityRecord.create({
-          data: {
-            organizationId: org.id,
-            employeeId: emp.id,
-            workSessionId: todaySession.id,
-            deviceId: device.id,
-            capturedAt: hbTime,
-            activeSeconds: activeSec,
-            idleSeconds: idleSec,
-            activeApplication: app,
-            windowTitle: `${app} - PulseTime SaaS`,
-            keysPressed: Math.floor(Math.random() * 180),
-            mouseClicks: Math.floor(Math.random() * 85),
-          },
-        });
-
-        // Add screenshot every 2 heartbeats (approx every 10 min)
-        if (h % 2 === 0) {
-          await prisma.screenshot.create({
-            data: {
-              organizationId: org.id,
-              employeeId: emp.id,
-              workSessionId: todaySession.id,
-              projectId: createdProjects[i % createdProjects.length].id,
-              taskId: createdTasks[i % createdTasks.length].id,
-              capturedAt: hbTime,
-              storageKey: `screenshots/demo/${emp.employeeCode}_${hbTime.getTime()}.jpg`,
-              mimeType: 'image/jpeg',
-              fileSize: 185420 + Math.floor(Math.random() * 50000),
-              width: 1920,
-              height: 1080,
-              activityPercentage: Math.round((activeSec / 300) * 100),
-            },
-          });
-        }
-      }
-
-      // Attendance record for today (in progress)
-      const todayAttDate = new Date();
-      todayAttDate.setHours(0, 0, 0, 0);
+      // Attendance record for yesterday
+      const attDate = new Date(yesterdayStart);
+      attDate.setHours(0, 0, 0, 0);
       await prisma.attendanceRecord.upsert({
         where: {
           organizationId_employeeId_date: {
             organizationId: org.id,
             employeeId: emp.id,
-            date: todayAttDate,
+            date: attDate,
           },
         },
         update: {},
         create: {
           organizationId: org.id,
           employeeId: emp.id,
-          date: todayAttDate,
+          date: attDate,
           status: AttendanceStatus.PRESENT,
-          firstPunchIn: todayStart,
-          lastPunchOut: null,
-          totalWorkSeconds: Math.floor((now.getTime() - todayStart.getTime()) / 1000),
-          totalActiveSeconds: Math.floor((now.getTime() - todayStart.getTime()) / 1000 * 0.88),
-          totalIdleSeconds: Math.floor((now.getTime() - todayStart.getTime()) / 1000 * 0.12),
-          totalBreakSeconds: i === 3 ? 15 * 60 : 0,
+          firstPunchIn: yesterdayStart,
+          lastPunchOut: yesterdayEnd,
+          totalWorkSeconds: durationSec,
+          totalActiveSeconds: Math.floor(durationSec * 0.85),
+          totalIdleSeconds: Math.floor(durationSec * 0.15) - 45 * 60,
+          totalBreakSeconds: 45 * 60,
+          notes: 'Full workday completed normally',
         },
       });
+
+      // Seed Today's Session (Active for first 6 employees, Paused for next 2)
+      const todayStart = new Date();
+      todayStart.setHours(9, 15, 0, 0);
+      const isOngoing = i < 8;
+
+      if (isOngoing) {
+        const todaySession = await prisma.workSession.create({
+          data: {
+            organizationId: org.id,
+            employeeId: emp.id,
+            deviceId: device.id,
+            projectId: createdProjects[i % createdProjects.length].id,
+            taskId: createdTasks[i % createdTasks.length].id,
+            startedAt: todayStart,
+            endedAt: null,
+            durationSeconds: Math.floor((now.getTime() - todayStart.getTime()) / 1000),
+            status: i === 3 ? WorkSessionStatus.PAUSED : WorkSessionStatus.ACTIVE,
+            timezone: 'Asia/Kolkata',
+            startSource: 'DESKTOP_AGENT',
+            notes: 'Daily sprint backlog execution',
+            ipAddress: '192.168.1.10' + i,
+          },
+        });
+
+        if (i === 3) {
+          // Paused on coffee break
+          await prisma.workSessionBreak.create({
+            data: {
+              organizationId: org.id,
+              workSessionId: todaySession.id,
+              employeeId: emp.id,
+              startedAt: new Date(now.getTime() - 15 * 60 * 1000),
+              endedAt: null,
+              durationSeconds: 15 * 60,
+              reason: 'Coffee & Stretch Break',
+            },
+          });
+        }
+
+        // Generate realistic periodic activity heartbeats (every 5 mins over the past 3 hours)
+        const numHeartbeats = 15;
+        for (let h = 0; h < numHeartbeats; h++) {
+          const hbTime = new Date(now.getTime() - (numHeartbeats - h) * 5 * 60 * 1000);
+          const isActive = Math.random() > 0.15;
+          const activeSec = isActive ? 270 + Math.floor(Math.random() * 30) : 60;
+          const idleSec = 300 - activeSec;
+          const app = appPool[Math.floor(Math.random() * appPool.length)];
+
+          await prisma.activityRecord.create({
+            data: {
+              organizationId: org.id,
+              employeeId: emp.id,
+              workSessionId: todaySession.id,
+              deviceId: device.id,
+              capturedAt: hbTime,
+              activeSeconds: activeSec,
+              idleSeconds: idleSec,
+              activeApplication: app,
+              windowTitle: `${app} - PulseTime SaaS`,
+              keysPressed: Math.floor(Math.random() * 180),
+              mouseClicks: Math.floor(Math.random() * 85),
+            },
+          });
+
+          // Add screenshot every 2 heartbeats (approx every 10 min)
+          if (h % 2 === 0) {
+            await prisma.screenshot.create({
+              data: {
+                organizationId: org.id,
+                employeeId: emp.id,
+                workSessionId: todaySession.id,
+                projectId: createdProjects[i % createdProjects.length].id,
+                taskId: createdTasks[i % createdTasks.length].id,
+                capturedAt: hbTime,
+                storageKey: `screenshots/demo/${emp.employeeCode}_${hbTime.getTime()}.jpg`,
+                mimeType: 'image/jpeg',
+                fileSize: 185420 + Math.floor(Math.random() * 50000),
+                width: 1920,
+                height: 1080,
+                activityPercentage: Math.round((activeSec / 300) * 100),
+              },
+            });
+          }
+        }
+
+        // Attendance record for today (in progress)
+        const todayAttDate = new Date();
+        todayAttDate.setHours(0, 0, 0, 0);
+        await prisma.attendanceRecord.upsert({
+          where: {
+            organizationId_employeeId_date: {
+              organizationId: org.id,
+              employeeId: emp.id,
+              date: todayAttDate,
+            },
+          },
+          update: {},
+          create: {
+            organizationId: org.id,
+            employeeId: emp.id,
+            date: todayAttDate,
+            status: AttendanceStatus.PRESENT,
+            firstPunchIn: todayStart,
+            lastPunchOut: null,
+            totalWorkSeconds: Math.floor((now.getTime() - todayStart.getTime()) / 1000),
+            totalActiveSeconds: Math.floor((now.getTime() - todayStart.getTime()) / 1000 * 0.88),
+            totalIdleSeconds: Math.floor((now.getTime() - todayStart.getTime()) / 1000 * 0.12),
+            totalBreakSeconds: i === 3 ? 15 * 60 : 0,
+          },
+        });
+      }
     }
   }
 
   // 10. Seed Leave Requests & Manual Time Entries
   console.log('10. Seeding Leave Requests & Manual Time Approvals...');
-  await prisma.leaveRequest.create({
-    data: {
-      organizationId: org.id,
-      employeeId: createdEmployees[4].id, // Emily Watson
-      leaveTypeId: leaveTypeMap['Paid Time Off (PTO)'],
-      startDate: new Date('2026-10-05'),
-      endDate: new Date('2026-10-07'),
-      daysCount: 3,
-      reason: 'Family wedding and travel',
-      status: LeaveStatus.PENDING,
-    },
+  const existingLeavesCount = await prisma.leaveRequest.count({
+    where: { organizationId: org.id },
   });
+  if (existingLeavesCount === 0) {
+    await prisma.leaveRequest.create({
+      data: {
+        organizationId: org.id,
+        employeeId: createdEmployees[4].id, // Emily Watson
+        leaveTypeId: leaveTypeMap['Paid Time Off (PTO)'],
+        startDate: new Date('2026-10-05'),
+        endDate: new Date('2026-10-07'),
+        daysCount: 3,
+        reason: 'Family wedding and travel',
+        status: LeaveStatus.PENDING,
+      },
+    });
 
-  await prisma.leaveRequest.create({
-    data: {
-      organizationId: org.id,
-      employeeId: createdEmployees[5].id, // Robert Chen
-      leaveTypeId: leaveTypeMap['Sick Leave'],
-      startDate: new Date('2026-09-20'),
-      endDate: new Date('2026-09-21'),
-      daysCount: 1,
-      reason: 'Doctor dental surgery recovery',
-      status: LeaveStatus.APPROVED,
-      approvedById: createdEmployees[2].id, // Manager
-      actionedAt: new Date('2026-09-20T10:00:00Z'),
-    },
-  });
+    await prisma.leaveRequest.create({
+      data: {
+        organizationId: org.id,
+        employeeId: createdEmployees[5].id, // Robert Chen
+        leaveTypeId: leaveTypeMap['Sick Leave'],
+        startDate: new Date('2026-09-20'),
+        endDate: new Date('2026-09-21'),
+        daysCount: 1,
+        reason: 'Doctor dental surgery recovery',
+        status: LeaveStatus.APPROVED,
+        approvedById: createdEmployees[2].id, // Manager
+        actionedAt: new Date('2026-09-20T10:00:00Z'),
+      },
+    });
+  }
 
   // Manual Time Correction Request
-  const yesterdayCorrectionDate = new Date();
-  yesterdayCorrectionDate.setDate(yesterdayCorrectionDate.getDate() - 2);
-  const mStart = new Date(yesterdayCorrectionDate);
-  mStart.setHours(14, 0, 0, 0);
-  const mEnd = new Date(yesterdayCorrectionDate);
-  mEnd.setHours(16, 0, 0, 0);
-
-  await prisma.manualTimeEntry.create({
-    data: {
-      organizationId: org.id,
-      employeeId: createdEmployees[3].id, // John Doe
-      date: yesterdayCorrectionDate,
-      startTime: mStart,
-      endTime: mEnd,
-      durationSeconds: 7200,
-      reason: 'Internet power outage at home; worked offline on local architecture diagrams.',
-      status: TimeApprovalStatus.PENDING,
-      createdById: createdEmployees[3].userId,
-    },
+  const existingManualTimeCount = await prisma.manualTimeEntry.count({
+    where: { organizationId: org.id },
   });
+  if (existingManualTimeCount === 0) {
+    const yesterdayCorrectionDate = new Date();
+    yesterdayCorrectionDate.setDate(yesterdayCorrectionDate.getDate() - 2);
+    const mStart = new Date(yesterdayCorrectionDate);
+    mStart.setHours(14, 0, 0, 0);
+    const mEnd = new Date(yesterdayCorrectionDate);
+    mEnd.setHours(16, 0, 0, 0);
+
+    await prisma.manualTimeEntry.create({
+      data: {
+        organizationId: org.id,
+        employeeId: createdEmployees[3].id, // John Doe
+        date: yesterdayCorrectionDate,
+        startTime: mStart,
+        endTime: mEnd,
+        durationSeconds: 7200,
+        reason: 'Internet power outage at home; worked offline on local architecture diagrams.',
+        status: TimeApprovalStatus.PENDING,
+        createdById: createdEmployees[3].userId,
+      },
+    });
+  }
 
   console.log('✅ Database seed completed successfully!');
   console.log('----------------------------------------------------');
