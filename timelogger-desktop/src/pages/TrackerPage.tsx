@@ -71,6 +71,27 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     const todayStr = getTodayDateStr();
     updatePendingCount();
 
+    // Check if this specific employee has an entry in the local array for today
+    const employeeIdentifier = employee?.email || employee?.id;
+    const cachedDaily = storage.getDailyState(employeeIdentifier, todayStr);
+
+    if (cachedDaily && cachedDaily.date === todayStr) {
+      setTodayWorkedSeconds(cachedDaily.workedSeconds || 0);
+      setTodayActiveSeconds(cachedDaily.activeSeconds || 0);
+      setTodayIdleSeconds(cachedDaily.idleSeconds || 0);
+      setTodayBreakSeconds(cachedDaily.breakSeconds || 0);
+      setLastPunchOutTime(cachedDaily.lastPunchOutTime || '');
+      setSessionSeconds(0);
+    } else {
+      // Clean slate for newly logged in employee (never inherit other users' times)
+      setTodayWorkedSeconds(0);
+      setTodayActiveSeconds(0);
+      setTodayIdleSeconds(0);
+      setTodayBreakSeconds(0);
+      setLastPunchOutTime('');
+      setSessionSeconds(0);
+    }
+
     try {
       // 1. Fetch Authoritative Summary for THIS logged-in Employee from Database
       const summary = await agentApi.getTodaySummary(todayStr);
@@ -102,7 +123,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           window.electronAPI?.updateTrayStatus('Offline');
         }
 
-        // Cache this user's isolated daily state locally
+        // Cache this user's isolated daily state in the employee array
         storage.setDailyState(
           {
             date: todayStr,
@@ -112,36 +133,23 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             breakSeconds: summary.breakSeconds || 0,
             lastPunchOutTime: summary.lastPunchOutTime || '',
           },
-          employee?.id,
+          employee,
         );
-      } else {
-        restoreLocalState(todayStr);
       }
     } catch {
-      restoreLocalState(todayStr);
+      // If offline, preserve the cachedDaily numbers for this specific employee
+      if (!cachedDaily) {
+        setTodayWorkedSeconds(0);
+        setTodayActiveSeconds(0);
+        setTodayIdleSeconds(0);
+        setTodayBreakSeconds(0);
+        setSessionSeconds(0);
+        setLastPunchOutTime('');
+      }
     }
 
     loadProjectsAndTasks();
-  }, [employee?.id, updatePendingCount]);
-
-  const restoreLocalState = (todayStr: string) => {
-    const daily = storage.getDailyState(employee?.id);
-    if (daily && daily.date === todayStr) {
-      setTodayWorkedSeconds(daily.workedSeconds || 0);
-      setTodayActiveSeconds(daily.activeSeconds || 0);
-      setTodayIdleSeconds(daily.idleSeconds || 0);
-      setTodayBreakSeconds(daily.breakSeconds || 0);
-      setLastPunchOutTime(daily.lastPunchOutTime || '');
-      setSessionSeconds(0);
-    } else {
-      setTodayWorkedSeconds(0);
-      setTodayActiveSeconds(0);
-      setTodayIdleSeconds(0);
-      setTodayBreakSeconds(0);
-      setSessionSeconds(0);
-      setLastPunchOutTime('');
-    }
-  };
+  }, [employee, updatePendingCount]);
 
   useEffect(() => {
     loadInitialData();
@@ -274,6 +282,27 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
     return () => clearInterval(timer);
   }, [status, idleThreshold]);
+
+  // Periodic persistence of this employee's active runtime metrics
+  useEffect(() => {
+    if (status === 'OFFLINE' || !employee) return;
+    const interval = setInterval(() => {
+      const todayStr = getTodayDateStr();
+      storage.setDailyState(
+        {
+          date: todayStr,
+          workedSeconds: todayWorkedSeconds,
+          activeSeconds: todayActiveSeconds,
+          idleSeconds: todayIdleSeconds,
+          breakSeconds: todayBreakSeconds,
+          lastPunchOutTime,
+        },
+        employee,
+      );
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [status, employee, todayWorkedSeconds, todayActiveSeconds, todayIdleSeconds, todayBreakSeconds, lastPunchOutTime]);
 
   // 3. Telemetry Heartbeat Scheduler (Every 60s)
   useEffect(() => {
@@ -498,7 +527,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           breakSeconds: todayBreakSeconds,
           lastPunchOutTime: punchOutStr,
         },
-        employee?.id,
+        employee,
       );
 
       setStatus('OFFLINE');
@@ -624,6 +653,21 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
   };
 
   const handleLogoutWithReset = () => {
+    if (employee) {
+      const todayStr = getTodayDateStr();
+      storage.setDailyState(
+        {
+          date: todayStr,
+          workedSeconds: todayWorkedSeconds,
+          activeSeconds: todayActiveSeconds,
+          idleSeconds: todayIdleSeconds,
+          breakSeconds: todayBreakSeconds,
+          lastPunchOutTime,
+        },
+        employee,
+      );
+    }
+
     setStatus('OFFLINE');
     setActiveSession(null);
     setSessionSeconds(0);

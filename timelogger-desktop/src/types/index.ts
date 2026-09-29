@@ -102,3 +102,17 @@ export interface OfflineQueueItem {
   createdAt: string;
   retries: number;
 }
+
+export interface EmployeeDailyState {
+  employeeId?: string;
+  employeeEmail: string;
+  employeeName?: string;
+  date: string;
+  workedSeconds: number;
+  activeSeconds: number;
+  idleSeconds: number;
+  breakSeconds: number;
+  lastPunchOutTime?: string;
+  updatedAt?: string;
+}
+

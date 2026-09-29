@@ -1,4 +1,4 @@
-import { EmployeeInfo, OrganizationInfo, DeviceInfo, WorkScheduleInfo, OfflineQueueItem } from '../types';
+import { EmployeeInfo, OrganizationInfo, DeviceInfo, WorkScheduleInfo, OfflineQueueItem, EmployeeDailyState } from '../types';
 
 const STORAGE_KEYS = {
   SERVER_URL: 'pulsetime_server_url',
@@ -45,7 +45,6 @@ export const storage = {
   },
 
   clearAuth() {
-    const empId = this.getEmployee()?.id;
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.EMPLOYEE);
@@ -54,10 +53,6 @@ export const storage = {
     localStorage.removeItem(STORAGE_KEYS.SCHEDULE);
     localStorage.removeItem(STORAGE_KEYS.LAST_PROJECT_ID);
     localStorage.removeItem(STORAGE_KEYS.LAST_TASK_ID);
-    if (empId) {
-      localStorage.removeItem(`${STORAGE_KEYS.DAILY_STATE}_${empId}`);
-    }
-    localStorage.removeItem(STORAGE_KEYS.DAILY_STATE);
   },
 
   getEmployee(): EmployeeInfo | null {
@@ -179,20 +174,59 @@ export const storage = {
     localStorage.setItem('pulsetime_offline_screenshots', JSON.stringify(list));
   },
 
-  getDailyState(employeeId?: string): {
-    date: string;
-    workedSeconds: number;
-    activeSeconds: number;
-    idleSeconds: number;
-    breakSeconds: number;
-    lastPunchOutTime?: string;
-  } | null {
-    const empId = employeeId || this.getEmployee()?.id || 'default';
-    const raw = localStorage.getItem(`${STORAGE_KEYS.DAILY_STATE}_${empId}`);
-    if (raw) return JSON.parse(raw);
-    return null;
+  /**
+   * Retrieves the full array of employee daily states from localStorage
+   */
+  getDailyStateArray(): EmployeeDailyState[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.DAILY_STATE);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      } else if (parsed && typeof parsed === 'object' && parsed.date) {
+        // Handle legacy single-object format by wrapping it
+        return [
+          {
+            employeeEmail: 'legacy@demo.local',
+            employeeId: 'legacy',
+            employeeName: 'Legacy User',
+            ...parsed,
+          },
+        ];
+      }
+      return [];
+    } catch {
+      return [];
+    }
   },
 
+  /**
+   * Finds the daily state for a specific employee by email or employee ID
+   */
+  getDailyState(emailOrId?: string, targetDate?: string): EmployeeDailyState | null {
+    const emp = this.getEmployee();
+    const identifier = (emailOrId || emp?.email || emp?.id || '').toLowerCase().trim();
+    if (!identifier) return null;
+
+    const list = this.getDailyStateArray();
+    const today = targetDate || new Date().toISOString().split('T')[0];
+
+    const match = list.find(
+      (item) =>
+        (item.employeeEmail?.toLowerCase() === identifier ||
+          item.employeeId?.toLowerCase() === identifier ||
+          (emp?.id && item.employeeId === emp.id) ||
+          (emp?.email && item.employeeEmail?.toLowerCase() === emp.email.toLowerCase())) &&
+        item.date === today,
+    );
+
+    return match || null;
+  },
+
+  /**
+   * Updates or appends the daily state for a specific employee in the array
+   */
   setDailyState(
     state: {
       date: string;
@@ -202,9 +236,46 @@ export const storage = {
       breakSeconds: number;
       lastPunchOutTime?: string;
     },
-    employeeId?: string,
+    employee?: { id?: string; email?: string; displayName?: string; firstName?: string; lastName?: string } | null,
   ) {
-    const empId = employeeId || this.getEmployee()?.id || 'default';
-    localStorage.setItem(`${STORAGE_KEYS.DAILY_STATE}_${empId}`, JSON.stringify(state));
+    const emp = employee || this.getEmployee();
+    const email = (emp?.email || 'unknown@demo.local').toLowerCase().trim();
+    const id = emp?.id || '';
+    const name =
+      emp?.displayName || (emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : 'PulseTime User');
+
+    let list = this.getDailyStateArray();
+
+    // Clean up entries older than 7 days
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    list = list.filter((item) => item.date >= sevenDaysAgo);
+
+    const existingIndex = list.findIndex(
+      (item) =>
+        (item.employeeEmail?.toLowerCase() === email || (id && item.employeeId === id)) &&
+        item.date === state.date,
+    );
+
+    const entry: EmployeeDailyState = {
+      employeeEmail: email,
+      employeeId: id,
+      employeeName: name,
+      date: state.date,
+      workedSeconds: state.workedSeconds,
+      activeSeconds: state.activeSeconds,
+      idleSeconds: state.idleSeconds,
+      breakSeconds: state.breakSeconds,
+      lastPunchOutTime: state.lastPunchOutTime || '',
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (existingIndex >= 0) {
+      list[existingIndex] = entry;
+    } else {
+      list.push(entry);
+    }
+
+    localStorage.setItem(STORAGE_KEYS.DAILY_STATE, JSON.stringify(list));
   },
 };
+
