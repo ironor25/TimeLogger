@@ -559,7 +559,7 @@ export class WorkSessionsService {
 
     return {
       date: todayStr,
-      workedSeconds: totalWorkedSeconds,
+      workedSeconds: totalActiveSeconds,
       activeSeconds: totalActiveSeconds,
       idleSeconds: totalIdleSeconds,
       breakSeconds: totalBreakSeconds,
