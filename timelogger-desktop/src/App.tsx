@@ -33,7 +33,7 @@ export function App() {
           <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} />
         </>
       ) : (
-        <TrackerPage onLogout={handleLogout} />
+        <TrackerPage key={storage.getEmployee()?.id || 'tracker-user'} onLogout={handleLogout} />
       )}
     </div>
   );

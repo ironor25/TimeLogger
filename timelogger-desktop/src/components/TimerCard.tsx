@@ -4,7 +4,8 @@ import { SessionStatus } from '../types';
 
 interface TimerCardProps {
   status: SessionStatus;
-  elapsedSeconds: number;
+  sessionSeconds: number;
+  todayWorkedSeconds: number;
   breakSeconds: number;
   isIdle: boolean;
   idleSeconds: number;
@@ -19,7 +20,8 @@ interface TimerCardProps {
 
 export const TimerCard: React.FC<TimerCardProps> = ({
   status,
-  elapsedSeconds,
+  sessionSeconds,
+  todayWorkedSeconds,
   breakSeconds,
   isIdle,
   idleSeconds,
@@ -41,7 +43,11 @@ export const TimerCard: React.FC<TimerCardProps> = ({
   const formatHoursMins = (totalSeconds: number) => {
     const hrs = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
-    return `${hrs}h ${mins}m`;
+    const secs = totalSeconds % 60;
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m ${secs}s`;
+    }
+    return `${mins}m ${secs}s`;
   };
 
   const isActive = status === 'ACTIVE';
@@ -86,7 +92,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
         {status !== 'OFFLINE' && (
           <button
             onClick={onOpenNotes}
-            className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 bg-slate-700/50 hover:bg-slate-700 px-2 py-1 rounded-lg transition-colors border border-slate-600/40"
+            className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 bg-slate-700/50 hover:bg-slate-700 px-2 py-1 rounded-lg transition-colors border border-slate-600/40 cursor-pointer"
           >
             <FileText className="w-3 h-3 text-blue-400" />
             <span>Memo</span>
@@ -97,18 +103,22 @@ export const TimerCard: React.FC<TimerCardProps> = ({
       {/* Big Digital Timer Display */}
       <div className="text-center py-2">
         <div className="font-mono text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
-          {isBreak ? formatHoursMins(breakSeconds) : formatTime(elapsedSeconds)}
+          {isBreak
+            ? formatTime(breakSeconds)
+            : isActive
+            ? formatTime(sessionSeconds)
+            : '00:00:00'}
         </div>
         <p className="text-[11px] text-slate-400 font-medium mt-1">
           {isBreak
-            ? `Break Duration (Work Paused at ${formatTime(elapsedSeconds)})`
+            ? `Break Duration • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
             : isActive
-            ? 'Today Total Tracked'
+            ? `Current Shift • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
             : lastPunchOutTime
-            ? `Punched Out at ${lastPunchOutTime} • Total Worked: ${formatTime(elapsedSeconds)}`
-            : elapsedSeconds > 0
-            ? `Total Recorded Today: ${formatTime(elapsedSeconds)}`
-            : 'Ready to Start Work'}
+            ? `Last Out: ${lastPunchOutTime} • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
+            : todayWorkedSeconds > 0
+            ? `Today Total: ${formatHoursMins(todayWorkedSeconds)}`
+            : 'Ready to Punch In'}
         </p>
       </div>
 
@@ -118,10 +128,10 @@ export const TimerCard: React.FC<TimerCardProps> = ({
           <button
             onClick={onStartSession}
             disabled={loading}
-            className="col-span-2 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50"
+            className="col-span-2 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50 cursor-pointer"
           >
             <Play className="w-4 h-4 fill-white" />
-            <span>{loading ? 'Starting...' : elapsedSeconds > 0 ? 'Resume Work' : 'Punch In (Start Work)'}</span>
+            <span>{loading ? 'Starting...' : todayWorkedSeconds > 0 ? 'Punch In (Resume Today)' : 'Punch In (Start Work)'}</span>
           </button>
         ) : (
           <>
@@ -129,7 +139,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
               <button
                 onClick={onEndBreak}
                 disabled={loading}
-                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
                 <PlayCircle className="w-3.5 h-3.5" />
                 <span>Resume Work</span>
@@ -138,7 +148,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
               <button
                 onClick={onStartBreak}
                 disabled={loading}
-                className="py-2.5 px-3 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-amber-300 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-600/50 transition-all active:scale-[0.98] disabled:opacity-50"
+                className="py-2.5 px-3 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-amber-300 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-600/50 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
                 <Coffee className="w-3.5 h-3.5" />
                 <span>Take Break</span>
@@ -148,7 +158,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
             <button
               onClick={onStopSession}
               disabled={loading}
-              className="py-2.5 px-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-red-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
+              className="py-2.5 px-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-red-600/20 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               <Square className="w-3.5 h-3.5 fill-white" />
               <span>Punch Out</span>

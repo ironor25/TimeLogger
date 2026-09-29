@@ -26,17 +26,17 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
   const [status, setStatus] = useState<SessionStatus>('OFFLINE');
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [breakSeconds, setBreakSeconds] = useState(0);
-  const [isIdle, setIsIdle] = useState(false);
-  const [idleSeconds, setIdleSeconds] = useState(0);
+  const [sessionSeconds, setSessionSeconds] = useState<number>(0);
+  const [breakSeconds, setBreakSeconds] = useState<number>(0);
+  const [isIdle, setIsIdle] = useState<boolean>(false);
+  const [idleSeconds, setIdleSeconds] = useState<number>(0);
   const [lastPunchOutTime, setLastPunchOutTime] = useState<string>('');
 
   // Today aggregates
-  const [todayWorkedSeconds, setTodayWorkedSeconds] = useState(0);
-  const [todayActiveSeconds, setTodayActiveSeconds] = useState(0);
-  const [todayIdleSeconds, setTodayIdleSeconds] = useState(0);
-  const [todayBreakSeconds, setTodayBreakSeconds] = useState(0);
+  const [todayWorkedSeconds, setTodayWorkedSeconds] = useState<number>(0);
+  const [todayActiveSeconds, setTodayActiveSeconds] = useState<number>(0);
+  const [todayIdleSeconds, setTodayIdleSeconds] = useState<number>(0);
+  const [todayBreakSeconds, setTodayBreakSeconds] = useState<number>(0);
   const [screenshots, setScreenshots] = useState<CapturedScreenshot[]>([]);
 
   // Projects & Tasks
@@ -80,7 +80,6 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         setTodayActiveSeconds(summary.activeSeconds || 0);
         setTodayIdleSeconds(summary.idleSeconds || 0);
         setTodayBreakSeconds(summary.breakSeconds || 0);
-        setElapsedSeconds(summary.workedSeconds || 0);
         setLastPunchOutTime(summary.lastPunchOutTime || '');
 
         if (summary.activeSession) {
@@ -90,10 +89,16 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
           const isPaused = summary.activeSession.status === 'PAUSED';
           setStatus(isPaused ? 'BREAK' : 'ACTIVE');
+
+          const startMs = new Date(summary.activeSession.startedAt).getTime();
+          const curElapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+          setSessionSeconds(curElapsed);
+
           window.electronAPI?.updateTrayStatus(isPaused ? 'On Break' : 'Working');
         } else {
           setActiveSession(null);
           setStatus('OFFLINE');
+          setSessionSeconds(0);
           window.electronAPI?.updateTrayStatus('Offline');
         }
 
@@ -110,7 +115,6 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           employee?.id,
         );
       } else {
-        // Fallback to local isolated state if offline or no DB summary
         restoreLocalState(todayStr);
       }
     } catch {
@@ -127,14 +131,14 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       setTodayActiveSeconds(daily.activeSeconds || 0);
       setTodayIdleSeconds(daily.idleSeconds || 0);
       setTodayBreakSeconds(daily.breakSeconds || 0);
-      setElapsedSeconds(daily.workedSeconds || 0);
       setLastPunchOutTime(daily.lastPunchOutTime || '');
+      setSessionSeconds(0);
     } else {
       setTodayWorkedSeconds(0);
       setTodayActiveSeconds(0);
       setTodayIdleSeconds(0);
       setTodayBreakSeconds(0);
-      setElapsedSeconds(0);
+      setSessionSeconds(0);
       setLastPunchOutTime('');
     }
   };
@@ -154,16 +158,12 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
       if (res.syncedSessions > 0 || res.syncedScreenshots > 0 || res.syncedTelemetry > 0) {
         console.log(`[SYNC] Synced ${res.syncedSessions} sessions, ${res.syncedScreenshots} screenshots, ${res.syncedTelemetry} telemetry`);
-        // Refresh today summary to update DB counts
         const todayStr = getTodayDateStr();
         const summary = await agentApi.getTodaySummary(todayStr);
         if (summary) {
           setTodayWorkedSeconds(summary.workedSeconds || 0);
           setTodayActiveSeconds(summary.activeSeconds || 0);
           setTodayBreakSeconds(summary.breakSeconds || 0);
-          if (status === 'OFFLINE') {
-            setElapsedSeconds(summary.workedSeconds || 0);
-          }
         }
       }
     } catch (err) {
@@ -171,7 +171,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     } finally {
       setIsSyncing(false);
     }
-  }, [isSyncing, status, updatePendingCount]);
+  }, [isSyncing, updatePendingCount]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -186,7 +186,6 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Periodic sync every 20s
     const syncInterval = setInterval(() => {
       if (navigator.onLine) {
         runSync();
@@ -242,26 +241,14 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
   // 2. High Resolution Timer Loop (1s Tick)
   useEffect(() => {
+    if (status === 'OFFLINE') return;
+
     const timer = setInterval(async () => {
       const todayStr = getTodayDateStr();
 
       if (status === 'ACTIVE') {
-        setElapsedSeconds((prev) => prev + 1);
-        setTodayWorkedSeconds((prev) => {
-          const next = prev + 1;
-          storage.setDailyState(
-            {
-              date: todayStr,
-              workedSeconds: next,
-              activeSeconds: todayActiveSeconds + 1,
-              idleSeconds: todayIdleSeconds,
-              breakSeconds: todayBreakSeconds,
-              lastPunchOutTime,
-            },
-            employee?.id,
-          );
-          return next;
-        });
+        setSessionSeconds((prev) => prev + 1);
+        setTodayWorkedSeconds((prev) => prev + 1);
 
         // Check system idle seconds
         let currentIdle = 0;
@@ -281,35 +268,12 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         }
       } else if (status === 'BREAK') {
         setBreakSeconds((prev) => prev + 1);
-        setTodayBreakSeconds((prev) => {
-          const next = prev + 1;
-          storage.setDailyState(
-            {
-              date: todayStr,
-              workedSeconds: todayWorkedSeconds,
-              activeSeconds: todayActiveSeconds,
-              idleSeconds: todayIdleSeconds,
-              breakSeconds: next,
-              lastPunchOutTime,
-            },
-            employee?.id,
-          );
-          return next;
-        });
+        setTodayBreakSeconds((prev) => prev + 1);
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [
-    status,
-    idleThreshold,
-    todayWorkedSeconds,
-    todayActiveSeconds,
-    todayIdleSeconds,
-    todayBreakSeconds,
-    lastPunchOutTime,
-    employee?.id,
-  ]);
+  }, [status, idleThreshold]);
 
   // 3. Telemetry Heartbeat Scheduler (Every 60s)
   useEffect(() => {
@@ -442,9 +406,6 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
   const handleStartSession = async () => {
     setLoading(true);
     try {
-      const todayStr = getTodayDateStr();
-      const currentBase = todayWorkedSeconds;
-
       let session: ActiveSession;
 
       if (navigator.onLine) {
@@ -464,7 +425,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
       setActiveSession(session);
       setStatus('ACTIVE');
-      setElapsedSeconds(currentBase);
+      setSessionSeconds(0);
       setBreakSeconds(0);
 
       // Send initial heartbeat if online
@@ -526,13 +487,12 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     try {
       const now = new Date();
       const punchOutStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const currentWorked = todayWorkedSeconds;
       const todayStr = getTodayDateStr();
 
       storage.setDailyState(
         {
           date: todayStr,
-          workedSeconds: currentWorked,
+          workedSeconds: todayWorkedSeconds,
           activeSeconds: todayActiveSeconds,
           idleSeconds: todayIdleSeconds,
           breakSeconds: todayBreakSeconds,
@@ -544,11 +504,10 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       setStatus('OFFLINE');
       setActiveSession(null);
       setLastPunchOutTime(punchOutStr);
-      setElapsedSeconds(currentWorked);
+      setSessionSeconds(0);
       setBreakSeconds(0);
 
       if (activeSession.id.startsWith('offline_')) {
-        // Queue offline session completion
         storage.addToOfflineQueue({
           type: 'SESSION_STOP',
           endpoint: '/agent/work-sessions/sync-offline',
@@ -594,7 +553,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       window.electronAPI?.updateTrayStatus('Offline');
       window.electronAPI?.notify({
         title: 'Work Session Stopped',
-        body: `Punched out at ${punchOutStr}. Recorded: ${Math.floor(currentWorked / 3600)}h ${Math.floor((currentWorked % 3600) / 60)}m`,
+        body: `Punched out at ${punchOutStr}. Today Total: ${Math.floor(todayWorkedSeconds / 3600)}h ${Math.floor((todayWorkedSeconds % 3600) / 60)}m`,
       });
     } catch (err: any) {
       alert(err.message || 'Failed to stop session');
@@ -665,10 +624,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
   };
 
   const handleLogoutWithReset = () => {
-    // Reset local state completely so next login starts totally clean
     setStatus('OFFLINE');
     setActiveSession(null);
-    setElapsedSeconds(0);
+    setSessionSeconds(0);
     setTodayWorkedSeconds(0);
     setTodayActiveSeconds(0);
     setTodayIdleSeconds(0);
@@ -726,7 +684,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
             {lastPunchOutTime && status === 'OFFLINE' && (
               <div className="text-[10px] text-slate-400 bg-slate-800/80 px-2 py-1 rounded-md border border-slate-700/60 hidden sm:block">
-                Last Punch Out: <span className="text-slate-200 font-semibold">{lastPunchOutTime}</span>
+                Last Out: <span className="text-slate-200 font-semibold">{lastPunchOutTime}</span>
               </div>
             )}
 
@@ -745,7 +703,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         {/* Live Timer Card */}
         <TimerCard
           status={status}
-          elapsedSeconds={elapsedSeconds}
+          sessionSeconds={sessionSeconds}
+          todayWorkedSeconds={todayWorkedSeconds}
           breakSeconds={breakSeconds}
           isIdle={isIdle}
           idleSeconds={idleSeconds}
