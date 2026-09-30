@@ -105,7 +105,7 @@ function TimelinesPageContent() {
   const formatDateHeader = (dateStr: string) => {
     try {
       const d = new Date(dateStr);
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
     } catch {
       return dateStr;
     }
@@ -141,23 +141,23 @@ function TimelinesPageContent() {
     <AppLayout>
       <div className="space-y-6">
         {/* Top Header & Search / Filter Controls */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-[#e0e0e0] pb-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Visual Work Timelines</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Employee session-by-session activity, tracked time, breaks, and screenshot captures
+            <h1 className="text-2xl font-light text-[#161616] tracking-tight">Visual Work Timelines</h1>
+            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">
+              Employee session telemetry, activity breakdowns, breaks, and periodic screen captures
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Employee Search & Selector */}
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-xs">
-              <User className="w-4 h-4 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-2 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5">
+              <User className="w-3.5 h-3.5 text-[#525252] shrink-0" />
               <div className="relative">
                 <select
                   value={activeEmpId}
                   onChange={(e) => setEmployeeId(e.target.value)}
-                  className="focus:outline-none text-slate-800 bg-transparent text-xs font-semibold cursor-pointer pr-4"
+                  className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal cursor-pointer pr-4 tracking-carbon"
                 >
                   <option value="">All Employees</option>
                   {filteredEmployees.map((emp: any) => (
@@ -170,80 +170,80 @@ function TimelinesPageContent() {
             </div>
 
             {/* Date Selector */}
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-xs">
-              <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-2 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[#525252] shrink-0" />
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="focus:outline-none text-slate-800 text-xs font-semibold bg-transparent cursor-pointer"
+                className="focus:outline-none text-[#161616] text-xs font-medium bg-transparent cursor-pointer tracking-carbon"
               />
             </div>
           </div>
         </div>
 
-        {/* 6 Top Metric Cards (Matching User Reference Image 1) */}
+        {/* 6 Top Metric Cards (Carbon Styling) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {/* 1. Time Worked (Indigo) */}
-          <div className="bg-[#4F46E5] text-white rounded-2xl p-4 shadow-sm flex flex-col justify-between min-h-[96px] transition-transform hover:scale-[1.02]">
-            <div className="text-2xl font-black tracking-tight drop-shadow-xs">
+          {/* 1. Time Worked */}
+          <div className="bg-white border border-[#e0e0e0] p-4 rounded-none flex flex-col justify-between min-h-[96px]">
+            <div className="text-2xl font-light text-[#0f62fe] tracking-tight">
               {summary?.formattedWorked || '0h'}
             </div>
-            <div className="text-xs font-medium text-indigo-100/90 mt-1">Time Worked</div>
+            <div className="text-xs font-normal text-[#525252] mt-1 tracking-carbon">Time Worked</div>
           </div>
 
-          {/* 2. Timer Active (Vibrant Green) */}
-          <div className="bg-[#22C55E] text-white rounded-2xl p-4 shadow-sm flex flex-col justify-between min-h-[96px] transition-transform hover:scale-[1.02]">
-            <div className="text-2xl font-black tracking-tight drop-shadow-xs">
+          {/* 2. Timer Active */}
+          <div className="bg-white border border-[#e0e0e0] p-4 rounded-none flex flex-col justify-between min-h-[96px]">
+            <div className="text-2xl font-light text-[#24a148] tracking-tight">
               {summary?.formattedTimerActive || '0h'}
             </div>
-            <div className="text-xs font-medium text-green-100/90 mt-1">Timer (Active)</div>
+            <div className="text-xs font-normal text-[#525252] mt-1 tracking-carbon">Timer (Active)</div>
           </div>
 
-          {/* 3. Manual Entry (Amber/Orange) */}
-          <div className="bg-[#F59E0B] text-white rounded-2xl p-4 shadow-sm flex flex-col justify-between min-h-[96px] transition-transform hover:scale-[1.02]">
-            <div className="text-2xl font-black tracking-tight drop-shadow-xs">
+          {/* 3. Manual Entry */}
+          <div className="bg-white border border-[#e0e0e0] p-4 rounded-none flex flex-col justify-between min-h-[96px]">
+            <div className="text-2xl font-light text-[#6d4f00] tracking-tight">
               {summary?.formattedManual || '0h'}
             </div>
-            <div className="text-xs font-medium text-amber-100/90 mt-1">Manual Entry</div>
+            <div className="text-xs font-normal text-[#525252] mt-1 tracking-carbon">Manual Entry</div>
           </div>
 
-          {/* 4. Meeting / Break Hours (Teal) */}
-          <div className="bg-[#0D9488] text-white rounded-2xl p-4 shadow-sm flex flex-col justify-between min-h-[96px] transition-transform hover:scale-[1.02]">
-            <div className="text-2xl font-black tracking-tight drop-shadow-xs">
+          {/* 4. Meeting / Break Hours */}
+          <div className="bg-white border border-[#e0e0e0] p-4 rounded-none flex flex-col justify-between min-h-[96px]">
+            <div className="text-2xl font-light text-[#0043ce] tracking-tight">
               {summary?.formattedMeeting || summary?.formattedBreak || '0h'}
             </div>
-            <div className="text-xs font-medium text-teal-100/90 mt-1">Meeting Hours</div>
+            <div className="text-xs font-normal text-[#525252] mt-1 tracking-carbon">Break / Meeting</div>
           </div>
 
-          {/* 5. Idle Time (Red) */}
-          <div className="bg-[#EF4444] text-white rounded-2xl p-4 shadow-sm flex flex-col justify-between min-h-[96px] transition-transform hover:scale-[1.02]">
-            <div className="text-2xl font-black tracking-tight drop-shadow-xs">
+          {/* 5. Idle Time */}
+          <div className="bg-white border border-[#e0e0e0] p-4 rounded-none flex flex-col justify-between min-h-[96px]">
+            <div className="text-2xl font-light text-[#da1e28] tracking-tight">
               {summary?.formattedIdle || '0h'}
             </div>
-            <div className="text-xs font-medium text-red-100/90 mt-1">Idle Time</div>
+            <div className="text-xs font-normal text-[#525252] mt-1 tracking-carbon">Idle Time</div>
           </div>
 
-          {/* 6. Employees Worked (White / Gray) */}
-          <div className="bg-slate-50 border border-slate-200 text-slate-900 rounded-2xl p-4 shadow-sm flex flex-col justify-between min-h-[96px] transition-transform hover:scale-[1.02]">
-            <div className="text-2xl font-black tracking-tight text-slate-900">
+          {/* 6. Employees Worked */}
+          <div className="bg-white border border-[#e0e0e0] p-4 rounded-none flex flex-col justify-between min-h-[96px]">
+            <div className="text-2xl font-light text-[#161616] tracking-tight">
               {summary?.employeesWorkedCount ?? (sessions.length > 0 ? 1 : 0)}
             </div>
-            <div className="text-xs font-medium text-slate-500 mt-1">Employees Worked</div>
+            <div className="text-xs font-normal text-[#525252] mt-1 tracking-carbon">Staff Count</div>
           </div>
         </div>
 
-        {/* Work Sessions List (Matching User Reference Image 2) */}
-        <div className="space-y-5">
+        {/* Work Sessions List */}
+        <div className="space-y-4">
           {isLoading ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 text-sm">
+            <div className="bg-white rounded-none border border-[#e0e0e0] p-12 text-center text-[#8c8c8c] text-xs tracking-carbon">
               Loading timeline work sessions...
             </div>
           ) : sessions.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 space-y-2">
-              <AlertCircle className="w-8 h-8 text-slate-300 mx-auto" />
-              <div className="font-semibold text-slate-700">No work sessions recorded for this day</div>
-              <p className="text-xs text-slate-400">
+            <div className="bg-white rounded-none border border-[#e0e0e0] p-12 text-center text-[#525252] space-y-2">
+              <AlertCircle className="w-8 h-8 text-[#8c8c8c] mx-auto" />
+              <div className="font-medium text-[#161616]">No work sessions recorded for this day</div>
+              <p className="text-xs text-[#525252] tracking-carbon">
                 Start tracking with the PulseTime desktop agent to capture real-time sessions and screenshots.
               </p>
             </div>
@@ -256,24 +256,25 @@ function TimelinesPageContent() {
               );
 
               const employeeName = session.employee?.displayName || 'Employee';
-              const projectName = session.project?.name || 'Default Project';
-              const taskTitle = session.task?.title || 'Default Task';
-              const ipAddr = session.ipAddress || '130.176.188.234';
+              const projectName = session.project?.name || 'General';
+              const taskTitle = session.task?.title || 'General Activity';
+              const ipAddr = session.ipAddress || '127.0.0.1';
 
               return (
                 <div
                   key={session.id}
-                  className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 sm:p-6 space-y-4 hover:border-slate-300 transition-colors"
+                  className="bg-white rounded-none border border-[#e0e0e0] p-5 space-y-4 hover:border-[#8c8c8c] transition-colors"
                 >
                   {/* Row 1: Date, Time & Delete Session */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-800">
-                      <span className="font-semibold text-slate-900">
-                        Date: <span className="font-normal text-slate-700">{formatDateHeader(session.startedAt)}</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#e0e0e0] pb-3">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#161616]">
+                      <span>
+                        <strong className="font-medium text-[#161616]">Date:</strong>{' '}
+                        <span className="text-[#525252]">{formatDateHeader(session.startedAt)}</span>
                       </span>
-                      <span className="font-semibold text-slate-900">
-                        Time:{' '}
-                        <span className="font-normal text-slate-700">
+                      <span>
+                        <strong className="font-medium text-[#161616]">Time:</strong>{' '}
+                        <span className="text-[#525252]">
                           {startStr} → {endStr} ({durFormatted})
                         </span>
                       </span>
@@ -289,35 +290,35 @@ function TimelinesPageContent() {
                           deleteSessionMutation.mutate(session.id);
                         }
                       }}
-                      className="text-red-500 hover:text-red-700 hover:underline text-xs font-semibold self-start sm:self-auto cursor-pointer transition-colors flex items-center gap-1"
+                      className="text-[#da1e28] hover:text-[#ba1b23] hover:underline text-xs font-normal self-start sm:self-auto cursor-pointer transition-colors flex items-center gap-1 tracking-carbon"
                     >
                       <span>Delete Session</span>
                     </button>
                   </div>
 
                   {/* Row 2: Employee, Project, Task, IP */}
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-slate-800 font-medium">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs text-[#161616]">
                     <div>
-                      <span className="font-bold text-slate-900">Employee: </span>
-                      <span className="text-slate-700">{employeeName}</span>
+                      <span className="font-medium text-[#161616]">Employee: </span>
+                      <span className="text-[#525252]">{employeeName}</span>
                     </div>
                     <div>
-                      <span className="font-bold text-slate-900">Project: </span>
-                      <span className="text-slate-700">{projectName}</span>
+                      <span className="font-medium text-[#161616]">Project: </span>
+                      <span className="text-[#525252]">{projectName}</span>
                     </div>
                     <div>
-                      <span className="font-bold text-slate-900">Task: </span>
-                      <span className="text-slate-700">{taskTitle}</span>
+                      <span className="font-medium text-[#161616]">Task: </span>
+                      <span className="text-[#525252]">{taskTitle}</span>
                     </div>
                     <div>
-                      <span className="font-bold text-slate-900">IP: </span>
-                      <span className="text-slate-700">{ipAddr}</span>
+                      <span className="font-medium text-[#161616]">IP: </span>
+                      <span className="text-[#525252]">{ipAddr}</span>
                     </div>
                   </div>
 
                   {/* Row 3: Notes (with inline edit) */}
-                  <div className="text-xs text-slate-800 flex items-center gap-2">
-                    <span className="font-bold text-slate-900">Notes:</span>
+                  <div className="text-xs text-[#161616] flex items-center gap-2">
+                    <span className="font-medium text-[#161616]">Notes:</span>
                     {editingSessionId === session.id ? (
                       <div className="flex items-center gap-2">
                         <input
@@ -325,28 +326,28 @@ function TimelinesPageContent() {
                           value={notesInput}
                           onChange={(e) => setNotesInput(e.target.value)}
                           placeholder="Enter session memo notes..."
-                          className="px-2 py-1 bg-slate-50 border border-slate-300 rounded text-xs focus:outline-none focus:border-blue-500 min-w-[200px]"
+                          className="px-3 py-1 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none text-xs focus:outline-none focus:border-[#0f62fe] min-w-[220px] tracking-carbon"
                           autoFocus
                         />
                         <button
                           onClick={() => handleSaveNotes(session.id)}
-                          className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold flex items-center gap-1"
+                          className="px-3 py-1 bg-[#0f62fe] hover:bg-[#0043ce] text-white rounded-none text-xs font-normal flex items-center gap-1 tracking-carbon"
                         >
                           <Check className="w-3 h-3" /> Save
                         </button>
                         <button
                           onClick={() => setEditingSessionId(null)}
-                          className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-xs font-medium"
+                          className="px-3 py-1 bg-[#f4f4f4] hover:bg-[#e0e0e0] border border-[#e0e0e0] text-[#161616] rounded-none text-xs font-normal tracking-carbon"
                         >
                           Cancel
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-slate-600">{session.notes || 'None'}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[#525252]">{session.notes || 'None'}</span>
                         <button
                           onClick={() => handleStartEditNotes(session)}
-                          className="text-blue-600 hover:underline text-xs cursor-pointer font-medium"
+                          className="text-[#0f62fe] hover:text-[#0043ce] hover:underline text-xs cursor-pointer font-normal tracking-carbon"
                         >
                           edit
                         </button>
@@ -355,13 +356,13 @@ function TimelinesPageContent() {
                   </div>
 
                   {/* Row 4: Instruction Line */}
-                  <div className="text-xs text-slate-500">
+                  <div className="text-[11px] text-[#8c8c8c] tracking-carbon">
                     Click on a screenshot thumbnail to zoom in.
                   </div>
 
                   {/* Row 5: Screenshot Thumbnails Row / Grid */}
                   {session.screenshots && session.screenshots.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 pt-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 pt-1">
                       {session.screenshots.map((sc: any) => {
                         const capTime = new Date(sc.capturedAt).toLocaleTimeString([], {
                           hour: '2-digit',
@@ -384,35 +385,36 @@ function TimelinesPageContent() {
                                 taskTitle,
                               })
                             }
-                            className="group cursor-pointer rounded-xl border border-slate-200 hover:border-blue-500 bg-white overflow-hidden shadow-xs hover:shadow-md transition-all space-y-2 p-2"
+                            className="group cursor-pointer rounded-none border border-[#e0e0e0] hover:border-[#0f62fe] bg-white overflow-hidden transition-all space-y-2 p-2"
                           >
                             {/* Thumbnail Container */}
-                            <div className="aspect-video relative rounded-lg overflow-hidden bg-slate-900 border border-slate-800">
+                            <div className="aspect-video relative rounded-none overflow-hidden bg-[#161616] border border-[#e0e0e0]">
                               <img
                                 src={sc.fileUrl}
                                 alt={`Capture at ${capTime}`}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
                               />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
-                                <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <div className="absolute inset-0 bg-[#161616]/0 group-hover:bg-[#161616]/30 transition-colors flex items-center justify-center">
+                                <Maximize2 className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                               </div>
                             </div>
 
                             {/* Thumbnail Metadata */}
                             <div className="space-y-1 px-0.5">
-                              <div className="text-[11px] font-bold text-slate-800">
-                                Time: <span className="font-normal text-slate-600">{capTime}</span>
+                              <div className="text-[11px] text-[#161616]">
+                                <span className="font-medium">Time:</span>{' '}
+                                <span className="text-[#525252]">{capTime}</span>
                               </div>
 
-                              <div className="flex items-center gap-1.5 text-[11px] text-slate-800">
-                                <span className="font-bold">Activity:</span>
-                                <div className="flex-1 h-2.5 bg-slate-700 rounded-full overflow-hidden flex min-w-[40px]">
+                              <div className="flex items-center gap-1.5 text-[11px] text-[#161616]">
+                                <span className="font-medium text-[#161616]">Activity:</span>
+                                <div className="flex-1 h-2 bg-[#e0e0e0] rounded-none overflow-hidden flex min-w-[40px]">
                                   <div
-                                    className="bg-[#22C55E] h-full rounded-full transition-all"
+                                    className="bg-[#24a148] h-full rounded-none transition-all"
                                     style={{ width: `${Math.min(100, Math.max(5, actPct))}%` }}
                                   />
                                 </div>
-                                <span className="font-bold text-[10px] text-slate-700 shrink-0">{actPct}%</span>
+                                <span className="font-mono text-[10px] text-[#525252] shrink-0">{actPct}%</span>
                               </div>
                             </div>
                           </div>
@@ -420,7 +422,7 @@ function TimelinesPageContent() {
                       })}
                     </div>
                   ) : (
-                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-400 text-center">
+                    <div className="p-4 rounded-none bg-[#f4f4f4] border border-[#e0e0e0] text-xs text-[#8c8c8c] text-center tracking-carbon">
                       No screenshots captured during this session.
                     </div>
                   )}
@@ -432,16 +434,16 @@ function TimelinesPageContent() {
 
         {/* Modal Lightbox Zoom Viewer */}
         {activeScreenshot && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 rounded-2xl border border-slate-700 max-w-5xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 bg-[#161616]/80 flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-[#161616] rounded-none border border-[#262626] max-w-5xl w-full overflow-hidden flex flex-col max-h-[90vh]">
               {/* Modal Header */}
-              <div className="p-4 bg-slate-950 flex items-center justify-between text-white border-b border-slate-800">
+              <div className="p-4 bg-[#161616] flex items-center justify-between text-white border-b border-[#262626]">
                 <div>
-                  <h3 className="font-semibold text-sm">
+                  <h3 className="font-medium text-sm text-white">
                     {activeScreenshot.employeeName} • Screenshot Zoom
                   </h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Captured at: {new Date(activeScreenshot.capturedAt).toLocaleString()}
+                  <p className="text-[11px] text-[#8c8c8c] mt-0.5 tracking-carbon">
+                    Captured: {new Date(activeScreenshot.capturedAt).toLocaleString()}
                     {activeScreenshot.projectName && ` • Project: ${activeScreenshot.projectName}`}
                     {activeScreenshot.taskTitle && ` (${activeScreenshot.taskTitle})`}
                     {activeScreenshot.activityPercentage !== null &&
@@ -457,7 +459,7 @@ function TimelinesPageContent() {
                           deleteScreenshotMutation.mutate(activeScreenshot.id);
                         }
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/30 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-none bg-[#da1e28] text-white hover:bg-[#ba1b23] text-xs font-normal transition-colors flex items-center gap-1.5 tracking-carbon"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>Delete</span>
@@ -466,7 +468,7 @@ function TimelinesPageContent() {
 
                   <button
                     onClick={() => setActiveScreenshot(null)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                    className="p-1.5 text-[#8c8c8c] hover:text-white hover:bg-[#262626] rounded-none transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -474,11 +476,11 @@ function TimelinesPageContent() {
               </div>
 
               {/* Modal Image View */}
-              <div className="flex-1 overflow-auto bg-slate-950 flex items-center justify-center p-4">
+              <div className="flex-1 overflow-auto bg-[#161616] flex items-center justify-center p-4">
                 <img
                   src={activeScreenshot.fileUrl}
                   alt="High Resolution Screenshot Capture"
-                  className="max-h-[75vh] w-auto object-contain rounded-lg border border-slate-800 shadow-lg"
+                  className="max-h-[75vh] w-auto object-contain rounded-none border border-[#262626]"
                 />
               </div>
             </div>
@@ -491,7 +493,7 @@ function TimelinesPageContent() {
 
 export default function TimelinesPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading timelines...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-[#525252] text-xs tracking-carbon">Loading timelines...</div>}>
       <TimelinesPageContent />
     </Suspense>
   );

@@ -10,10 +10,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-[#f4f4f4]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs font-medium text-slate-500">Loading PulseTime SaaS...</span>
+          <div className="w-8 h-8 border-2 border-[#0f62fe] border-t-transparent animate-spin"></div>
+          <span className="text-xs font-normal text-[#525252] tracking-carbon">Loading PulseTime...</span>
         </div>
       </div>
     );
@@ -24,7 +24,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-50/50">
+    <div className="min-h-screen flex bg-[#f4f4f4]">
       <Sidebar />
       <div className="flex-1 flex flex-col pl-64">
         <Topbar />

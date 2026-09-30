@@ -103,16 +103,16 @@ export default function CompanySettingsPage() {
     <AppLayout>
       <div className="space-y-6 max-w-4xl">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e0e0e0] pb-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Organization Settings</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h1 className="text-2xl font-light text-[#161616] tracking-tight">Organization Settings</h1>
+            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">
               Configure tenant profile, screenshot capture policies, and time tracking rules
             </p>
           </div>
 
           {saveSuccess && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold animate-in fade-in">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba] text-xs font-normal tracking-carbon animate-in fade-in">
               <CheckCircle2 className="w-4 h-4" />
               <span>Settings saved successfully!</span>
             </div>
@@ -120,38 +120,38 @@ export default function CompanySettingsPage() {
         </div>
 
         {isLoading ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-16 text-center text-xs text-slate-400">
+          <div className="bg-white border border-[#e0e0e0] p-16 text-center text-xs text-[#8c8c8c] tracking-carbon">
             Loading organization configuration...
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* General Profile */}
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Building2 className="w-4 h-4 text-blue-600" />
-                <h2 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+            <div className="bg-white border border-[#e0e0e0] p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-[#e0e0e0] pb-3">
+                <Building2 className="w-4 h-4 text-[#0f62fe]" />
+                <h2 className="text-xs font-semibold text-[#161616] uppercase tracking-carbon">
                   Company Identity & Locale
                 </h2>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1 sm:col-span-1">
-                  <label className="text-xs font-semibold text-slate-700">Company Name *</label>
+                  <label className="text-xs font-normal text-[#525252] tracking-carbon">Company Name *</label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Primary Timezone</label>
+                  <label className="text-xs font-normal text-[#525252] tracking-carbon">Primary Timezone</label>
                   <select
                     value={timezone}
                     onChange={(e) => setTimezone(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon cursor-pointer"
                   >
                     <option value="UTC">UTC (Coordinated Universal Time)</option>
                     <option value="America/New_York">America/New_York (EST / EDT)</option>
@@ -167,11 +167,11 @@ export default function CompanySettingsPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Billing Currency</label>
+                  <label className="text-xs font-normal text-[#525252] tracking-carbon">Billing Currency</label>
                   <select
                     value={currency}
                     onChange={(e) => setCurrency(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon cursor-pointer"
                   >
                     <option value="USD">USD ($ - US Dollar)</option>
                     <option value="EUR">EUR (€ - Euro)</option>
@@ -185,23 +185,23 @@ export default function CompanySettingsPage() {
             </div>
 
             {/* Monitoring & Screenshot Capture Policies */}
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Camera className="w-4 h-4 text-blue-600" />
-                <h2 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+            <div className="bg-white border border-[#e0e0e0] p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-[#e0e0e0] pb-3">
+                <Camera className="w-4 h-4 text-[#0f62fe]" />
+                <h2 className="text-xs font-semibold text-[#161616] uppercase tracking-carbon">
                   Desktop Screen Capture & Privacy
                 </h2>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
+                  <label className="text-xs font-normal text-[#525252] tracking-carbon">
                     Screenshot Frequency (Minutes)
                   </label>
                   <select
                     value={screenshotInterval}
                     onChange={(e) => setScreenshotInterval(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon cursor-pointer"
                   >
                     <option value={3}>Every 3 minutes (High Frequency)</option>
                     <option value={5}>Every 5 minutes (Recommended Standard)</option>
@@ -212,13 +212,13 @@ export default function CompanySettingsPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">
+                  <label className="text-xs font-normal text-[#525252] tracking-carbon">
                     Idle Detection Threshold (Minutes)
                   </label>
                   <select
                     value={idleThreshold}
                     onChange={(e) => setIdleThreshold(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon cursor-pointer"
                   >
                     <option value={2}>2 minutes</option>
                     <option value={3}>3 minutes</option>
@@ -231,10 +231,10 @@ export default function CompanySettingsPage() {
 
               {/* Toggles */}
               <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+                <div className="flex items-center justify-between p-3.5 border border-[#e0e0e0] bg-[#f4f4f4]">
                   <div>
-                    <p className="text-xs font-semibold text-slate-800">Screenshot Blurring (Privacy Shield)</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs font-semibold text-[#161616] tracking-carbon">Screenshot Blurring (Privacy Shield)</p>
+                    <p className="text-[11px] text-[#525252] tracking-carbon">
                       Apply a light privacy blur filter over captured screenshots to obfuscate sensitive passwords or personal messages.
                     </p>
                   </div>
@@ -242,14 +242,14 @@ export default function CompanySettingsPage() {
                     type="checkbox"
                     checked={blurScreenshots}
                     onChange={(e) => setBlurScreenshots(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                    className="w-4 h-4 text-[#0f62fe] rounded-none border-[#e0e0e0] focus:ring-[#0f62fe] cursor-pointer"
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+                <div className="flex items-center justify-between p-3.5 border border-[#e0e0e0] bg-[#f4f4f4]">
                   <div>
-                    <p className="text-xs font-semibold text-slate-800">Allow Screenshot Deletion by Employees</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs font-semibold text-[#161616] tracking-carbon">Allow Screenshot Deletion by Employees</p>
+                    <p className="text-[11px] text-[#525252] tracking-carbon">
                       When enabled, employees may delete their own accidental personal screen captures (deducting the corresponding interval time).
                     </p>
                   </div>
@@ -257,26 +257,26 @@ export default function CompanySettingsPage() {
                     type="checkbox"
                     checked={allowDeleteScreenshots}
                     onChange={(e) => setAllowDeleteScreenshots(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                    className="w-4 h-4 text-[#0f62fe] rounded-none border-[#e0e0e0] focus:ring-[#0f62fe] cursor-pointer"
                   />
                 </div>
               </div>
             </div>
 
             {/* Time Tracking & Schedule Rules */}
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Clock className="w-4 h-4 text-blue-600" />
-                <h2 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+            <div className="bg-white border border-[#e0e0e0] p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-[#e0e0e0] pb-3">
+                <Clock className="w-4 h-4 text-[#0f62fe]" />
+                <h2 className="text-xs font-semibold text-[#161616] uppercase tracking-carbon">
                   Tracking Rules & Approvals
                 </h2>
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+                <div className="flex items-center justify-between p-3.5 border border-[#e0e0e0] bg-[#f4f4f4]">
                   <div>
-                    <p className="text-xs font-semibold text-slate-800">Require Task Selection</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs font-semibold text-[#161616] tracking-carbon">Require Task Selection</p>
+                    <p className="text-[11px] text-[#525252] tracking-carbon">
                       Force employees to select an active project task before starting a tracking session on the desktop agent.
                     </p>
                   </div>
@@ -284,14 +284,14 @@ export default function CompanySettingsPage() {
                     type="checkbox"
                     checked={requireTask}
                     onChange={(e) => setRequireTask(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                    className="w-4 h-4 text-[#0f62fe] rounded-none border-[#e0e0e0] focus:ring-[#0f62fe] cursor-pointer"
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+                <div className="flex items-center justify-between p-3.5 border border-[#e0e0e0] bg-[#f4f4f4]">
                   <div>
-                    <p className="text-xs font-semibold text-slate-800">Allow Manual Time Logging</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs font-semibold text-[#161616] tracking-carbon">Allow Manual Time Logging</p>
+                    <p className="text-[11px] text-[#525252] tracking-carbon">
                       Permit staff to submit offline / manual work logs subject to managerial review.
                     </p>
                   </div>
@@ -299,14 +299,14 @@ export default function CompanySettingsPage() {
                     type="checkbox"
                     checked={allowManualTime}
                     onChange={(e) => setAllowManualTime(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                    className="w-4 h-4 text-[#0f62fe] rounded-none border-[#e0e0e0] focus:ring-[#0f62fe] cursor-pointer"
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+                <div className="flex items-center justify-between p-3.5 border border-[#e0e0e0] bg-[#f4f4f4]">
                   <div>
-                    <p className="text-xs font-semibold text-slate-800">Strict Shift Schedule Enforcement</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs font-semibold text-[#161616] tracking-carbon">Strict Shift Schedule Enforcement</p>
+                    <p className="text-[11px] text-[#525252] tracking-carbon">
                       Flag punches outside assigned shift hours as attendance anomalies and alert managers.
                     </p>
                   </div>
@@ -314,7 +314,7 @@ export default function CompanySettingsPage() {
                     type="checkbox"
                     checked={strictSchedule}
                     onChange={(e) => setStrictSchedule(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                    className="w-4 h-4 text-[#0f62fe] rounded-none border-[#e0e0e0] focus:ring-[#0f62fe] cursor-pointer"
                   />
                 </div>
               </div>
@@ -322,17 +322,17 @@ export default function CompanySettingsPage() {
 
             {/* Testing Clean-Slate Reset */}
             {hasPermission('settings.edit') && (
-              <div className="bg-red-50/70 border border-red-200 rounded-xl p-5 space-y-3">
-                <div className="flex items-center gap-2 text-red-700">
+              <div className="bg-[#ffebee] border border-[#ffb3ba] p-5 space-y-3">
+                <div className="flex items-center gap-2 text-[#da1e28]">
                   <RotateCcw className="w-4 h-4" />
-                  <h3 className="text-sm font-bold">Testing & Clean-Slate Database Reset</h3>
+                  <h3 className="text-sm font-semibold tracking-carbon">Testing & Clean-Slate Database Reset</h3>
                 </div>
-                <p className="text-xs text-red-600/90 leading-relaxed">
+                <p className="text-xs text-[#da1e28] leading-relaxed tracking-carbon">
                   Reset all recorded work sessions, breaks, heartbeats, screenshots, and attendance records on the live hosted database.
                   <strong> All employee accounts, login passwords, projects, and tasks are preserved.</strong>
                 </p>
                 {resetSuccess && (
-                  <div className="p-3 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-medium">
+                  <div className="p-3 bg-[#defbe6] border border-[#a7f0ba] text-[#0e6027] text-xs font-normal tracking-carbon">
                     {resetSuccess}
                   </div>
                 )}
@@ -341,7 +341,7 @@ export default function CompanySettingsPage() {
                     type="button"
                     onClick={handleResetData}
                     disabled={resetMutation.isPending}
-                    className="px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white font-semibold text-xs transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                    className="px-4 py-2 bg-[#da1e28] hover:bg-[#b81922] text-white font-normal text-xs transition-colors disabled:opacity-50 cursor-pointer tracking-carbon"
                   >
                     {resetMutation.isPending ? 'Resetting Database...' : 'Reset Live Activity Data (Clean Slate)'}
                   </button>
@@ -355,7 +355,7 @@ export default function CompanySettingsPage() {
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#0f62fe] hover:bg-[#0043ce] active:bg-[#002d9c] text-white font-normal text-xs shadow-none disabled:opacity-50 transition-colors cursor-pointer tracking-carbon"
                 >
                   <Save className="w-4 h-4" />
                   <span>{updateMutation.isPending ? 'Saving...' : 'Save Organization Settings'}</span>

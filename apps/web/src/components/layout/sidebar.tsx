@@ -87,29 +87,29 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col h-screen fixed left-0 top-0 border-r border-slate-800 z-30 select-none">
+    <aside className="w-64 bg-[#161616] text-[#c6c6c6] flex flex-col h-screen fixed left-0 top-0 border-r border-[#262626] z-30 select-none">
       {/* Brand Header */}
-      <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-800 bg-slate-950">
-        <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-          <Timer className="w-5 h-5" />
+      <div className="h-16 flex items-center gap-3 px-5 border-b border-[#262626] bg-[#161616]">
+        <div className="w-8 h-8 bg-[#0f62fe] flex items-center justify-center text-white">
+          <Timer className="w-4 h-4" />
         </div>
         <div className="flex flex-col">
-          <span className="font-bold text-base text-white tracking-tight">PulseTime</span>
-          <span className="text-[11px] text-slate-400 font-medium truncate max-w-[140px]">
-            {organization?.name || 'Enterprise SaaS'}
+          <span className="font-medium text-sm text-white tracking-tight">PulseTime</span>
+          <span className="text-[11px] text-[#8c8c8c] font-normal truncate max-w-[140px]">
+            {organization?.name || 'Enterprise'}
           </span>
         </div>
       </div>
 
       {/* Nav Menu */}
-      <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+      <div className="flex-1 overflow-y-auto py-4 px-0 space-y-6">
         {sections.map((sec, idx) => {
           const visibleItems = sec.items.filter((item) => !item.permission || hasPermission(item.permission));
           if (visibleItems.length === 0) return null;
 
           return (
             <div key={idx} className="space-y-1">
-              <div className="px-3 text-[10px] font-semibold text-slate-400 tracking-wider">
+              <div className="px-4 text-[11px] font-normal text-[#8c8c8c] uppercase tracking-wider">
                 {sec.title}
               </div>
               <div className="space-y-0.5">
@@ -122,18 +122,18 @@ export function Sidebar() {
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        'flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors',
+                        'flex items-center justify-between px-4 py-2.5 text-xs font-normal transition-colors rounded-none border-l-4 tracking-carbon',
                         isActive
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-slate-300 hover:bg-slate-800 hover:text-white',
+                          ? 'bg-[#262626] text-white border-[#0f62fe] font-medium'
+                          : 'border-transparent text-[#c6c6c6] hover:bg-[#262626] hover:text-white',
                       )}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <Icon className={cn('w-4 h-4', isActive ? 'text-white' : 'text-slate-400')} />
+                      <div className="flex items-center gap-3">
+                        <Icon className={cn('w-4 h-4', isActive ? 'text-[#0f62fe]' : 'text-[#8c8c8c]')} />
                         <span>{item.label}</span>
                       </div>
                       {item.badge && (
-                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                        <span className="text-[9px] font-normal px-1.5 py-0.5 bg-[#0f62fe] text-white rounded-none">
                           {item.badge}
                         </span>
                       )}
@@ -147,12 +147,12 @@ export function Sidebar() {
       </div>
 
       {/* Role / Version Footer */}
-      <div className="p-3 border-t border-slate-800 bg-slate-950/60 text-[11px] text-slate-400 flex items-center justify-between">
+      <div className="p-4 border-t border-[#262626] bg-[#161616] text-[11px] text-[#8c8c8c] flex items-center justify-between">
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+          <span className="w-1.5 h-1.5 bg-[#24a148] inline-block"></span>
           <span>v1.0 • Multi-tenant</span>
         </span>
-        <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-medium text-slate-300 uppercase">
+        <span className="px-1.5 py-0.5 bg-[#262626] text-[10px] font-normal text-[#c6c6c6] rounded-none uppercase">
           {role || 'EMPLOYEE'}
         </span>
       </div>

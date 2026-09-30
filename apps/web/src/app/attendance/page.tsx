@@ -60,39 +60,39 @@ export default function AttendancePage() {
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e0e0e0] pb-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Attendance & Daily Overview</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Authoritative presence tracking derived from active work sessions</p>
+            <h1 className="text-2xl font-light text-[#161616] tracking-tight">Attendance & Daily Overview</h1>
+            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">Authoritative presence tracking and punch telemetry derived from active work sessions</p>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-xs">
+            <div className="inline-flex border border-[#e0e0e0] bg-white rounded-none p-0.5">
               <button
                 onClick={() => setViewMode('daily')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                  viewMode === 'daily' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                className={`px-3 py-1.5 rounded-none text-xs font-normal tracking-carbon transition-colors ${
+                  viewMode === 'daily' ? 'bg-[#0f62fe] text-white font-medium' : 'text-[#525252] hover:text-[#161616] hover:bg-[#f4f4f4]'
                 }`}
               >
                 Daily Overview
               </button>
               <button
                 onClick={() => setViewMode('history')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                  viewMode === 'history' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                className={`px-3 py-1.5 rounded-none text-xs font-normal tracking-carbon transition-colors ${
+                  viewMode === 'history' ? 'bg-[#0f62fe] text-white font-medium' : 'text-[#525252] hover:text-[#161616] hover:bg-[#f4f4f4]'
                 }`}
               >
                 Attendance Log
               </button>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex items-center gap-2 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5 text-xs">
+              <Calendar className="w-3.5 h-3.5 text-[#525252]" />
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="focus:outline-none text-slate-700 text-xs bg-transparent cursor-pointer font-medium"
+                className="focus:outline-none text-[#161616] text-xs bg-transparent cursor-pointer font-medium tracking-carbon"
               />
             </div>
           </div>
@@ -100,44 +100,44 @@ export default function AttendancePage() {
 
         {/* Metrics Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-sm">
-            <span className="text-slate-500 text-xs font-medium block mb-1">Total Team Size</span>
-            <div className="text-2xl font-bold text-slate-900">{metrics.totalEmployees}</div>
-            <div className="text-[11px] text-slate-500 mt-1">Acme Technologies</div>
+          <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
+            <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">Total Team Size</span>
+            <div className="text-3xl font-light text-[#161616] tracking-tight">{metrics.totalEmployees}</div>
+            <div className="text-[11px] text-[#8c8c8c] mt-2 tracking-carbon">Acme Technologies</div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-sm">
-            <span className="text-slate-500 text-xs font-medium block mb-1">Currently Working</span>
-            <div className="text-2xl font-bold text-emerald-600">{metrics.workingCount}</div>
-            <div className="text-[11px] text-slate-500 mt-1">{metrics.breakCount} on break</div>
+          <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
+            <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">Currently Working</span>
+            <div className="text-3xl font-light text-[#24a148] tracking-tight">{metrics.workingCount}</div>
+            <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">{metrics.breakCount} on break</div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-sm">
-            <span className="text-slate-500 text-xs font-medium block mb-1">Total Logged Time</span>
-            <div className="text-2xl font-bold text-slate-900">{metrics.formattedTotalWorked || formatSecondsToHours(metrics.totalWorkSeconds)}</div>
-            <div className="text-[11px] text-slate-500 mt-1">Across all sessions</div>
+          <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
+            <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">Total Logged Time</span>
+            <div className="text-3xl font-light text-[#161616] tracking-tight">{metrics.formattedTotalWorked || formatSecondsToHours(metrics.totalWorkSeconds)}</div>
+            <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">Across all sessions</div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-sm">
-            <span className="text-slate-500 text-xs font-medium block mb-1">Active Ratio</span>
-            <div className="text-2xl font-bold text-blue-600">{metrics.activePercentage}%</div>
-            <div className="text-[11px] text-slate-500 mt-1">Productivity index</div>
+          <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
+            <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">Active Ratio</span>
+            <div className="text-3xl font-light text-[#0f62fe] tracking-tight">{metrics.activePercentage}%</div>
+            <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">Productivity index</div>
           </div>
         </div>
 
         {/* Content View */}
         {viewMode === 'daily' ? (
-          <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="bg-white border border-[#e0e0e0] rounded-none overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#e0e0e0] flex items-center justify-between bg-white">
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Daily Presence Roster ({selectedDate})</h3>
-                <p className="text-xs text-slate-500">Punch-in/out boundaries and live status</p>
+                <h3 className="text-sm font-medium text-[#161616]">Daily Presence Roster ({selectedDate})</h3>
+                <p className="text-xs text-[#525252] tracking-carbon">Punch-in/out boundaries and live status</p>
               </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 text-[11px] font-semibold border-b border-slate-100 uppercase">
+                <thead className="bg-[#f4f4f4] text-[#525252] text-[11px] font-normal uppercase tracking-wider border-b border-[#e0e0e0]">
                   <tr>
                     <th className="px-5 py-3">Employee</th>
                     <th className="px-5 py-3">Department</th>
@@ -148,55 +148,55 @@ export default function AttendancePage() {
                     <th className="px-5 py-3 text-right">Timeline</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
+                <tbody className="divide-y divide-[#e0e0e0] text-[#161616]">
                   {loadingDaily ? (
                     <tr>
-                      <td colSpan={7} className="px-5 py-8 text-center text-slate-400">Loading daily roster...</td>
+                      <td colSpan={7} className="px-5 py-8 text-center text-[#8c8c8c] tracking-carbon">Loading daily roster...</td>
                     </tr>
                   ) : employees.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-5 py-8 text-center text-slate-400">No records found.</td>
+                      <td colSpan={7} className="px-5 py-8 text-center text-[#8c8c8c] tracking-carbon">No records found.</td>
                     </tr>
                   ) : (
                     employees.map((emp: any) => (
-                      <tr key={emp.id} className="hover:bg-slate-50/60">
-                        <td className="px-5 py-3">
-                          <Link href={`/employees/${emp.id}`} className="font-semibold text-slate-900 hover:text-blue-600 hover:underline">
+                      <tr key={emp.id} className="hover:bg-[#f4f4f4] transition-colors">
+                        <td className="px-5 py-3 font-normal">
+                          <Link href={`/employees/${emp.id}`} className="font-medium text-[#161616] hover:text-[#0f62fe] hover:underline">
                             {emp.displayName}
                           </Link>
-                          <span className="text-[11px] text-slate-400 block">{emp.employeeCode}</span>
+                          <span className="text-[11px] text-[#8c8c8c] block">{emp.employeeCode}</span>
                         </td>
-                        <td className="px-5 py-3 text-slate-600">{emp.department || 'General'}</td>
+                        <td className="px-5 py-3 text-[#525252]">{emp.department || 'General'}</td>
                         <td className="px-5 py-3">
                           {emp.status === 'WORKING' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[11px] font-normal bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">
+                              <span className="w-1.5 h-1.5 bg-[#24a148]"></span>
                               Working
                             </span>
                           )}
                           {emp.status === 'ON_BREAK' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
-                              <Coffee className="w-3 h-3 text-amber-500" />
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[11px] font-normal bg-[#fdf2cc] text-[#6d4f00] border border-[#fbe499]">
+                              <Coffee className="w-3 h-3 text-[#6d4f00]" />
                               Break
                             </span>
                           )}
                           {emp.status === 'OFFLINE' && (
-                            <span className="text-slate-400 text-[11px]">Offline</span>
+                            <span className="text-[#8c8c8c] text-[11px]">Offline</span>
                           )}
                         </td>
-                        <td className="px-5 py-3 text-slate-600">
+                        <td className="px-5 py-3 text-[#525252]">
                           {emp.firstPunchIn ? new Date(emp.firstPunchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                         </td>
-                        <td className="px-5 py-3 text-slate-600">
+                        <td className="px-5 py-3 text-[#525252]">
                           {emp.lastPunchOut ? new Date(emp.lastPunchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                         </td>
-                        <td className="px-5 py-3 font-semibold text-slate-900">
+                        <td className="px-5 py-3 font-medium text-[#161616]">
                           {emp.formattedWorked || '00:00'}
                         </td>
                         <td className="px-5 py-3 text-right">
                           <Link
                             href={`/timelines/daily?employeeId=${emp.id}&date=${selectedDate}`}
-                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                            className="text-xs font-normal text-[#0f62fe] hover:text-[#0043ce] hover:underline tracking-carbon"
                           >
                             View Timeline →
                           </Link>
@@ -209,35 +209,35 @@ export default function AttendancePage() {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-white border border-[#e0e0e0] rounded-none overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#e0e0e0] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Attendance Log ({selectedDate})</h3>
-                <p className="text-xs text-slate-500">Authoritative punch records and presence status for all employees</p>
+                <h3 className="text-sm font-medium text-[#161616]">Attendance Log ({selectedDate})</h3>
+                <p className="text-xs text-[#525252] tracking-carbon">Authoritative punch records and presence status for all employees</p>
               </div>
 
               {/* Filters */}
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8c8c8c]" />
                   <input
                     type="text"
                     placeholder="Search employee..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 pr-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 w-40 sm:w-48"
+                    className="pl-8 pr-3 py-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none text-xs text-[#161616] focus:outline-none focus:border-[#0f62fe] w-40 sm:w-48 tracking-carbon"
                   />
                 </div>
 
-                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs">
+                <div className="inline-flex border border-[#e0e0e0] bg-[#f4f4f4] p-0.5 text-xs rounded-none">
                   {(['ALL', 'PRESENT', 'ABSENT', 'LEAVE'] as const).map((st) => (
                     <button
                       key={st}
                       onClick={() => setStatusFilter(st)}
-                      className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+                      className={`px-2.5 py-1 text-[11px] font-normal rounded-none transition-colors tracking-carbon ${
                         statusFilter === st
-                          ? 'bg-white text-blue-600 font-semibold shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
+                          ? 'bg-white text-[#0f62fe] font-medium border border-[#e0e0e0]'
+                          : 'text-[#525252] hover:text-[#161616]'
                       }`}
                     >
                       {st === 'ALL' ? 'All' : st.charAt(0) + st.slice(1).toLowerCase()}
@@ -249,7 +249,7 @@ export default function AttendancePage() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 text-[11px] font-semibold border-b border-slate-100 uppercase">
+                <thead className="bg-[#f4f4f4] text-[#525252] text-[11px] font-normal uppercase tracking-wider border-b border-[#e0e0e0]">
                   <tr>
                     <th className="px-5 py-3">Date</th>
                     <th className="px-5 py-3">Employee</th>
@@ -262,19 +262,19 @@ export default function AttendancePage() {
                     <th className="px-5 py-3 text-right">Timeline</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
+                <tbody className="divide-y divide-[#e0e0e0] text-[#161616]">
                   {loadingHistory ? (
                     <tr>
-                      <td colSpan={9} className="px-5 py-8 text-center text-slate-400">Loading attendance log...</td>
+                      <td colSpan={9} className="px-5 py-8 text-center text-[#8c8c8c] tracking-carbon">Loading attendance log...</td>
                     </tr>
                   ) : historyRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-5 py-8 text-center text-slate-400">No records found.</td>
+                      <td colSpan={9} className="px-5 py-8 text-center text-[#8c8c8c] tracking-carbon">No records found.</td>
                     </tr>
                   ) : (
                     historyRecords.map((r: any) => (
-                      <tr key={r.id} className="hover:bg-slate-50/60">
-                        <td className="px-5 py-3 font-medium text-slate-900">
+                      <tr key={r.id} className="hover:bg-[#f4f4f4] transition-colors">
+                        <td className="px-5 py-3 font-normal text-[#161616]">
                           {new Date(r.date).toLocaleDateString(undefined, {
                             month: 'numeric',
                             day: 'numeric',
@@ -283,49 +283,49 @@ export default function AttendancePage() {
                           })}
                         </td>
                         <td className="px-5 py-3">
-                          <Link href={`/employees/${r.employee?.id}`} className="font-semibold text-slate-900 hover:text-blue-600 hover:underline">
+                          <Link href={`/employees/${r.employee?.id}`} className="font-medium text-[#161616] hover:text-[#0f62fe] hover:underline">
                             {r.employee?.displayName}
                           </Link>
-                          <span className="text-[11px] text-slate-400 block">{r.employee?.employeeCode}</span>
+                          <span className="text-[11px] text-[#8c8c8c] block">{r.employee?.employeeCode}</span>
                         </td>
                         <td className="px-5 py-3">
                           {r.status === 'PRESENT' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[11px] font-normal bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">
+                              <span className="w-1.5 h-1.5 bg-[#24a148]"></span>
                               PRESENT
                             </span>
                           )}
                           {r.status === 'ABSENT' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full border border-rose-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[11px] font-normal bg-[#ffebee] text-[#da1e28] border border-[#ffb3ba]">
+                              <span className="w-1.5 h-1.5 bg-[#da1e28]"></span>
                               ABSENT
                             </span>
                           )}
                           {r.status === 'LEAVE' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[11px] font-normal bg-[#edf5ff] text-[#0043ce] border border-[#a6c8ff]">
+                              <span className="w-1.5 h-1.5 bg-[#0f62fe]"></span>
                               LEAVE
                             </span>
                           )}
                           {r.status !== 'PRESENT' && r.status !== 'ABSENT' && r.status !== 'LEAVE' && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">
+                            <span className="px-2 py-0.5 rounded-none text-[11px] font-normal bg-[#f4f4f4] text-[#525252] border border-[#e0e0e0]">
                               {r.status}
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-3 text-slate-600">
+                        <td className="px-5 py-3 text-[#525252]">
                           {r.firstPunchIn ? new Date(r.firstPunchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                         </td>
-                        <td className="px-5 py-3 text-slate-600">
+                        <td className="px-5 py-3 text-[#525252]">
                           {r.lastPunchOut ? new Date(r.lastPunchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                         </td>
-                        <td className="px-5 py-3 font-semibold text-slate-900">{r.formattedWork || '00:00'}</td>
-                        <td className="px-5 py-3 text-emerald-600 font-medium">{r.formattedActive || '00:00'}</td>
-                        <td className="px-5 py-3 text-amber-600 font-medium">{r.formattedBreak || '00:00'}</td>
+                        <td className="px-5 py-3 font-medium text-[#161616]">{r.formattedWork || '00:00'}</td>
+                        <td className="px-5 py-3 text-[#24a148] font-medium">{r.formattedActive || '00:00'}</td>
+                        <td className="px-5 py-3 text-[#6d4f00] font-medium">{r.formattedBreak || '00:00'}</td>
                         <td className="px-5 py-3 text-right">
                           <Link
                             href={`/timelines/daily?employeeId=${r.employee?.id}&date=${selectedDate}`}
-                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                            className="text-xs font-normal text-[#0f62fe] hover:text-[#0043ce] hover:underline tracking-carbon"
                           >
                             View Timeline →
                           </Link>
@@ -342,4 +342,3 @@ export default function AttendancePage() {
     </AppLayout>
   );
 }
-

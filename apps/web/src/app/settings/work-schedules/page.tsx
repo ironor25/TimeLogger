@@ -97,10 +97,10 @@ export default function WorkSchedulesPage() {
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e0e0e0] pb-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Work Shifts & Schedules</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h1 className="text-2xl font-light text-[#161616] tracking-tight">Work Shifts & Schedules</h1>
+            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">
               Define core working hours, weekly expectations, grace periods, and shift assignments
             </p>
           </div>
@@ -110,15 +110,15 @@ export default function WorkSchedulesPage() {
               <>
                 <button
                   onClick={() => setIsAssignModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-sm transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 border border-[#e0e0e0] bg-white hover:bg-[#f4f4f4] text-[#161616] text-xs font-normal tracking-carbon transition-colors"
                 >
-                  <UserCheck className="w-4 h-4 text-slate-500" />
+                  <UserCheck className="w-4 h-4 text-[#525252]" />
                   <span>Assign Shift</span>
                 </button>
 
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-[#0f62fe] hover:bg-[#0043ce] active:bg-[#002d9c] text-white text-xs font-normal tracking-carbon transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Create Shift</span>
@@ -130,14 +130,14 @@ export default function WorkSchedulesPage() {
 
         {/* Schedules Grid */}
         {isLoading ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-16 text-center text-xs text-slate-400">
+          <div className="bg-white border border-[#e0e0e0] p-16 text-center text-xs text-[#8c8c8c] tracking-carbon">
             Loading work schedules...
           </div>
         ) : scheduleList.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-16 text-center text-slate-500 text-xs space-y-2">
-            <CalendarRange className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="font-semibold text-slate-700">No work shifts defined</p>
-            <p className="text-slate-400">Create a work shift to establish expected hours and attendance rules.</p>
+          <div className="bg-white border border-[#e0e0e0] p-16 text-center text-[#525252] text-xs space-y-2 tracking-carbon">
+            <CalendarRange className="w-8 h-8 text-[#8c8c8c] mx-auto" />
+            <p className="font-semibold text-[#161616]">No work shifts defined</p>
+            <p className="text-[#8c8c8c]">Create a work shift to establish expected hours and attendance rules.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -148,60 +148,60 @@ export default function WorkSchedulesPage() {
               return (
                 <div
                   key={s.id}
-                  className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5 space-y-4 hover:border-blue-400 transition-all flex flex-col justify-between"
+                  className="bg-white border border-[#e0e0e0] p-5 space-y-4 hover:border-[#0f62fe] transition-colors flex flex-col justify-between"
                 >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                        <div className="w-8 h-8 bg-[#edf5ff] border border-[#a6c8ff] flex items-center justify-center text-[#0043ce]">
                           <Clock className="w-4 h-4" />
                         </div>
                         <div>
-                          <h3 className="font-bold text-sm text-slate-900">{s.name}</h3>
-                          <p className="text-[11px] text-slate-400">
+                          <h3 className="font-semibold text-sm text-[#161616] tracking-carbon">{s.name}</h3>
+                          <p className="text-[11px] text-[#525252] tracking-carbon">
                             {s.isFlexible ? 'Flexible Schedule' : 'Fixed Hours Shift'}
                           </p>
                         </div>
                       </div>
 
                       {s.isDefault && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        <span className="text-[10px] px-2 py-0.5 bg-[#edf5ff] text-[#0043ce] border border-[#a6c8ff] tracking-carbon">
                           Default
                         </span>
                       )}
                     </div>
 
                     {/* Shift Time Info */}
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-2 text-xs">
-                      <div className="flex justify-between text-slate-600">
+                    <div className="bg-[#f4f4f4] p-3 border border-[#e0e0e0] space-y-2 text-xs tracking-carbon">
+                      <div className="flex justify-between text-[#525252]">
                         <span>Shift Timing:</span>
-                        <span className="font-bold text-slate-900 font-mono">
+                        <span className="font-semibold text-[#161616] font-mono">
                           {s.startTime || '09:00'} - {s.endTime || '18:00'}
                         </span>
                       </div>
-                      <div className="flex justify-between text-slate-600">
+                      <div className="flex justify-between text-[#525252]">
                         <span>Weekly Target:</span>
-                        <span className="font-semibold text-slate-800">{s.expectedWeeklyHours || 40} Hours</span>
+                        <span className="font-semibold text-[#161616] font-mono">{s.expectedWeeklyHours || 40} Hours</span>
                       </div>
-                      <div className="flex justify-between text-slate-600">
+                      <div className="flex justify-between text-[#525252]">
                         <span>Late Grace Window:</span>
-                        <span className="font-semibold text-slate-800">{s.gracePeriodMinutes || 15} Mins</span>
+                        <span className="font-semibold text-[#161616] font-mono">{s.gracePeriodMinutes || 15} Mins</span>
                       </div>
                     </div>
 
                     {/* Working Days Badges */}
                     <div className="space-y-1">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase">Working Days</span>
+                      <span className="text-[10px] font-semibold text-[#525252] uppercase tracking-carbon">Working Days</span>
                       <div className="flex gap-1">
                         {dayNames.map((d, idx) => {
                           const isWorking = days.includes(idx);
                           return (
                             <span
                               key={idx}
-                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              className={`text-[10px] px-1.5 py-0.5 tracking-carbon ${
                                 isWorking
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-slate-100 text-slate-400'
+                                  ? 'bg-[#0f62fe] text-white'
+                                  : 'bg-[#f4f4f4] text-[#8c8c8c] border border-[#e0e0e0]'
                               }`}
                             >
                               {d}
@@ -213,10 +213,10 @@ export default function WorkSchedulesPage() {
                   </div>
 
                   {/* Footer */}
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                  <div className="pt-3 border-t border-[#e0e0e0] flex items-center justify-between text-xs text-[#525252] tracking-carbon">
                     <span className="flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-slate-400" />
-                      <strong className="text-slate-800">{activeCount}</strong> assigned
+                      <Users className="w-3.5 h-3.5 text-[#8c8c8c]" />
+                      <strong className="text-[#161616] font-mono">{activeCount}</strong> assigned
                     </span>
 
                     {hasPermission('settings.edit') && (
@@ -225,7 +225,7 @@ export default function WorkSchedulesPage() {
                           setAssignScheduleId(s.id);
                           setIsAssignModalOpen(true);
                         }}
-                        className="text-blue-600 hover:text-blue-700 font-semibold text-xs"
+                        className="text-[#0f62fe] hover:text-[#0043ce] font-normal text-xs tracking-carbon transition-colors"
                       >
                         Assign staff &rarr;
                       </button>
@@ -239,16 +239,16 @@ export default function WorkSchedulesPage() {
 
         {/* Modal: Create Work Schedule */}
         {isCreateModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-white rounded-xl border border-slate-200 max-w-lg w-full overflow-hidden shadow-2xl">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                <h3 className="font-bold text-sm text-slate-900">Create Work Shift Schedule</h3>
+          <div className="fixed inset-0 bg-[#161616]/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-white border border-[#e0e0e0] max-w-lg w-full overflow-hidden">
+              <div className="p-4 border-b border-[#e0e0e0] flex items-center justify-between bg-[#f4f4f4]">
+                <h3 className="font-semibold text-sm text-[#161616] tracking-carbon">Create Work Shift Schedule</h3>
                 <button
                   onClick={() => {
                     setIsCreateModalOpen(false);
                     resetCreateForm();
                   }}
-                  className="p-1 text-slate-400 hover:text-slate-600"
+                  className="p-1 text-[#525252] hover:text-[#161616]"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -274,81 +274,81 @@ export default function WorkSchedulesPage() {
                 className="p-5 space-y-3.5"
               >
                 {formError && (
-                  <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">
+                  <div className="p-2.5 bg-[#ffebee] border border-[#ffb3ba] text-xs text-[#da1e28] tracking-carbon">
                     {formError}
                   </div>
                 )}
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Shift Name *</label>
+                  <label className="text-xs font-normal text-[#525252] tracking-carbon">Shift Name *</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Standard Morning Shift (9am - 6pm)"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Start Time</label>
+                    <label className="text-xs font-normal text-[#525252] tracking-carbon">Start Time</label>
                     <input
                       type="time"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon font-mono"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">End Time</label>
+                    <label className="text-xs font-normal text-[#525252] tracking-carbon">End Time</label>
                     <input
                       type="time"
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon font-mono"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Expected Weekly Hours</label>
+                    <label className="text-xs font-normal text-[#525252] tracking-carbon">Expected Weekly Hours</label>
                     <input
                       type="number"
                       step="0.5"
                       value={expectedWeeklyHours}
                       onChange={(e) => setExpectedWeeklyHours(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon font-mono"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700">Grace Period (Minutes)</label>
+                    <label className="text-xs font-normal text-[#525252] tracking-carbon">Grace Period (Minutes)</label>
                     <input
                       type="number"
                       value={gracePeriodMinutes}
                       onChange={(e) => setGracePeriodMinutes(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon font-mono"
                     />
                   </div>
                 </div>
 
                 {/* Working Days selector */}
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Working Days</label>
+                  <label className="text-xs font-normal text-[#525252] tracking-carbon">Working Days</label>
                   <div className="flex gap-1.5 pt-1">
                     {dayNames.map((day, idx) => (
                       <button
                         type="button"
                         key={idx}
                         onClick={() => toggleDay(idx)}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+                        className={`flex-1 py-1.5 text-xs font-normal border transition-colors tracking-carbon ${
                           workingDays.includes(idx)
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                            ? 'bg-[#0f62fe] text-white border-[#0f62fe]'
+                            : 'bg-[#f4f4f4] text-[#525252] border-[#e0e0e0] hover:bg-[#e0e0e0]'
                         }`}
                       >
                         {day}
@@ -363,28 +363,28 @@ export default function WorkSchedulesPage() {
                     id="flexible"
                     checked={isFlexible}
                     onChange={(e) => setIsFlexible(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded-none border-[#e0e0e0] text-[#0f62fe] focus:ring-[#0f62fe]"
                   />
-                  <label htmlFor="flexible" className="text-xs text-slate-700 font-medium">
+                  <label htmlFor="flexible" className="text-xs text-[#161616] font-normal tracking-carbon">
                     Flexible Shift (Allows working anytime to meet weekly quota)
                   </label>
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <div className="pt-3 border-t border-[#e0e0e0] flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       setIsCreateModalOpen(false);
                       resetCreateForm();
                     }}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                    className="px-4 py-2 text-xs font-normal border border-[#e0e0e0] bg-white hover:bg-[#f4f4f4] text-[#161616] tracking-carbon transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={createScheduleMutation.isPending}
-                    className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4 py-2 text-xs font-normal bg-[#0f62fe] text-white hover:bg-[#0043ce] active:bg-[#002d9c] disabled:opacity-50 tracking-carbon transition-colors"
                   >
                     {createScheduleMutation.isPending ? 'Creating...' : 'Create Shift'}
                   </button>
@@ -396,13 +396,13 @@ export default function WorkSchedulesPage() {
 
         {/* Modal: Assign Shift to Employees */}
         {isAssignModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-white rounded-xl border border-slate-200 max-w-lg w-full overflow-hidden shadow-2xl">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                <h3 className="font-bold text-sm text-slate-900">Assign Shift to Employees</h3>
+          <div className="fixed inset-0 bg-[#161616]/60 flex items-center justify-center p-4 z-50 animate-in fade-in">
+            <div className="bg-white border border-[#e0e0e0] max-w-lg w-full overflow-hidden">
+              <div className="p-4 border-b border-[#e0e0e0] flex items-center justify-between bg-[#f4f4f4]">
+                <h3 className="font-semibold text-sm text-[#161616] tracking-carbon">Assign Shift to Employees</h3>
                 <button
                   onClick={() => setIsAssignModalOpen(false)}
-                  className="p-1 text-slate-400 hover:text-slate-600"
+                  className="p-1 text-[#525252] hover:text-[#161616]"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -430,18 +430,18 @@ export default function WorkSchedulesPage() {
                 className="p-5 space-y-3.5"
               >
                 {assignError && (
-                  <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600">
+                  <div className="p-2.5 bg-[#ffebee] border border-[#ffb3ba] text-xs text-[#da1e28] tracking-carbon">
                     {assignError}
                   </div>
                 )}
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Target Shift *</label>
+                  <label className="text-xs font-normal text-[#525252] tracking-carbon">Target Shift *</label>
                   <select
                     required
                     value={assignScheduleId}
                     onChange={(e) => setAssignScheduleId(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-1.5 text-xs bg-[#f4f4f4] border border-[#e0e0e0] text-[#161616] focus:outline-none focus:border-[#0f62fe] tracking-carbon"
                   >
                     <option value="">Choose shift...</option>
                     {scheduleList.map((s: any) => (
@@ -452,7 +452,7 @@ export default function WorkSchedulesPage() {
 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-slate-700">Select Employees *</label>
+                    <label className="text-xs font-normal text-[#525252] tracking-carbon">Select Employees *</label>
                     <button
                       type="button"
                       onClick={() => {
@@ -461,7 +461,7 @@ export default function WorkSchedulesPage() {
                           selectedEmployeeIds.length === allIds.length ? [] : allIds,
                         );
                       }}
-                      className="text-[11px] text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-[11px] text-[#0f62fe] hover:text-[#0043ce] font-normal tracking-carbon"
                     >
                       {selectedEmployeeIds.length === (employees?.data?.length || 0)
                         ? 'Deselect All'
@@ -469,13 +469,13 @@ export default function WorkSchedulesPage() {
                     </button>
                   </div>
 
-                  <div className="max-h-56 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1 bg-slate-50">
+                  <div className="max-h-56 overflow-y-auto border border-[#e0e0e0] p-2 space-y-1 bg-[#f4f4f4]">
                     {employees?.data?.map((emp: any) => {
                       const isChecked = selectedEmployeeIds.includes(emp.id);
                       return (
                         <label
                           key={emp.id}
-                          className="flex items-center gap-2 p-1.5 rounded hover:bg-white cursor-pointer text-xs"
+                          className="flex items-center gap-2 p-1.5 hover:bg-white cursor-pointer text-xs tracking-carbon transition-colors"
                         >
                           <input
                             type="checkbox"
@@ -487,10 +487,10 @@ export default function WorkSchedulesPage() {
                                 setSelectedEmployeeIds(selectedEmployeeIds.filter((id) => id !== emp.id));
                               }
                             }}
-                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            className="rounded-none border-[#e0e0e0] text-[#0f62fe] focus:ring-[#0f62fe]"
                           />
-                          <span className="font-medium text-slate-800">{emp.displayName}</span>
-                          <span className="text-[11px] text-slate-400">
+                          <span className="font-semibold text-[#161616]">{emp.displayName}</span>
+                          <span className="text-[11px] text-[#525252]">
                             ({emp.department?.name || 'General'})
                           </span>
                         </label>
@@ -499,18 +499,18 @@ export default function WorkSchedulesPage() {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <div className="pt-3 border-t border-[#e0e0e0] flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setIsAssignModalOpen(false)}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                    className="px-4 py-2 text-xs font-normal border border-[#e0e0e0] bg-white hover:bg-[#f4f4f4] text-[#161616] tracking-carbon transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={assignMutation.isPending}
-                    className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4 py-2 text-xs font-normal bg-[#0f62fe] text-white hover:bg-[#0043ce] active:bg-[#002d9c] disabled:opacity-50 tracking-carbon transition-colors"
                   >
                     {assignMutation.isPending ? 'Assigning...' : `Assign ${selectedEmployeeIds.length} Staff`}
                   </button>

@@ -60,77 +60,77 @@ export default function DashboardPage() {
     <AppLayout>
       <div className="space-y-6">
         {/* Page Title & Status */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e0e0e0] pb-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Organization Dashboard</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Real-time workforce activity, timer telemetry, and today&apos;s attendance</p>
+            <h1 className="text-2xl font-light text-[#161616] tracking-tight">Organization Dashboard</h1>
+            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">Real-time workforce telemetry, activity monitoring, and presence tracking</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Live Telemetry Ingestion Active
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba] text-xs font-normal tracking-carbon rounded-none">
+              <span className="w-1.5 h-1.5 bg-[#24a148]"></span>
+              Telemetry Active
             </span>
           </div>
         </div>
 
         {/* Core Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-sm">
-            <div className="flex items-center justify-between text-slate-500 text-xs mb-2">
-              <span className="font-medium">Total Workforce</span>
-              <Users className="w-4 h-4 text-slate-400" />
+          <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
+            <div className="flex items-center justify-between text-[#525252] text-xs mb-2">
+              <span className="font-normal tracking-carbon">Total Workforce</span>
+              <Users className="w-4 h-4 text-[#8c8c8c]" />
             </div>
-            <div className="text-2xl font-bold text-slate-900">{metrics.totalEmployees}</div>
-            <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-              <span className="text-emerald-600 font-semibold">{metrics.workingCount} online</span>
+            <div className="text-3xl font-light text-[#161616] tracking-tight">{metrics.totalEmployees}</div>
+            <div className="text-[11px] text-[#525252] mt-2 flex items-center gap-1 tracking-carbon">
+              <span className="text-[#24a148] font-medium">{metrics.workingCount} online</span>
               <span>• {metrics.offlineCount} offline</span>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-sm">
-            <div className="flex items-center justify-between text-slate-500 text-xs mb-2">
-              <span className="font-medium">Currently Working</span>
-              <PlayCircle className="w-4 h-4 text-blue-600" />
+          <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
+            <div className="flex items-center justify-between text-[#525252] text-xs mb-2">
+              <span className="font-normal tracking-carbon">Currently Working</span>
+              <PlayCircle className="w-4 h-4 text-[#0f62fe]" />
             </div>
-            <div className="text-2xl font-bold text-blue-600">{metrics.workingCount}</div>
-            <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
-              <span className="text-amber-600 font-semibold">{metrics.breakCount} on break</span>
+            <div className="text-3xl font-light text-[#0f62fe] tracking-tight">{metrics.workingCount}</div>
+            <div className="text-[11px] text-[#525252] mt-2 flex items-center gap-1 tracking-carbon">
+              <span className="text-[#6d4f00] font-medium">{metrics.breakCount} on break</span>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-sm">
-            <div className="flex items-center justify-between text-slate-500 text-xs mb-2">
-              <span className="font-medium">Today&apos;s Total Worked</span>
-              <Clock className="w-4 h-4 text-slate-400" />
+          <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
+            <div className="flex items-center justify-between text-[#525252] text-xs mb-2">
+              <span className="font-normal tracking-carbon">Today&apos;s Total Worked</span>
+              <Clock className="w-4 h-4 text-[#8c8c8c]" />
             </div>
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-3xl font-light text-[#161616] tracking-tight">
               {metrics.formattedTotalWorked || formatSecondsToHours(metrics.totalWorkSeconds)}
             </div>
-            <div className="text-[11px] text-slate-500 mt-1">
+            <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">
               Active: {metrics.formattedTotalActive || formatSecondsToHours(metrics.totalActiveSeconds)}
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-sm">
-            <div className="flex items-center justify-between text-slate-500 text-xs mb-2">
-              <span className="font-medium">Average Productivity</span>
-              <TrendingUp className="w-4 h-4 text-emerald-600" />
+          <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
+            <div className="flex items-center justify-between text-[#525252] text-xs mb-2">
+              <span className="font-normal tracking-carbon">Average Productivity</span>
+              <TrendingUp className="w-4 h-4 text-[#24a148]" />
             </div>
-            <div className="text-2xl font-bold text-emerald-600">{metrics.activePercentage}%</div>
-            <div className="text-[11px] text-slate-500 mt-1">Active vs idle ratio today</div>
+            <div className="text-3xl font-light text-[#24a148] tracking-tight">{metrics.activePercentage}%</div>
+            <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">Active vs idle ratio today</div>
           </div>
         </div>
 
         {/* Live Active Employees Table */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="bg-white border border-[#e0e0e0] rounded-none overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#e0e0e0] flex items-center justify-between bg-white">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Currently Active Team Members</h2>
-              <p className="text-xs text-slate-500">Live active sessions and current task allocations</p>
+              <h2 className="text-sm font-medium text-[#161616]">Currently Active Team Members</h2>
+              <p className="text-xs text-[#525252] tracking-carbon">Live active sessions and current task allocations</p>
             </div>
             <Link
               href="/attendance"
-              className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+              className="text-xs font-normal text-[#0f62fe] hover:text-[#0043ce] hover:underline flex items-center gap-1 tracking-carbon"
             >
               View Daily Overview →
             </Link>
@@ -138,7 +138,7 @@ export default function DashboardPage() {
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50/80 text-slate-500 text-[11px] font-semibold border-b border-slate-100 uppercase tracking-wider">
+              <thead className="bg-[#f4f4f4] text-[#525252] text-[11px] font-normal uppercase tracking-wider border-b border-[#e0e0e0]">
                 <tr>
                   <th className="px-5 py-3">Employee</th>
                   <th className="px-5 py-3">Department</th>
@@ -148,32 +148,32 @@ export default function DashboardPage() {
                   <th className="px-5 py-3 text-right">Time Worked</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
+              <tbody className="divide-y divide-[#e0e0e0] text-[#161616]">
                 {activeEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-slate-400">
+                    <td colSpan={6} className="px-5 py-8 text-center text-[#8c8c8c] tracking-carbon">
                       No employees are currently punched in.
                     </td>
                   </tr>
                 ) : (
                   activeEmployees.map((emp: any) => (
-                    <tr key={emp.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-5 py-3 font-medium text-slate-900">
-                        <Link href={`/employees/${emp.id}`} className="hover:text-blue-600 hover:underline">
+                    <tr key={emp.id} className="hover:bg-[#f4f4f4] transition-colors">
+                      <td className="px-5 py-3 font-normal">
+                        <Link href={`/employees/${emp.id}`} className="font-medium text-[#161616] hover:text-[#0f62fe] hover:underline">
                           {emp.displayName}
                         </Link>
-                        <span className="text-[10px] text-slate-400 block font-normal">{emp.employeeCode}</span>
+                        <span className="text-[10px] text-[#8c8c8c] block font-normal">{emp.employeeCode}</span>
                       </td>
-                      <td className="px-5 py-3 text-slate-500">{emp.department || 'General'}</td>
+                      <td className="px-5 py-3 text-[#525252]">{emp.department || 'General'}</td>
                       <td className="px-5 py-3">
                         {emp.status === 'WORKING' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[11px] font-normal bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba]">
+                            <span className="w-1.5 h-1.5 bg-[#24a148]"></span>
                             Working
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                            <Coffee className="w-3 h-3 text-amber-500" />
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none text-[11px] font-normal bg-[#fdf2cc] text-[#6d4f00] border border-[#fbe499]">
+                            <Coffee className="w-3 h-3 text-[#6d4f00]" />
                             On Break
                           </span>
                         )}
@@ -181,19 +181,19 @@ export default function DashboardPage() {
                       <td className="px-5 py-3">
                         {emp.activeSession?.project ? (
                           <div>
-                            <span className="font-medium text-slate-800">{emp.activeSession.project.name}</span>
+                            <span className="font-medium text-[#161616]">{emp.activeSession.project.name}</span>
                             {emp.activeSession.task && (
-                              <span className="text-slate-400 text-[11px] block">{emp.activeSession.task.title}</span>
+                              <span className="text-[#8c8c8c] text-[11px] block">{emp.activeSession.task.title}</span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-400">General Task</span>
+                          <span className="text-[#8c8c8c]">General Task</span>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-slate-500">
+                      <td className="px-5 py-3 text-[#525252]">
                         {emp.activeSession?.startedAt ? new Date(emp.activeSession.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                       </td>
-                      <td className="px-5 py-3 text-right font-semibold text-slate-900">
+                      <td className="px-5 py-3 text-right font-medium text-[#161616]">
                         {emp.formattedWorked || '00:00'}
                       </td>
                     </tr>
@@ -207,44 +207,44 @@ export default function DashboardPage() {
         {/* 2-Column Grid: Recent Screenshots & Pending Approvals */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Screenshots (2 cols) */}
-          <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200/90 shadow-sm p-5">
+          <div className="lg:col-span-2 bg-white border border-[#e0e0e0] rounded-none p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Recent Employee Screen Captures</h3>
-                <p className="text-xs text-slate-500">Captured periodically by desktop telemetry agents</p>
+                <h3 className="text-sm font-medium text-[#161616]">Recent Screen Captures</h3>
+                <p className="text-xs text-[#525252] tracking-carbon">Captured periodically by desktop telemetry agents</p>
               </div>
-              <Link href="/screenshots/users" className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline">
+              <Link href="/screenshots/users" className="text-xs font-normal text-[#0f62fe] hover:text-[#0043ce] hover:underline tracking-carbon">
                 View All Screenshots →
               </Link>
             </div>
 
             {screenshots.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-xs">No screenshots recorded yet.</div>
+              <div className="py-12 text-center text-[#8c8c8c] text-xs tracking-carbon">No screenshots recorded yet.</div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {screenshots.slice(0, 6).map((sc: any) => (
-                  <div key={sc.id} className="group relative rounded-lg border border-slate-200 overflow-hidden bg-slate-900 aspect-video flex flex-col justify-end">
+                  <div key={sc.id} className="group relative rounded-none border border-[#e0e0e0] overflow-hidden bg-[#161616] aspect-video flex flex-col justify-end">
                     <img
                       src={sc.fileUrl}
                       alt="Screen capture"
                       className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
                     />
-                    <div className="relative p-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent text-white text-[10px] space-y-1">
+                    <div className="relative p-2 bg-[#161616]/90 border-t border-[#262626] text-white text-[10px] space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold truncate">{sc.employee?.displayName || 'Employee'}</span>
-                        <span className="text-slate-300 text-[9px]">{new Date(sc.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="font-normal truncate text-white">{sc.employee?.displayName || 'Employee'}</span>
+                        <span className="text-[#8c8c8c] text-[9px]">{new Date(sc.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                       {sc.activityPercentage !== null && sc.activityPercentage !== undefined && (
                         <div className="flex items-center gap-1.5 pt-0.5">
-                          <div className="flex-1 h-1.5 bg-slate-700/80 rounded-full overflow-hidden flex">
+                          <div className="flex-1 h-1 bg-[#262626] rounded-none overflow-hidden flex">
                             <div
-                              className={`h-full rounded-full ${
-                                sc.activityPercentage >= 50 ? 'bg-[#22C55E]' : sc.activityPercentage >= 20 ? 'bg-amber-400' : 'bg-red-400'
+                              className={`h-full rounded-none ${
+                                sc.activityPercentage >= 50 ? 'bg-[#24a148]' : sc.activityPercentage >= 20 ? 'bg-[#f1c21b]' : 'bg-[#da1e28]'
                               }`}
                               style={{ width: `${Math.min(100, Math.max(0, Math.round(sc.activityPercentage)))}%` }}
                             />
                           </div>
-                          <span className="text-emerald-400 font-bold text-[9px] font-mono shrink-0">{Math.round(sc.activityPercentage)}%</span>
+                          <span className="text-[#24a148] font-normal text-[9px] font-mono shrink-0">{Math.round(sc.activityPercentage)}%</span>
                         </div>
                       )}
                     </div>
@@ -257,44 +257,44 @@ export default function DashboardPage() {
           {/* Pending Approvals & Quick Alerts (1 col) */}
           <div className="space-y-4">
             {/* Pending Time Entries Card */}
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4">
+            <div className="bg-white border border-[#e0e0e0] rounded-none p-5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
-                  <FileCheck className="w-4 h-4 text-blue-600" />
-                  Manual Time Approvals
+                <span className="text-xs font-medium text-[#161616] flex items-center gap-2">
+                  <FileCheck className="w-4 h-4 text-[#0f62fe]" />
+                  Time Approvals
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                <span className="text-[10px] font-normal px-2 py-0.5 bg-[#edf5ff] text-[#0f62fe] border border-[#a6c8ff] rounded-none">
                   {pendingTime?.length || 0}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mb-3">
+              <p className="text-[11px] text-[#525252] mb-4 tracking-carbon">
                 Manual time requests awaiting manager verification.
               </p>
               <Link
                 href="/time/approvals"
-                className="block text-center w-full py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors"
+                className="block text-center w-full py-2 bg-[#f4f4f4] hover:bg-[#e0e0e0] border border-[#e0e0e0] text-xs font-normal text-[#161616] rounded-none transition-colors tracking-carbon"
               >
                 Review Time Requests
               </Link>
             </div>
 
             {/* Pending Leaves Card */}
-            <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4">
+            <div className="bg-white border border-[#e0e0e0] rounded-none p-5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
-                  <CalendarOff className="w-4 h-4 text-purple-600" />
+                <span className="text-xs font-medium text-[#161616] flex items-center gap-2">
+                  <CalendarOff className="w-4 h-4 text-[#6929c4]" />
                   Leave Applications
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                <span className="text-[10px] font-normal px-2 py-0.5 bg-[#f6f2ff] text-[#6929c4] border border-[#d4bbff] rounded-none">
                   {pendingLeaves?.length || 0}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mb-3">
+              <p className="text-[11px] text-[#525252] mb-4 tracking-carbon">
                 Employee leave requests requiring approval.
               </p>
               <Link
                 href="/leaves/requests"
-                className="block text-center w-full py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors"
+                className="block text-center w-full py-2 bg-[#f4f4f4] hover:bg-[#e0e0e0] border border-[#e0e0e0] text-xs font-normal text-[#161616] rounded-none transition-colors tracking-carbon"
               >
                 Review Leave Requests
               </Link>

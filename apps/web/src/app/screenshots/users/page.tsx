@@ -57,19 +57,19 @@ export default function UserScreenshotsPage() {
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e0e0e0] pb-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">User Screenshots Gallery</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Automated visual monitoring and productivity audits</p>
+            <h1 className="text-2xl font-light text-[#161616] tracking-tight">User Screenshots Gallery</h1>
+            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">Automated visual monitoring and productivity audits</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
-              <User className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex items-center gap-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5 text-xs">
+              <User className="w-3.5 h-3.5 text-[#525252]" />
               <select
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
-                className="focus:outline-none text-slate-700 bg-transparent text-xs font-medium"
+                className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal tracking-carbon cursor-pointer"
               >
                 <option value="">All Employees</option>
                 {employeeList.map((emp: any) => (
@@ -78,12 +78,12 @@ export default function UserScreenshotsPage() {
               </select>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
-              <FolderGit2 className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex items-center gap-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5 text-xs">
+              <FolderGit2 className="w-3.5 h-3.5 text-[#525252]" />
               <select
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
-                className="focus:outline-none text-slate-700 bg-transparent text-xs font-medium"
+                className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal tracking-carbon cursor-pointer"
               >
                 <option value="">All Projects</option>
                 {projects?.map((p: any) => (
@@ -92,33 +92,33 @@ export default function UserScreenshotsPage() {
               </select>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex items-center gap-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5 text-xs">
+              <Calendar className="w-3.5 h-3.5 text-[#525252]" />
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="focus:outline-none text-slate-700 text-xs bg-transparent"
+                className="focus:outline-none text-[#161616] text-xs bg-transparent cursor-pointer font-medium tracking-carbon"
               />
             </div>
           </div>
         </div>
 
         {/* Gallery Grid */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+        <div className="bg-white border border-[#e0e0e0] rounded-none p-5">
+          <div className="flex items-center justify-between mb-4 border-b border-[#e0e0e0] pb-3">
+            <h2 className="text-xs font-normal text-[#525252] uppercase tracking-wider">
               Captured Records ({screenshots.length})
             </h2>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-[#8c8c8c] tracking-carbon">
               Interval: {organization?.screenshotIntervalMinutes || 5} mins
             </span>
           </div>
 
           {isLoading ? (
-            <div className="py-24 text-center text-xs text-slate-400">Loading screen captures...</div>
+            <div className="py-24 text-center text-xs text-[#8c8c8c] tracking-carbon">Loading screen captures...</div>
           ) : screenshots.length === 0 ? (
-            <div className="py-24 text-center text-xs text-slate-400">
+            <div className="py-24 text-center text-xs text-[#525252] tracking-carbon">
               No screenshots found for the selected date and filters.
             </div>
           ) : (
@@ -127,47 +127,47 @@ export default function UserScreenshotsPage() {
                 <div
                   key={sc.id}
                   onClick={() => setActiveScreenshot(sc)}
-                  className="group rounded-lg border border-slate-200 overflow-hidden bg-slate-900 cursor-pointer hover:border-blue-500 transition-all hover:shadow-md"
+                  className="group rounded-none border border-[#e0e0e0] overflow-hidden bg-[#161616] cursor-pointer hover:border-[#0f62fe] transition-all"
                 >
-                  <div className="aspect-video relative overflow-hidden bg-slate-950">
+                  <div className="aspect-video relative overflow-hidden bg-[#161616]">
                     <img
                       src={sc.fileUrl}
                       alt="Screen Capture"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
                     />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                      <Maximize2 className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-[#161616]/0 group-hover:bg-[#161616]/30 transition-colors flex items-center justify-center">
+                      <Maximize2 className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </div>
 
-                  <div className="p-3 bg-white text-slate-800 space-y-1.5 border-t border-slate-100">
+                  <div className="p-3 bg-white text-[#161616] space-y-1.5 border-t border-[#e0e0e0]">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-xs text-slate-900 truncate max-w-[130px]">
+                      <span className="font-medium text-xs text-[#161616] truncate max-w-[130px]">
                         {sc.employee?.displayName || 'Employee'}
                       </span>
-                      <span className="text-[11px] text-slate-500 font-medium">
-                        Time: <span className="font-semibold text-slate-700">{new Date(sc.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-[11px] text-[#525252]">
+                        {new Date(sc.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
 
                     {/* Activity Percentage Bar */}
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-700 pt-0.5">
-                      <span className="font-bold text-slate-600 shrink-0">Activity:</span>
-                      <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden flex min-w-[40px]">
+                    <div className="flex items-center gap-1.5 text-[11px] text-[#525252] pt-0.5">
+                      <span className="font-medium text-[#161616] shrink-0">Activity:</span>
+                      <div className="flex-1 h-2 bg-[#e0e0e0] rounded-none overflow-hidden flex min-w-[40px]">
                         <div
-                          className={`h-full rounded-full transition-all ${
+                          className={`h-full rounded-none transition-all ${
                             (sc.activityPercentage ?? 0) >= 50
-                              ? 'bg-[#22C55E]'
+                              ? 'bg-[#24a148]'
                               : (sc.activityPercentage ?? 0) >= 20
-                              ? 'bg-amber-500'
-                              : 'bg-red-500'
+                              ? 'bg-[#f1c21b]'
+                              : 'bg-[#da1e28]'
                           }`}
                           style={{
                             width: `${Math.min(100, Math.max(0, Math.round(sc.activityPercentage ?? 0)))}%`,
                           }}
                         />
                       </div>
-                      <span className="font-bold text-[10px] text-slate-700 shrink-0 font-mono">
+                      <span className="font-mono text-[10px] text-[#525252] shrink-0">
                         {sc.activityPercentage !== null && sc.activityPercentage !== undefined
                           ? `${Math.round(sc.activityPercentage)}%`
                           : 'N/A'}
@@ -182,13 +182,13 @@ export default function UserScreenshotsPage() {
 
         {/* Modal Lightbox Viewer */}
         {activeScreenshot && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-            <div className="bg-slate-900 rounded-xl border border-slate-700 max-w-4xl w-full overflow-hidden shadow-2xl flex flex-col">
+          <div className="fixed inset-0 bg-[#161616]/80 flex items-center justify-center p-4 z-50">
+            <div className="bg-[#161616] rounded-none border border-[#262626] max-w-4xl w-full overflow-hidden flex flex-col">
               {/* Modal Topbar */}
-              <div className="p-4 bg-slate-950 flex items-center justify-between text-white border-b border-slate-800">
+              <div className="p-4 bg-[#161616] flex items-center justify-between text-white border-b border-[#262626]">
                 <div>
-                  <h3 className="font-semibold text-sm">{activeScreenshot.employee?.displayName}</h3>
-                  <p className="text-[11px] text-slate-400">
+                  <h3 className="font-medium text-sm text-white">{activeScreenshot.employee?.displayName}</h3>
+                  <p className="text-[11px] text-[#8c8c8c] tracking-carbon">
                     Captured at: {new Date(activeScreenshot.capturedAt).toLocaleString()}
                     {activeScreenshot.project && ` • Project: ${activeScreenshot.project.name}`}
                     {activeScreenshot.task && ` (${activeScreenshot.task.title})`}
@@ -203,7 +203,7 @@ export default function UserScreenshotsPage() {
                           deleteMutation.mutate(activeScreenshot.id);
                         }
                       }}
-                      className="px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/30 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-none bg-[#da1e28] text-white hover:bg-[#ba1b23] text-xs font-normal transition-colors flex items-center gap-1.5 tracking-carbon"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>Delete</span>
@@ -212,7 +212,7 @@ export default function UserScreenshotsPage() {
 
                   <button
                     onClick={() => setActiveScreenshot(null)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                    className="p-1.5 rounded-none text-[#8c8c8c] hover:text-white hover:bg-[#262626]"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -224,14 +224,14 @@ export default function UserScreenshotsPage() {
                 <img
                   src={activeScreenshot.fileUrl}
                   alt="Full Screenshot"
-                  className="max-h-[70vh] w-auto object-contain rounded border border-slate-800"
+                  className="max-h-[70vh] w-auto object-contain rounded-none border border-[#262626]"
                 />
               </div>
 
               {/* Footer details */}
-              <div className="p-3 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+              <div className="p-3 bg-[#161616] border-t border-[#262626] text-[11px] text-[#8c8c8c] flex items-center justify-between tracking-carbon">
                 <span>Resolution: {activeScreenshot.width || 1920}x{activeScreenshot.height || 1080} • {Math.round(activeScreenshot.fileSize / 1024)} KB</span>
-                <span className="font-semibold text-emerald-400">Activity Level: {activeScreenshot.activityPercentage}%</span>
+                <span className="font-medium text-[#24a148]">Activity Level: {activeScreenshot.activityPercentage}%</span>
               </div>
             </div>
           </div>

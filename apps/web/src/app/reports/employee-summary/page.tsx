@@ -111,10 +111,10 @@ export default function EmployeeSummaryReportPage() {
     <AppLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e0e0e0] pb-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Employee Productivity Summary</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h1 className="text-2xl font-light text-[#161616] tracking-tight">Employee Productivity Summary</h1>
+            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">
               Comprehensive report of workforce tracked hours, activity levels, and break duration
             </p>
           </div>
@@ -122,7 +122,7 @@ export default function EmployeeSummaryReportPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleExportCsv}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#0f62fe] hover:bg-[#0043ce] active:bg-[#002d9c] text-white text-xs font-normal tracking-carbon transition-colors"
             >
               <Download className="w-4 h-4" />
               <span>Export CSV</span>
@@ -132,79 +132,79 @@ export default function EmployeeSummaryReportPage() {
 
         {/* Aggregated KPI Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-sm">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase">Total Logged Time</p>
-            <p className="text-xl font-bold text-blue-600 font-mono mt-0.5">
+          <div className="p-4 bg-white border border-[#e0e0e0]">
+            <p className="text-[11px] font-semibold text-[#525252] uppercase tracking-carbon">Total Logged Time</p>
+            <p className="text-2xl font-light text-[#0f62fe] font-mono mt-0.5">
               {formatTime(totalTrackedSeconds)}
             </p>
           </div>
 
-          <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-sm">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase">Active Time</p>
-            <p className="text-xl font-bold text-emerald-600 font-mono mt-0.5">
+          <div className="p-4 bg-white border border-[#e0e0e0]">
+            <p className="text-[11px] font-semibold text-[#525252] uppercase tracking-carbon">Active Time</p>
+            <p className="text-2xl font-light text-[#0e6027] font-mono mt-0.5">
               {formatTime(totalActiveSeconds)}
             </p>
           </div>
 
-          <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-sm">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase">Idle Time</p>
-            <p className="text-xl font-bold text-amber-600 font-mono mt-0.5">
+          <div className="p-4 bg-white border border-[#e0e0e0]">
+            <p className="text-[11px] font-semibold text-[#525252] uppercase tracking-carbon">Idle Time</p>
+            <p className="text-2xl font-light text-[#6d4f00] font-mono mt-0.5">
               {formatTime(totalIdleSeconds)}
             </p>
           </div>
 
-          <div className="p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-sm">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase">Avg Productivity</p>
-            <p className="text-xl font-bold text-purple-600 mt-0.5">{avgProductivity}%</p>
+          <div className="p-4 bg-white border border-[#e0e0e0]">
+            <p className="text-[11px] font-semibold text-[#525252] uppercase tracking-carbon">Avg Productivity</p>
+            <p className="text-2xl font-light text-[#161616] mt-0.5">{avgProductivity}%</p>
           </div>
         </div>
 
         {/* Filter Controls Bar */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm p-4 space-y-3">
+        <div className="bg-white border border-[#e0e0e0] p-4 space-y-3">
           {/* Quick Preset Buttons */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
-            <div className="flex flex-wrap items-center gap-1 text-xs">
-              <span className="text-[11px] font-semibold text-slate-400 mr-1">Preset:</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#e0e0e0]">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs tracking-carbon">
+              <span className="text-[11px] font-semibold text-[#525252] mr-1 uppercase">Preset:</span>
               <button
                 onClick={() => setPreset('today')}
-                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-colors"
+                className="px-3 py-1 bg-[#f4f4f4] hover:bg-[#e0e0e0] border border-[#e0e0e0] text-[#161616] font-normal text-xs transition-colors"
               >
                 Today
               </button>
               <button
                 onClick={() => setPreset('yesterday')}
-                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-colors"
+                className="px-3 py-1 bg-[#f4f4f4] hover:bg-[#e0e0e0] border border-[#e0e0e0] text-[#161616] font-normal text-xs transition-colors"
               >
                 Yesterday
               </button>
               <button
                 onClick={() => setPreset('this_week')}
-                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-colors"
+                className="px-3 py-1 bg-[#f4f4f4] hover:bg-[#e0e0e0] border border-[#e0e0e0] text-[#161616] font-normal text-xs transition-colors"
               >
                 This Week
               </button>
               <button
                 onClick={() => setPreset('this_month')}
-                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-colors"
+                className="px-3 py-1 bg-[#f4f4f4] hover:bg-[#e0e0e0] border border-[#e0e0e0] text-[#161616] font-normal text-xs transition-colors"
               >
                 This Month
               </button>
             </div>
 
             {/* Time Format Toggle */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+            <div className="flex items-center border border-[#e0e0e0] bg-[#f4f4f4] text-xs font-normal tracking-carbon">
               <button
                 onClick={() => setFormatMode('hhmm')}
-                className={`px-2.5 py-1 rounded-md transition-all ${
-                  formatMode === 'hhmm' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600'
+                className={`px-3 py-1 transition-colors ${
+                  formatMode === 'hhmm' ? 'bg-[#0f62fe] text-white font-medium' : 'text-[#525252] hover:text-[#161616]'
                 }`}
               >
                 HH:MM:SS
               </button>
               <button
                 onClick={() => setFormatMode('decimal')}
-                className={`px-2.5 py-1 rounded-md transition-all ${
-                  formatMode === 'decimal' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600'
+                className={`px-3 py-1 transition-colors ${
+                  formatMode === 'decimal' ? 'bg-[#0f62fe] text-white font-medium' : 'text-[#525252] hover:text-[#161616]'
                 }`}
               >
                 Decimal (Hours)
@@ -214,28 +214,28 @@ export default function EmployeeSummaryReportPage() {
 
           {/* Date & Dropdown Filters */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex items-center gap-1.5 bg-[#f4f4f4] border border-[#e0e0e0] px-3 py-1.5 text-xs">
+              <Calendar className="w-3.5 h-3.5 text-[#525252]" />
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent focus:outline-none text-slate-700 text-xs"
+                className="bg-transparent focus:outline-none text-[#161616] text-xs tracking-carbon font-mono"
               />
-              <span className="text-slate-400">to</span>
+              <span className="text-[#8c8c8c]">to</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent focus:outline-none text-slate-700 text-xs"
+                className="bg-transparent focus:outline-none text-[#161616] text-xs tracking-carbon font-mono"
               />
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+            <div className="bg-[#f4f4f4] border border-[#e0e0e0] px-3 py-1.5 text-xs">
               <select
                 value={departmentId}
                 onChange={(e) => setDepartmentId(e.target.value)}
-                className="focus:outline-none text-slate-700 bg-transparent text-xs font-medium"
+                className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal tracking-carbon cursor-pointer"
               >
                 <option value="">All Departments</option>
                 {departments?.map((d: any) => (
@@ -244,11 +244,11 @@ export default function EmployeeSummaryReportPage() {
               </select>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+            <div className="bg-[#f4f4f4] border border-[#e0e0e0] px-3 py-1.5 text-xs">
               <select
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
-                className="focus:outline-none text-slate-700 bg-transparent text-xs font-medium"
+                className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal tracking-carbon cursor-pointer"
               >
                 <option value="">All Employees</option>
                 {employees?.data?.map((emp: any) => (
@@ -260,19 +260,19 @@ export default function EmployeeSummaryReportPage() {
         </div>
 
         {/* Report Table */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-sm overflow-hidden">
+        <div className="bg-white border border-[#e0e0e0] overflow-hidden">
           {isLoading ? (
-            <div className="p-16 text-center text-xs text-slate-400">Calculating report summary...</div>
+            <div className="p-16 text-center text-xs text-[#8c8c8c] tracking-carbon">Calculating report summary...</div>
           ) : rows.length === 0 ? (
-            <div className="p-16 text-center text-slate-500 text-xs space-y-2">
-              <BarChart3 className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="font-semibold text-slate-700">No time recorded in this period</p>
-              <p className="text-slate-400">Try expanding the date range or removing department filters.</p>
+            <div className="p-16 text-center text-[#525252] text-xs space-y-2 tracking-carbon">
+              <BarChart3 className="w-8 h-8 text-[#8c8c8c] mx-auto" />
+              <p className="font-semibold text-[#161616]">No time recorded in this period</p>
+              <p className="text-[#8c8c8c]">Try expanding the date range or removing department filters.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+              <table className="w-full text-left text-xs tracking-carbon">
+                <thead className="bg-[#f4f4f4] text-[#525252] font-semibold border-b border-[#e0e0e0] uppercase text-[11px]">
                   <tr>
                     <th className="py-3 px-4">Employee</th>
                     <th className="py-3 px-4">Department</th>
@@ -285,7 +285,7 @@ export default function EmployeeSummaryReportPage() {
                     <th className="py-3 px-4 text-right">Sessions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#e0e0e0]">
                   {rows.map((row: any) => {
                     const empName = row.displayName || row.employee?.displayName || 'Unknown';
                     const empCode = row.employeeCode || row.employee?.employeeCode || '';
@@ -301,64 +301,64 @@ export default function EmployeeSummaryReportPage() {
                       .toUpperCase();
 
                     return (
-                      <tr key={empId} className="hover:bg-slate-50/50">
+                      <tr key={empId} className="hover:bg-[#f4f4f4] transition-colors">
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">
+                            <div className="w-7 h-7 bg-[#edf5ff] border border-[#a6c8ff] text-[#0043ce] font-semibold text-xs flex items-center justify-center">
                               {initials || 'U'}
                             </div>
                             <div>
-                              <p className="font-semibold text-slate-900">{empName}</p>
-                              <p className="text-[10px] text-slate-400">{empCode || 'Staff'}</p>
+                              <p className="font-semibold text-[#161616]">{empName}</p>
+                              <p className="text-[10px] text-[#525252]">{empCode || 'Staff'}</p>
                             </div>
                           </div>
                         </td>
 
-                        <td className="py-3.5 px-4 text-slate-600 font-medium">
+                        <td className="py-3.5 px-4 text-[#525252] font-normal">
                           {deptName}
                         </td>
 
-                        <td className="py-3.5 px-4 font-mono font-bold text-blue-600">
+                        <td className="py-3.5 px-4 font-mono font-bold text-[#0f62fe]">
                           {formatTime(totalSec)}
                         </td>
 
-                        <td className="py-3.5 px-4 font-mono font-semibold text-emerald-600">
+                        <td className="py-3.5 px-4 font-mono font-semibold text-[#0e6027]">
                           {formatTime(row.activeSeconds || 0)}
                         </td>
 
-                        <td className="py-3.5 px-4 font-mono text-amber-600">
+                        <td className="py-3.5 px-4 font-mono text-[#6d4f00]">
                           {formatTime(row.idleSeconds || 0)}
                         </td>
 
-                        <td className="py-3.5 px-4 font-mono text-slate-600">
+                        <td className="py-3.5 px-4 font-mono text-[#525252]">
                           {formatTime(row.breakSeconds || 0)}
                         </td>
 
-                        <td className="py-3.5 px-4 font-mono text-slate-600">
+                        <td className="py-3.5 px-4 font-mono text-[#525252]">
                           {formatTime(row.manualSeconds || 0)}
                         </td>
 
                         <td className="py-3.5 px-4 text-center">
                           <div className="inline-flex items-center gap-1.5">
                             <span
-                              className={`text-xs font-bold ${
+                              className={`text-xs font-mono font-medium ${
                                 prodScore >= 80
-                                  ? 'text-emerald-600'
+                                  ? 'text-[#0e6027]'
                                   : prodScore >= 50
-                                  ? 'text-amber-600'
-                                  : 'text-red-500'
+                                  ? 'text-[#6d4f00]'
+                                  : 'text-[#da1e28]'
                               }`}
                             >
                               {prodScore}%
                             </span>
-                            <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="w-12 h-1.5 bg-[#e0e0e0] overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${
+                                className={`h-full ${
                                   prodScore >= 80
-                                    ? 'bg-emerald-500'
+                                    ? 'bg-[#24a148]'
                                     : prodScore >= 50
-                                    ? 'bg-amber-500'
-                                    : 'bg-red-500'
+                                    ? 'bg-[#f1c21b]'
+                                    : 'bg-[#da1e28]'
                                 }`}
                                 style={{ width: `${Math.min(100, prodScore)}%` }}
                               />
@@ -366,7 +366,7 @@ export default function EmployeeSummaryReportPage() {
                           </div>
                         </td>
 
-                        <td className="py-3.5 px-4 text-right font-mono font-medium text-slate-600">
+                        <td className="py-3.5 px-4 text-right font-mono font-normal text-[#525252]">
                           {row.sessionsCount ?? row.sessionCount ?? 0}
                         </td>
                       </tr>
