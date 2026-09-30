@@ -5,10 +5,11 @@ import { WorkNotesModal } from '../components/WorkNotesModal';
 import { TodayStats } from '../components/TodayStats';
 import { RecentScreenshots } from '../components/RecentScreenshots';
 import { SettingsModal } from '../components/SettingsModal';
+import { IdleWarningModal } from '../components/IdleWarningModal';
 import { agentApi } from '../services/api';
 import { storage } from '../services/storage';
 import { LogOut, CloudOff, RefreshCw } from 'lucide-react';
-import { SessionStatus, ActiveSession, CapturedScreenshot } from '../types';
+import { SessionStatus, ActiveSession, CapturedScreenshot, IdleConfig } from '../types';
 
 interface TrackerPageProps {
   onLogout: () => void;
@@ -23,6 +24,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
+  // State Machine: OFFLINE | ACTIVE | IDLE_WARNING | IDLE | BREAK
   const [status, setStatus] = useState<SessionStatus>('OFFLINE');
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
   const [sessionSeconds, setSessionSeconds] = useState<number>(0);
@@ -30,6 +32,12 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
   const [isIdle, setIsIdle] = useState<boolean>(false);
   const [idleSeconds, setIdleSeconds] = useState<number>(0);
   const [lastPunchOutTime, setLastPunchOutTime] = useState<string>('');
+
+  // Idle tracking state
+  const [idleConfig, setIdleConfig] = useState<IdleConfig>(() => storage.getIdleConfig());
+  const [idleWarningSecondsLeft, setIdleWarningSecondsLeft] = useState<number>(60);
+  const [currentIdlePeriodSeconds, setCurrentIdlePeriodSeconds] = useState<number>(0);
+  const idleStartTimeRef = useRef<number | null>(null);
 
   // Today aggregates
   const [todayWorkedSeconds, setTodayWorkedSeconds] = useState<number>(0);
@@ -44,8 +52,11 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
   const [workNotes, setWorkNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // 1-Second Activity Bucket Aggregators for Screenshot Window
+  const windowActiveSecondsRef = useRef<number>(0);
+  const windowIdleSecondsRef = useRef<number>(0);
+
   // Telemetry buffer references
-  const idleThreshold = (organization?.idleThresholdMinutes || 5) * 60;
   const activeBucketSecRef = useRef<number>(0);
   const idleBucketSecRef = useRef<number>(0);
 
@@ -85,8 +96,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       .getTodaySummary(todayStr)
       .then((summary) => {
         if (!summary) return;
-        setTodayWorkedSeconds(summary.workedSeconds || 0);
-        setTodayActiveSeconds(summary.activeSeconds || 0);
+        setTodayWorkedSeconds(summary.workedSeconds ?? summary.activeSeconds ?? 0);
+        setTodayActiveSeconds(summary.activeSeconds ?? summary.workedSeconds ?? 0);
         setTodayIdleSeconds(summary.idleSeconds || 0);
         setTodayBreakSeconds(summary.breakSeconds || 0);
         setLastPunchOutTime(summary.lastPunchOutTime || '');
@@ -110,8 +121,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         storage.setDailyState(
           {
             date: todayStr,
-            workedSeconds: summary.workedSeconds || 0,
-            activeSeconds: summary.activeSeconds || 0,
+            workedSeconds: summary.workedSeconds ?? summary.activeSeconds ?? 0,
+            activeSeconds: summary.activeSeconds ?? summary.workedSeconds ?? 0,
             idleSeconds: summary.idleSeconds || 0,
             breakSeconds: summary.breakSeconds || 0,
             lastPunchOutTime: summary.lastPunchOutTime || '',
@@ -138,8 +149,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         const todayStr = getTodayDateStr();
         const summary = await agentApi.getTodaySummary(todayStr);
         if (summary) {
-          setTodayWorkedSeconds(summary.workedSeconds || 0);
-          setTodayActiveSeconds(summary.activeSeconds || 0);
+          setTodayWorkedSeconds(summary.workedSeconds ?? summary.activeSeconds ?? 0);
+          setTodayActiveSeconds(summary.activeSeconds ?? summary.workedSeconds ?? 0);
           setTodayBreakSeconds(summary.breakSeconds || 0);
         }
       }
@@ -176,34 +187,114 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     };
   }, [runSync]);
 
-  // 2. High Resolution Timer Loop (1s Tick)
+  // 2. High Resolution Timer & System-Wide Idle Detection State Machine (1s Tick)
   useEffect(() => {
     if (status === 'OFFLINE') return;
 
     const timer = setInterval(async () => {
+      // 1. Fetch system-wide idle seconds from Electron powerMonitor
+      let currentIdle = 0;
+      if (window.electronAPI) {
+        try {
+          currentIdle = await window.electronAPI.getIdleSeconds();
+        } catch {
+          currentIdle = 0;
+        }
+      }
+      setIdleSeconds(currentIdle);
+
+      // 2. 1-Second Activity Bucket Classification for Screenshot Window
+      if (currentIdle < 2) {
+        windowActiveSecondsRef.current += 1;
+        activeBucketSecRef.current += 1;
+      } else {
+        windowIdleSecondsRef.current += 1;
+        idleBucketSecRef.current += 1;
+      }
+
+      const gracePeriod = idleConfig.gracePeriodSeconds || 60;
+      const warningDuration = idleConfig.warningDurationSeconds || 60;
+      const totalTimeout = gracePeriod + warningDuration;
+
+      // 3. State Machine Transitions
       if (status === 'ACTIVE') {
         setSessionSeconds((prev) => prev + 1);
         setTodayWorkedSeconds((prev) => prev + 1);
+        setTodayActiveSeconds((prev) => prev + 1);
 
-        // Check system idle seconds
-        let currentIdle = 0;
-        if (window.electronAPI) {
-          try {
-            currentIdle = await window.electronAPI.getIdleSeconds();
-          } catch {
-            currentIdle = 0;
+        if (currentIdle >= gracePeriod) {
+          // Grace period elapsed -> enter IDLE_WARNING state
+          setStatus('IDLE_WARNING');
+          const secLeft = Math.max(1, totalTimeout - currentIdle);
+          setIdleWarningSecondsLeft(secLeft);
+          console.log(`[IDLE] Inactivity started. Grace period elapsed (${gracePeriod}s). Warning started.`);
+          window.electronAPI?.notify({
+            title: 'PulseTime: Inactivity Warning',
+            body: `Inactivity detected. Warning countdown started (${secLeft}s left).`,
+          });
+        }
+      } else if (status === 'IDLE_WARNING') {
+        if (currentIdle < gracePeriod) {
+          // Activity detected during warning -> cancel warning, resume ACTIVE
+          setStatus('ACTIVE');
+          setIsIdle(false);
+          console.log('[IDLE] Activity detected during warning. Warning cancelled. User remains ACTIVE.');
+        } else if (currentIdle >= totalTimeout) {
+          // Warning countdown expired -> enter confirmed IDLE state
+          setStatus('IDLE');
+          setIsIdle(true);
+          idleStartTimeRef.current = Date.now();
+          setCurrentIdlePeriodSeconds(0);
+          console.log(`[IDLE] Warning countdown expired (${totalTimeout}s total inactivity). User marked IDLE.`);
+          window.electronAPI?.updateTrayStatus('Idle (Paused)');
+          window.electronAPI?.notify({
+            title: 'PulseTime: Marked IDLE',
+            body: 'Work tracking paused due to inactivity. Move mouse to resume.',
+          });
+        } else {
+          // Continue warning countdown
+          const secLeft = Math.max(1, totalTimeout - currentIdle);
+          setIdleWarningSecondsLeft(secLeft);
+          if (secLeft % 15 === 0 || secLeft <= 5) {
+            console.log(`[IDLE] Warning countdown: ${secLeft}s`);
           }
         }
-        setIdleSeconds(currentIdle);
+      } else if (status === 'IDLE') {
+        // In confirmed IDLE state: Work timer does NOT increment. Idle timer increments.
+        setCurrentIdlePeriodSeconds((prev) => prev + 1);
+        setTodayIdleSeconds((prev) => prev + 1);
 
-        if (currentIdle >= idleThreshold) {
-          setIsIdle(true);
-          idleBucketSecRef.current += 1;
-          setTodayIdleSeconds((prev) => prev + 1);
-        } else {
+        if (currentIdle < 2) {
+          // User resumed keyboard/mouse interaction!
+          const idleDurationSec = idleStartTimeRef.current
+            ? Math.max(1, Math.round((Date.now() - idleStartTimeRef.current) / 1000))
+            : currentIdlePeriodSeconds;
+
+          console.log(`[IDLE] Activity detected. Idle ended. Confirmed idle duration: ${idleDurationSec}s.`);
+
+          // Record idle telemetry heartbeat
+          if (activeSession && !activeSession.id.startsWith('offline_')) {
+            agentApi
+              .sendHeartbeat({
+                sessionId: activeSession.id,
+                capturedAt: new Date().toISOString(),
+                activeSeconds: 0,
+                idleSeconds: idleDurationSec,
+                activeApplication: 'Desktop Work Session',
+                windowTitle: 'Resumed from Inactivity',
+              })
+              .catch(() => {});
+          }
+
+          idleStartTimeRef.current = null;
+          setCurrentIdlePeriodSeconds(0);
           setIsIdle(false);
-          activeBucketSecRef.current += 1;
-          setTodayActiveSeconds((prev) => prev + 1);
+          setStatus('ACTIVE');
+          window.electronAPI?.updateTrayStatus('Working');
+          window.electronAPI?.notify({
+            title: 'PulseTime: Work Resumed',
+            body: 'Active work tracking resumed.',
+          });
         }
       } else if (status === 'BREAK') {
         setBreakSeconds((prev) => prev + 1);
@@ -212,7 +303,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [status, idleThreshold]);
+  }, [status, idleConfig, activeSession]);
 
   // Periodic persistence of this employee's active runtime metrics
   useEffect(() => {
@@ -237,7 +328,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
   // 3. Telemetry Heartbeat Scheduler (Every 60s)
   useEffect(() => {
-    if (status !== 'ACTIVE' || !activeSession || activeSession.id.startsWith('offline_')) return;
+    if (status === 'OFFLINE' || !activeSession || activeSession.id.startsWith('offline_')) return;
 
     const heartbeatInterval = setInterval(async () => {
       const act = activeBucketSecRef.current;
@@ -258,7 +349,6 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           windowTitle: workNotes || 'PulseTime Client',
         });
       } catch (err: any) {
-        // Silently ignore or queue if session not found
         console.warn('[HEARTBEAT] Warning:', err?.message);
       }
       updatePendingCount();
@@ -267,7 +357,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     return () => clearInterval(heartbeatInterval);
   }, [status, activeSession, workNotes, updatePendingCount]);
 
-  // 4. Screenshot Pipeline with Offline Queuing
+  // 4. Screenshot Pipeline with 1-Second Activity Bucket Ratio
   const executeScreenshotCapture = async (sessionId: string) => {
     if (!window.electronAPI) return;
 
@@ -275,8 +365,25 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       const capture = await window.electronAPI.captureScreenshot();
       if (!capture || !capture.base64) return;
 
-      const total = activeBucketSecRef.current + idleBucketSecRef.current;
-      const actPct = total > 0 ? Math.round((activeBucketSecRef.current / total) * 100) : 95;
+      const actSec = windowActiveSecondsRef.current;
+      const idlSec = windowIdleSecondsRef.current;
+      const trackedSec = actSec + idlSec;
+
+      // Calculate actual interaction percentage over this screenshot window
+      const actPct =
+        trackedSec > 0
+          ? Math.min(100, Math.max(0, Math.round((actSec / trackedSec) * 100)))
+          : status === 'ACTIVE'
+          ? 100
+          : 0;
+
+      console.log(
+        `[ACTIVITY] Active seconds: ${actSec}, Tracked seconds: ${trackedSec}, Activity percentage: ${actPct}%`,
+      );
+
+      // Reset activity accumulators for the next window
+      windowActiveSecondsRef.current = 0;
+      windowIdleSecondsRef.current = 0;
 
       if (navigator.onLine && !sessionId.startsWith('offline_')) {
         try {
@@ -336,9 +443,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     }
   };
 
-  // Automated Periodic Screenshot Pipeline (Every 10 Seconds)
+  // Automated Periodic Screenshot Pipeline (Every 10 Seconds in dev or configured interval)
   useEffect(() => {
-    if (status !== 'ACTIVE' || !activeSession) return;
+    if (status === 'OFFLINE' || status === 'BREAK' || !activeSession) return;
 
     const initialTimer = setTimeout(() => {
       executeScreenshotCapture(activeSession.id);
@@ -376,8 +483,13 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
       setActiveSession(session);
       setStatus('ACTIVE');
+      setIsIdle(false);
       setSessionSeconds(0);
       setBreakSeconds(0);
+      setCurrentIdlePeriodSeconds(0);
+      idleStartTimeRef.current = null;
+      windowActiveSecondsRef.current = 0;
+      windowIdleSecondsRef.current = 0;
 
       // Send initial heartbeat if online
       if (!session.id.startsWith('offline_')) {
@@ -438,6 +550,12 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       const punchOutStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const todayStr = getTodayDateStr();
 
+      // Finalize idle period if stopping while in IDLE
+      if (status === 'IDLE' && idleStartTimeRef.current) {
+        const idleDurationSec = Math.max(1, Math.round((Date.now() - idleStartTimeRef.current) / 1000));
+        console.log(`[IDLE] Session stopped while in IDLE. Finalized idle duration: ${idleDurationSec}s.`);
+      }
+
       storage.setDailyState(
         {
           date: todayStr,
@@ -452,9 +570,12 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
       setStatus('OFFLINE');
       setActiveSession(null);
+      setIsIdle(false);
       setLastPunchOutTime(punchOutStr);
       setSessionSeconds(0);
       setBreakSeconds(0);
+      setCurrentIdlePeriodSeconds(0);
+      idleStartTimeRef.current = null;
 
       if (activeSession.id.startsWith('offline_')) {
         storage.addToOfflineQueue({
@@ -528,7 +649,10 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       }
 
       setStatus('BREAK');
+      setIsIdle(false);
       setBreakSeconds(0);
+      setCurrentIdlePeriodSeconds(0);
+      idleStartTimeRef.current = null;
       window.electronAPI?.updateTrayStatus('On Break');
       window.electronAPI?.notify({
         title: 'Break Started',
@@ -557,6 +681,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       }
 
       setStatus('ACTIVE');
+      setIsIdle(false);
       setBreakSeconds(0);
       window.electronAPI?.updateTrayStatus('Working');
       window.electronAPI?.notify({
@@ -570,12 +695,45 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     }
   };
 
+  const handleDismissIdleWarning = () => {
+    console.log('[IDLE] User dismissed idle warning explicitly. Marked ACTIVE.');
+    setStatus('ACTIVE');
+    setIsIdle(false);
+  };
+
+  const handleResumeFromIdle = () => {
+    const idleDurationSec = idleStartTimeRef.current
+      ? Math.max(1, Math.round((Date.now() - idleStartTimeRef.current) / 1000))
+      : currentIdlePeriodSeconds;
+
+    console.log(`[IDLE] User clicked Resume Work. Idle ended. Idle duration: ${idleDurationSec}s.`);
+
+    if (activeSession && !activeSession.id.startsWith('offline_')) {
+      agentApi
+        .sendHeartbeat({
+          sessionId: activeSession.id,
+          capturedAt: new Date().toISOString(),
+          activeSeconds: 0,
+          idleSeconds: idleDurationSec,
+          activeApplication: 'Desktop Work Session',
+          windowTitle: 'Resumed from Inactivity via Button',
+        })
+        .catch(() => {});
+    }
+
+    idleStartTimeRef.current = null;
+    setCurrentIdlePeriodSeconds(0);
+    setIsIdle(false);
+    setStatus('ACTIVE');
+    window.electronAPI?.updateTrayStatus('Working');
+  };
+
   const handleLogoutWithReset = async () => {
     const now = new Date();
     const punchOutStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const todayStr = getTodayDateStr();
 
-    // 1. If currently in an active session or break, gracefully punch out on the backend first!
+    // 1. If currently in an active session or break or idle, gracefully punch out on the backend first!
     if (activeSession) {
       if (activeSession.id.startsWith('offline_')) {
         storage.addToOfflineQueue({
@@ -634,11 +792,14 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     // 3. Clear local in-memory states and update tray
     setStatus('OFFLINE');
     setActiveSession(null);
+    setIsIdle(false);
     setSessionSeconds(0);
     setTodayWorkedSeconds(0);
     setTodayActiveSeconds(0);
     setTodayIdleSeconds(0);
     setTodayBreakSeconds(0);
+    setCurrentIdlePeriodSeconds(0);
+    idleStartTimeRef.current = null;
     setScreenshots([]);
     setLastPunchOutTime('');
     window.electronAPI?.updateTrayStatus('Offline');
@@ -646,6 +807,10 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     // 4. Trigger logout
     onLogout();
   };
+
+  const timeoutMinutes = Math.round(
+    ((idleConfig.gracePeriodSeconds || 60) + (idleConfig.warningDurationSeconds || 60)) / 60,
+  );
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden select-none bg-slate-900">
@@ -719,12 +884,14 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           breakSeconds={breakSeconds}
           isIdle={isIdle}
           idleSeconds={idleSeconds}
+          currentIdleDuration={currentIdlePeriodSeconds}
           loading={loading}
           lastPunchOutTime={lastPunchOutTime}
           onStartSession={handleStartSession}
           onStopSession={handleStopSession}
           onStartBreak={() => handleStartBreak('Break')}
           onEndBreak={handleEndBreak}
+          onResumeFromIdle={handleResumeFromIdle}
           onOpenNotes={() => setIsNotesModalOpen(true)}
         />
 
@@ -741,6 +908,16 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         <RecentScreenshots screenshots={screenshots} />
       </div>
 
+      {/* TeamLogger-style Idle Warning Countdown Modal */}
+      <IdleWarningModal
+        isOpen={status === 'IDLE_WARNING'}
+        secondsRemaining={idleWarningSecondsLeft}
+        totalWarningDuration={idleConfig.warningDurationSeconds || 60}
+        totalInactivitySeconds={idleSeconds}
+        idleTimeoutMinutes={timeoutMinutes}
+        onDismiss={handleDismissIdleWarning}
+      />
+
       {/* Modals */}
       <WorkNotesModal
         isOpen={isNotesModalOpen}
@@ -753,6 +930,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onLogout={handleLogoutWithReset}
+        onIdleConfigChange={(cfg) => setIdleConfig(cfg)}
       />
     </div>
   );

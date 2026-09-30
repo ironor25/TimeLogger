@@ -140,21 +140,38 @@ export default function UserScreenshotsPage() {
                     </div>
                   </div>
 
-                  <div className="p-3 bg-white text-slate-800 space-y-1">
+                  <div className="p-3 bg-white text-slate-800 space-y-1.5 border-t border-slate-100">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-xs text-slate-900 truncate max-w-[130px]">
                         {sc.employee?.displayName || 'Employee'}
                       </span>
-                      {sc.activityPercentage !== null && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          {sc.activityPercentage}% Act
-                        </span>
-                      )}
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Time: <span className="font-semibold text-slate-700">{new Date(sc.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span>{new Date(sc.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      <span className="truncate max-w-[100px] text-slate-400">{sc.project?.name || 'General'}</span>
+                    {/* Activity Percentage Bar */}
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-700 pt-0.5">
+                      <span className="font-bold text-slate-600 shrink-0">Activity:</span>
+                      <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden flex min-w-[40px]">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            (sc.activityPercentage ?? 0) >= 50
+                              ? 'bg-[#22C55E]'
+                              : (sc.activityPercentage ?? 0) >= 20
+                              ? 'bg-amber-500'
+                              : 'bg-red-500'
+                          }`}
+                          style={{
+                            width: `${Math.min(100, Math.max(0, Math.round(sc.activityPercentage ?? 0)))}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="font-bold text-[10px] text-slate-700 shrink-0 font-mono">
+                        {sc.activityPercentage !== null && sc.activityPercentage !== undefined
+                          ? `${Math.round(sc.activityPercentage)}%`
+                          : 'N/A'}
+                      </span>
                     </div>
                   </div>
                 </div>

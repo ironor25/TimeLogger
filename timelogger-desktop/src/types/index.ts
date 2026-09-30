@@ -1,4 +1,10 @@
-export type SessionStatus = 'OFFLINE' | 'ACTIVE' | 'BREAK';
+export type SessionStatus = 'OFFLINE' | 'ACTIVE' | 'BREAK' | 'IDLE_WARNING' | 'IDLE';
+
+export interface IdleConfig {
+  gracePeriodSeconds: number; // default 60 (or 10 in test mode)
+  warningDurationSeconds: number; // default 60 (or 10 in test mode)
+  isTestMode: boolean; // default false
+}
 
 export interface EmployeeInfo {
   id: string;

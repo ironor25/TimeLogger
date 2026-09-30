@@ -229,14 +229,24 @@ export default function DashboardPage() {
                       alt="Screen capture"
                       className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
                     />
-                    <div className="relative p-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white text-[10px]">
-                      <div className="font-semibold truncate">{sc.employee?.displayName || 'Employee'}</div>
-                      <div className="text-slate-300 text-[9px] flex items-center justify-between mt-0.5">
-                        <span>{new Date(sc.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        {sc.activityPercentage !== null && (
-                          <span className="text-emerald-400 font-bold">{sc.activityPercentage}% Act</span>
-                        )}
+                    <div className="relative p-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent text-white text-[10px] space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold truncate">{sc.employee?.displayName || 'Employee'}</span>
+                        <span className="text-slate-300 text-[9px]">{new Date(sc.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
+                      {sc.activityPercentage !== null && sc.activityPercentage !== undefined && (
+                        <div className="flex items-center gap-1.5 pt-0.5">
+                          <div className="flex-1 h-1.5 bg-slate-700/80 rounded-full overflow-hidden flex">
+                            <div
+                              className={`h-full rounded-full ${
+                                sc.activityPercentage >= 50 ? 'bg-[#22C55E]' : sc.activityPercentage >= 20 ? 'bg-amber-400' : 'bg-red-400'
+                              }`}
+                              style={{ width: `${Math.min(100, Math.max(0, Math.round(sc.activityPercentage)))}%` }}
+                            />
+                          </div>
+                          <span className="text-emerald-400 font-bold text-[9px] font-mono shrink-0">{Math.round(sc.activityPercentage)}%</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

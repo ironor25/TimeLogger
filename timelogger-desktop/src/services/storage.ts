@@ -1,4 +1,4 @@
-import { EmployeeInfo, OrganizationInfo, DeviceInfo, WorkScheduleInfo, OfflineQueueItem, EmployeeDailyState } from '../types';
+import { EmployeeInfo, OrganizationInfo, DeviceInfo, WorkScheduleInfo, OfflineQueueItem, EmployeeDailyState, IdleConfig } from '../types';
 
 const STORAGE_KEYS = {
   SERVER_URL: 'pulsetime_server_url',
@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
   OFFLINE_QUEUE: 'pulsetime_offline_queue',
   ALWAYS_ON_TOP: 'pulsetime_always_on_top',
   DAILY_STATE: 'pulsetime_daily_state',
+  IDLE_CONFIG: 'pulsetime_idle_config',
 };
 
 const DEFAULT_SERVER_URL = 'https://timelogger-dy6t.onrender.com/api/v1';
@@ -277,5 +278,30 @@ export const storage = {
 
     localStorage.setItem(STORAGE_KEYS.DAILY_STATE, JSON.stringify(list));
   },
+
+  /**
+   * Retrieves idle tracking thresholds (production vs test mode)
+   */
+  getIdleConfig(): IdleConfig {
+    const raw = localStorage.getItem(STORAGE_KEYS.IDLE_CONFIG);
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch {}
+    }
+    return {
+      gracePeriodSeconds: 60,
+      warningDurationSeconds: 60,
+      isTestMode: false,
+    };
+  },
+
+  /**
+   * Saves idle tracking thresholds
+   */
+  setIdleConfig(config: IdleConfig) {
+    localStorage.setItem(STORAGE_KEYS.IDLE_CONFIG, JSON.stringify(config));
+  },
 };
+
 

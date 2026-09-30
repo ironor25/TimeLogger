@@ -1,26 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { X, Server, Laptop, RefreshCw, LogOut, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Server, Laptop, RefreshCw, LogOut, CheckCircle2, AlertCircle, ShieldAlert, Zap, Clock } from 'lucide-react';
 import { storage } from '../services/storage';
 import { agentApi } from '../services/api';
+import { IdleConfig } from '../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogout: () => void;
+  onIdleConfigChange?: (config: IdleConfig) => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onLogout }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  onLogout,
+  onIdleConfigChange,
+}) => {
   const [serverUrl, setServerUrl] = useState(storage.getServerUrl());
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMsg, setTestMsg] = useState('');
   const [deviceInfo, setDeviceInfo] = useState<any>(null);
   const [offlineCount, setOfflineCount] = useState(storage.getOfflineQueue().length);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [idleConfig, setIdleConfig] = useState<IdleConfig>(storage.getIdleConfig());
 
   useEffect(() => {
     if (isOpen) {
       setServerUrl(storage.getServerUrl());
       setOfflineCount(storage.getOfflineQueue().length);
+      setIdleConfig(storage.getIdleConfig());
       if (window.electronAPI) {
         window.electronAPI.getDeviceInfo().then(setDeviceInfo);
       }
@@ -34,6 +43,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     setTestStatus('success');
     setTestMsg('Server endpoint updated successfully!');
     setTimeout(() => setTestStatus('idle'), 3000);
+  };
+
+  const handleToggleTestMode = () => {
+    const newConfig: IdleConfig = idleConfig.isTestMode
+      ? {
+          gracePeriodSeconds: 60,
+          warningDurationSeconds: 60,
+          isTestMode: false,
+        }
+      : {
+          gracePeriodSeconds: 10,
+          warningDurationSeconds: 10,
+          isTestMode: true,
+        };
+
+    setIdleConfig(newConfig);
+    storage.setIdleConfig(newConfig);
+    if (onIdleConfigChange) {
+      onIdleConfigChange(newConfig);
+    }
   };
 
   const handleTestConnection = async () => {
@@ -72,7 +101,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
@@ -81,7 +110,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-100">Desktop Settings</h3>
-              <p className="text-[10px] text-slate-400">Configure connection and device preferences</p>
+              <p className="text-[10px] text-slate-400">Configure connection and idle tracking preferences</p>
             </div>
           </div>
           <button
@@ -90,6 +119,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Idle Detection & Fast Testing Mode */}
+        <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 font-semibold text-slate-200 text-xs">
+              <ShieldAlert className="w-4 h-4 text-amber-400" />
+              <span>Idle Detection Mode</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleToggleTestMode}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all ${
+                idleConfig.isTestMode
+                  ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-slate-600'
+              }`}
+            >
+              <Zap className="w-3 h-3" />
+              <span>{idleConfig.isTestMode ? 'Fast Test (10s/10s)' : 'Standard (60s/60s)'}</span>
+            </button>
+          </div>
+
+          <div className="text-[11px] text-slate-400 space-y-1 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+            <div className="flex items-center justify-between">
+              <span>Grace Period:</span>
+              <span className="font-semibold text-slate-200">{idleConfig.gracePeriodSeconds} seconds</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Warning Countdown:</span>
+              <span className="font-semibold text-amber-300">{idleConfig.warningDurationSeconds} seconds</span>
+            </div>
+            <div className="flex items-center justify-between border-t border-slate-800/80 pt-1 text-[10px] text-slate-400">
+              <span>Total Idle Timeout:</span>
+              <span className="font-bold text-slate-100">
+                {idleConfig.gracePeriodSeconds + idleConfig.warningDurationSeconds} seconds ({Math.round((idleConfig.gracePeriodSeconds + idleConfig.warningDurationSeconds) / 60)} min)
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Server Endpoint URL */}

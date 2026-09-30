@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Square, Coffee, PlayCircle, FileText, AlertTriangle } from 'lucide-react';
+import { Play, Square, Coffee, PlayCircle, FileText, AlertTriangle, UserCheck } from 'lucide-react';
 import { SessionStatus } from '../types';
 
 interface TimerCardProps {
@@ -9,12 +9,14 @@ interface TimerCardProps {
   breakSeconds: number;
   isIdle: boolean;
   idleSeconds: number;
+  currentIdleDuration: number;
   loading: boolean;
   lastPunchOutTime?: string;
   onStartSession: () => void;
   onStopSession: () => void;
   onStartBreak: () => void;
   onEndBreak: () => void;
+  onResumeFromIdle: () => void;
   onOpenNotes: () => void;
 }
 
@@ -25,12 +27,14 @@ export const TimerCard: React.FC<TimerCardProps> = ({
   breakSeconds,
   isIdle,
   idleSeconds,
+  currentIdleDuration,
   loading,
   lastPunchOutTime,
   onStartSession,
   onStopSession,
   onStartBreak,
   onEndBreak,
+  onResumeFromIdle,
   onOpenNotes,
 }) => {
   const formatTime = (totalSeconds: number) => {
@@ -52,6 +56,8 @@ export const TimerCard: React.FC<TimerCardProps> = ({
 
   const isActive = status === 'ACTIVE';
   const isBreak = status === 'BREAK';
+  const isIdleMode = status === 'IDLE';
+  const isIdleWarning = status === 'IDLE_WARNING';
 
   return (
     <div className="bg-slate-800/80 rounded-2xl border border-slate-700/80 p-5 backdrop-blur-sm shadow-xl space-y-4">
@@ -64,6 +70,8 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                 ? 'bg-emerald-500 animate-ping'
                 : isBreak
                 ? 'bg-amber-400'
+                : isIdleMode || isIdleWarning
+                ? 'bg-amber-500 animate-pulse'
                 : 'bg-slate-500'
             }`}
           />
@@ -73,18 +81,28 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                 ? 'text-emerald-400'
                 : isBreak
                 ? 'text-amber-400'
+                : isIdleMode || isIdleWarning
+                ? 'text-amber-400'
                 : 'text-slate-400'
             }`}
           >
-            {status === 'ACTIVE' ? 'Working' : status === 'BREAK' ? 'On Break' : 'Offline'}
+            {isActive
+              ? 'Working'
+              : isBreak
+              ? 'On Break'
+              : isIdleMode
+              ? 'IDLE (Inactivity)'
+              : isIdleWarning
+              ? 'Idle Warning'
+              : 'Offline'}
           </span>
         </div>
 
-        {/* Idle Warning Badge */}
-        {isActive && isIdle && (
+        {/* Idle Badge indicator */}
+        {(isIdleMode || (isActive && isIdle)) && (
           <div className="flex items-center gap-1 text-[11px] bg-amber-500/10 border border-amber-500/30 text-amber-300 px-2 py-0.5 rounded-full animate-pulse">
             <AlertTriangle className="w-3 h-3" />
-            <span>Idle ({Math.floor(idleSeconds / 60)}m)</span>
+            <span>{isIdleMode ? `Idle: ${formatTime(currentIdleDuration)}` : `Idle (${Math.floor(idleSeconds / 60)}m)`}</span>
           </div>
         )}
 
@@ -102,14 +120,24 @@ export const TimerCard: React.FC<TimerCardProps> = ({
 
       {/* Big Digital Timer Display */}
       <div className="text-center py-2">
-        <div className="font-mono text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
+        <div
+          className={`font-mono text-4xl font-extrabold tracking-tight drop-shadow-sm ${
+            isIdleMode ? 'text-amber-400' : isBreak ? 'text-amber-300' : 'text-white'
+          }`}
+        >
           {isBreak
             ? formatTime(breakSeconds)
+            : isIdleMode
+            ? formatTime(currentIdleDuration)
             : formatTime(todayWorkedSeconds)}
         </div>
         <p className="text-[11px] text-slate-400 font-medium mt-1">
           {isBreak
             ? `On Break (${formatHoursMins(breakSeconds)}) • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
+            : isIdleMode
+            ? `Current Idle Period: ${formatHoursMins(currentIdleDuration)} • Total Worked: ${formatHoursMins(todayWorkedSeconds)}`
+            : isIdleWarning
+            ? `Inactivity Warning in progress • Total Worked: ${formatHoursMins(todayWorkedSeconds)}`
             : isActive
             ? `Active Shift: ${formatHoursMins(sessionSeconds)} • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
             : lastPunchOutTime
@@ -131,6 +159,26 @@ export const TimerCard: React.FC<TimerCardProps> = ({
             <Play className="w-4 h-4 fill-white" />
             <span>{loading ? 'Starting...' : todayWorkedSeconds > 0 ? 'Punch In (Resume Today)' : 'Punch In (Start Work)'}</span>
           </button>
+        ) : isIdleMode ? (
+          <>
+            <button
+              onClick={onResumeFromIdle}
+              disabled={loading}
+              className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>Resume Work</span>
+            </button>
+
+            <button
+              onClick={onStopSession}
+              disabled={loading}
+              className="py-2.5 px-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-red-600/20 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+            >
+              <Square className="w-3.5 h-3.5 fill-white" />
+              <span>Punch Out</span>
+            </button>
+          </>
         ) : (
           <>
             {isBreak ? (
