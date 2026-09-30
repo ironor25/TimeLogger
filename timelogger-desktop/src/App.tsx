@@ -26,7 +26,7 @@ export function App() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-slate-900 text-slate-100 antialiased overflow-hidden font-sans border border-slate-800/80 rounded-lg">
+    <div className="h-screen w-screen flex flex-col bg-[#161616] text-[#f4f4f4] antialiased overflow-hidden font-sans border border-[#393939] rounded-none">
       {!isAuthenticated ? (
         <>
           <Header />

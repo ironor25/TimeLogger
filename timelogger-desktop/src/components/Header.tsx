@@ -41,21 +41,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
   } as React.CSSProperties;
 
   return (
-    <header className="h-10 bg-slate-950/90 backdrop-blur border-b border-slate-800 flex items-center justify-between px-3 select-none app-region-drag">
+    <header className="h-10 bg-[#161616] border-b border-[#393939] flex items-center justify-between px-3 select-none app-region-drag font-sans tracking-carbon">
       {/* Brand & Status */}
       <div className="flex items-center gap-2 app-region-no-drag" style={noDragStyle}>
-        <div className="w-5 h-5 rounded-md bg-blue-600 flex items-center justify-center text-white font-bold text-[10px] tracking-wider shadow-sm shadow-blue-500/30">
+        <div className="w-5 h-5 rounded-none bg-[#0f62fe] flex items-center justify-center text-white font-bold text-[10px] tracking-wider">
           PT
         </div>
-        <span className="font-semibold text-xs text-slate-200 tracking-tight">PulseTime</span>
+        <span className="font-semibold text-xs text-[#ffffff] tracking-tight">PulseTime</span>
 
-        <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-slate-800 text-[10px]">
+        <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#393939] text-[10px]">
           <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+            className={`w-1.5 h-1.5 rounded-none ${
+              isOnline ? 'bg-[#24a148] animate-pulse' : 'bg-[#f1c21b]'
             }`}
           />
-          <span className="text-slate-400 font-medium">
+          <span className="text-[#8c8c8c] font-medium">
             {isOnline ? 'Connected' : 'Offline Mode'}
           </span>
         </div>
@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
             onClick={onOpenSettings}
             style={noDragStyle}
             title="Settings"
-            className="w-7 h-7 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-none hover:bg-[#262626] text-[#c6c6c6] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-[#393939]"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
@@ -80,10 +80,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
           onClick={toggleAlwaysOnTop}
           style={noDragStyle}
           title={alwaysOnTop ? 'Disable Always on Top' : 'Keep Window on Top'}
-          className={`w-7 h-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
+          className={`w-7 h-7 rounded-none flex items-center justify-center transition-colors cursor-pointer border ${
             alwaysOnTop
-              ? 'bg-blue-600/20 text-blue-400'
-              : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'
+              ? 'bg-[#0f62fe] text-white border-[#0f62fe]'
+              : 'hover:bg-[#262626] text-[#c6c6c6] hover:text-white border-transparent hover:border-[#393939]'
           }`}
         >
           {alwaysOnTop ? <Pin className="w-3.5 h-3.5" /> : <PinOff className="w-3.5 h-3.5" />}
@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
           onClick={handleMinimize}
           style={noDragStyle}
           title="Minimize"
-          className="w-7 h-7 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+          className="w-7 h-7 rounded-none hover:bg-[#262626] text-[#c6c6c6] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-[#393939]"
         >
           <Minus className="w-3.5 h-3.5" />
         </button>
@@ -104,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
           onClick={handleClose}
           style={noDragStyle}
           title="Close"
-          className="w-7 h-7 rounded hover:bg-red-500/20 hover:text-red-400 text-slate-400 flex items-center justify-center transition-colors cursor-pointer"
+          className="w-7 h-7 rounded-none hover:bg-[#da1e28] text-[#c6c6c6] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-transparent"
         >
           <X className="w-3.5 h-3.5" />
         </button>

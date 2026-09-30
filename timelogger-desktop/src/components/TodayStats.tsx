@@ -26,54 +26,54 @@ export const TodayStats: React.FC<TodayStatsProps> = ({
   const activePct = totalTracked > 0 ? Math.round((activeSeconds / totalTracked) * 100) : 100;
 
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+    <div className="space-y-2 font-sans tracking-carbon">
+      <div className="text-xs font-semibold text-[#8c8c8c] uppercase tracking-wider">
         Today's Summary
       </div>
 
       <div className="grid grid-cols-4 gap-2">
         {/* Worked Time */}
-        <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 text-center">
-          <div className="flex items-center justify-center text-blue-400 mb-1">
+        <div className="bg-[#262626] border border-[#393939] rounded-none p-2.5 text-center">
+          <div className="flex items-center justify-center text-[#0f62fe] mb-1">
             <Clock className="w-3.5 h-3.5" />
           </div>
-          <div className="text-xs font-bold text-slate-100 font-mono">
+          <div className="text-xs font-semibold text-[#ffffff] font-mono">
             {formatHoursMins(totalWorkedSeconds)}
           </div>
-          <div className="text-[9px] text-slate-400 font-medium mt-0.5">Worked</div>
+          <div className="text-[10px] text-[#8c8c8c] font-normal mt-0.5">Worked</div>
         </div>
 
         {/* Activity % */}
-        <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 text-center">
-          <div className="flex items-center justify-center text-emerald-400 mb-1">
+        <div className="bg-[#262626] border border-[#393939] rounded-none p-2.5 text-center">
+          <div className="flex items-center justify-center text-[#24a148] mb-1">
             <Activity className="w-3.5 h-3.5" />
           </div>
-          <div className="text-xs font-bold text-emerald-400 font-mono">
+          <div className="text-xs font-semibold text-[#24a148] font-mono">
             {activePct}%
           </div>
-          <div className="text-[9px] text-slate-400 font-medium mt-0.5">Activity</div>
+          <div className="text-[10px] text-[#8c8c8c] font-normal mt-0.5">Activity</div>
         </div>
 
         {/* Break Time */}
-        <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 text-center">
-          <div className="flex items-center justify-center text-amber-400 mb-1">
+        <div className="bg-[#262626] border border-[#393939] rounded-none p-2.5 text-center">
+          <div className="flex items-center justify-center text-[#f1c21b] mb-1">
             <Coffee className="w-3.5 h-3.5" />
           </div>
-          <div className="text-xs font-bold text-amber-300 font-mono">
+          <div className="text-xs font-semibold text-[#f1c21b] font-mono">
             {formatHoursMins(breakSeconds)}
           </div>
-          <div className="text-[9px] text-slate-400 font-medium mt-0.5">Breaks</div>
+          <div className="text-[10px] text-[#8c8c8c] font-normal mt-0.5">Breaks</div>
         </div>
 
         {/* Screenshots */}
-        <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 text-center">
-          <div className="flex items-center justify-center text-purple-400 mb-1">
+        <div className="bg-[#262626] border border-[#393939] rounded-none p-2.5 text-center">
+          <div className="flex items-center justify-center text-[#0f62fe] mb-1">
             <Camera className="w-3.5 h-3.5" />
           </div>
-          <div className="text-xs font-bold text-purple-300 font-mono">
+          <div className="text-xs font-semibold text-[#ffffff] font-mono">
             {screenshotCount}
           </div>
-          <div className="text-[9px] text-slate-400 font-medium mt-0.5">Captures</div>
+          <div className="text-[10px] text-[#8c8c8c] font-normal mt-0.5">Captures</div>
         </div>
       </div>
     </div>

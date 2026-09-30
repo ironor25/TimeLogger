@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Server, Laptop, RefreshCw, LogOut, CheckCircle2, AlertCircle, ShieldAlert, Zap, Clock } from 'lucide-react';
+import { X, Server, Laptop, RefreshCw, LogOut, CheckCircle2, AlertCircle, ShieldAlert, Zap } from 'lucide-react';
 import { storage } from '../services/storage';
 import { agentApi } from '../services/api';
 import { IdleConfig } from '../types';
@@ -112,42 +112,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-[#161616]/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-[#262626] border border-[#393939] rounded-none w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto font-sans tracking-carbon">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="flex items-center justify-between border-b border-[#393939] pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-none bg-[#0f62fe]/20 text-[#0f62fe] flex items-center justify-center">
               <Server className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">Desktop Settings</h3>
-              <p className="text-[10px] text-slate-400">Configure connection and idle tracking preferences</p>
+              <h3 className="text-sm font-semibold text-[#ffffff]">Desktop Settings</h3>
+              <p className="text-[10px] text-[#8c8c8c]">Configure connection and idle tracking preferences</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-[#8c8c8c] hover:text-white p-1 rounded-none hover:bg-[#393939] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Idle Detection & Fast Testing Mode */}
-        <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3.5 space-y-2.5">
+        <div className="bg-[#161616] border border-[#393939] rounded-none p-3.5 space-y-2.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 font-semibold text-slate-200 text-xs">
-              <ShieldAlert className="w-4 h-4 text-amber-400" />
+            <div className="flex items-center gap-1.5 font-semibold text-[#ffffff] text-xs">
+              <ShieldAlert className="w-4 h-4 text-[#f1c21b]" />
               <span>Idle Detection Mode</span>
             </div>
 
             <button
               type="button"
               onClick={handleToggleTestMode}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all ${
+              className={`px-2.5 py-1 rounded-none text-[10px] font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
                 idleConfig.isTestMode
-                  ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-slate-600'
+                  ? 'bg-[#0f62fe] text-white hover:bg-[#0043ce]'
+                  : 'bg-[#262626] text-[#c6c6c6] hover:bg-[#393939] border border-[#393939]'
               }`}
             >
               <Zap className="w-3 h-3" />
@@ -155,18 +155,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
           </div>
 
-          <div className="text-[11px] text-slate-400 space-y-1 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+          <div className="text-xs text-[#8c8c8c] space-y-1 bg-[#262626] p-2.5 rounded-none border border-[#393939]">
             <div className="flex items-center justify-between">
               <span>Grace Period:</span>
-              <span className="font-semibold text-slate-200">{idleConfig.gracePeriodSeconds} seconds</span>
+              <span className="font-semibold text-[#ffffff]">{idleConfig.gracePeriodSeconds} seconds</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Warning Countdown:</span>
-              <span className="font-semibold text-amber-300">{idleConfig.warningDurationSeconds} seconds</span>
+              <span className="font-semibold text-[#f1c21b]">{idleConfig.warningDurationSeconds} seconds</span>
             </div>
-            <div className="flex items-center justify-between border-t border-slate-800/80 pt-1 text-[10px] text-slate-400">
+            <div className="flex items-center justify-between border-t border-[#393939] pt-1 text-[11px] text-[#8c8c8c]">
               <span>Total Idle Timeout:</span>
-              <span className="font-bold text-slate-100">
+              <span className="font-semibold text-[#ffffff]">
                 {idleConfig.gracePeriodSeconds + idleConfig.warningDurationSeconds} seconds ({Math.round((idleConfig.gracePeriodSeconds + idleConfig.warningDurationSeconds) / 60)} min)
               </span>
             </div>
@@ -175,8 +175,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Server Endpoint URL */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-            <Server className="w-3.5 h-3.5 text-blue-400" />
+          <label className="text-xs font-semibold text-[#c6c6c6] flex items-center gap-1.5">
+            <Server className="w-3.5 h-3.5 text-[#0f62fe]" />
             <span>API Server Endpoint</span>
           </label>
           <div className="flex gap-2">
@@ -184,12 +184,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               type="text"
               value={serverUrl}
               onChange={(e) => setServerUrl(e.target.value)}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500 transition-colors"
+              className="flex-1 bg-[#161616] border border-[#393939] rounded-none px-3 py-2 text-xs text-[#ffffff] font-mono focus:outline-none focus:border-[#0f62fe] transition-colors"
               placeholder="https://timelogger-dy6t.onrender.com/api/v1"
             />
             <button
               onClick={handleSaveUrl}
-              className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+              className="px-3 py-2 rounded-none bg-[#0f62fe] hover:bg-[#0043ce] active:bg-[#002d9c] text-white text-xs font-medium transition-colors cursor-pointer"
             >
               Save
             </button>
@@ -199,7 +199,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               onClick={handleTestConnection}
               disabled={testStatus === 'testing'}
-              className="text-[11px] text-blue-400 hover:underline flex items-center gap-1"
+              className="text-xs text-[#0f62fe] hover:underline flex items-center gap-1 cursor-pointer"
             >
               <RefreshCw className={`w-3 h-3 ${testStatus === 'testing' ? 'animate-spin' : ''}`} />
               <span>Test Server Connection</span>
@@ -207,14 +207,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {testStatus === 'success' && (
-            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg">
+            <div className="flex items-center gap-1.5 text-xs text-[#24a148] bg-[#24a148]/10 border border-[#24a148] p-2 rounded-none">
               <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{testMsg}</span>
             </div>
           )}
 
           {testStatus === 'error' && (
-            <div className="flex items-center gap-1.5 text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 p-2 rounded-lg">
+            <div className="flex items-center gap-1.5 text-xs text-[#da1e28] bg-[#da1e28]/10 border border-[#da1e28] p-2 rounded-none">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{testMsg}</span>
             </div>
@@ -222,21 +222,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Device Information Card */}
-        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3 space-y-2 text-xs">
-          <div className="flex items-center gap-1.5 font-semibold text-slate-300 text-[11px]">
-            <Laptop className="w-3.5 h-3.5 text-slate-400" />
+        <div className="bg-[#161616] border border-[#393939] rounded-none p-3 space-y-2 text-xs">
+          <div className="flex items-center gap-1.5 font-semibold text-[#ffffff] text-[11px]">
+            <Laptop className="w-3.5 h-3.5 text-[#8c8c8c]" />
             <span>Registered Device Info</span>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+          <div className="grid grid-cols-2 gap-2 text-[11px] text-[#8c8c8c]">
             <div>
-              <span className="text-slate-500 block text-[10px]">Device:</span>
-              <span className="text-slate-200 font-medium">
+              <span className="text-[#8c8c8c] block text-[10px]">Device:</span>
+              <span className="text-[#ffffff] font-medium">
                 {deviceInfo?.deviceName || 'Local Workstation'}
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block text-[10px]">OS Platform:</span>
-              <span className="text-slate-200 font-medium">
+              <span className="text-[#8c8c8c] block text-[10px]">OS Platform:</span>
+              <span className="text-[#ffffff] font-medium">
                 {deviceInfo?.platformVersion || 'Windows 11'}
               </span>
             </div>
@@ -245,11 +245,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Offline Queue */}
         {offlineCount > 0 && (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 space-y-2 text-xs text-amber-300">
+          <div className="bg-[#f1c21b]/10 border border-[#f1c21b] rounded-none p-3 space-y-2 text-xs text-[#f1c21b]">
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold">{offlineCount} offline item(s) pending</div>
-                <div className="text-[10px] text-amber-400/80">
+                <div className="text-[10px] text-[#f1c21b]/80">
                   {storage.getOfflineQueue().length} telemetry / events • {storage.getOfflineScreenshots().length} screenshots
                 </div>
               </div>
@@ -258,7 +258,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClick={handleClearOfflineData}
                   type="button"
                   title="Clear any orphaned offline data"
-                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-300 border border-slate-700 text-[10px] font-medium transition-all"
+                  className="px-2 py-1 rounded-none bg-[#161616] hover:bg-[#da1e28] text-[#c6c6c6] hover:text-white border border-[#393939] text-[10px] font-medium transition-colors cursor-pointer"
                 >
                   Clear
                 </button>
@@ -266,7 +266,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClick={handleSyncOfflineQueue}
                   disabled={isSyncing}
                   type="button"
-                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] transition-all"
+                  className="px-2.5 py-1 rounded-none bg-[#f1c21b] hover:bg-[#d4a810] text-[#161616] font-semibold text-[10px] transition-colors cursor-pointer"
                 >
                   {isSyncing ? 'Syncing...' : 'Sync Now'}
                 </button>
@@ -276,10 +276,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+        <div className="flex items-center justify-between pt-2 border-t border-[#393939]">
           <button
             onClick={onLogout}
-            className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1.5 py-1.5 px-3 rounded-lg hover:bg-red-500/10 transition-colors font-semibold"
+            className="text-xs text-[#da1e28] hover:text-[#ff8389] flex items-center gap-1.5 py-1.5 px-3 rounded-none hover:bg-[#da1e28]/10 transition-colors font-medium cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Log Out</span>
@@ -287,7 +287,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <button
             onClick={onClose}
-            className="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold transition-colors"
+            className="py-2 px-4 rounded-none bg-[#161616] hover:bg-[#393939] text-[#ffffff] border border-[#393939] text-xs font-normal transition-colors cursor-pointer"
           >
             Close
           </button>

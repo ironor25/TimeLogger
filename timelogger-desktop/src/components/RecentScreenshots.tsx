@@ -14,13 +14,13 @@ export const RecentScreenshots: React.FC<RecentScreenshotsProps> = ({ screenshot
   }
 
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+    <div className="space-y-2 font-sans tracking-carbon">
+      <div className="text-xs font-semibold text-[#8c8c8c] uppercase tracking-wider flex items-center justify-between">
         <span className="flex items-center gap-1.5">
-          <Camera className="w-3.5 h-3.5 text-slate-400" />
+          <Camera className="w-3.5 h-3.5 text-[#0f62fe]" />
           <span>Recent Screen Captures</span>
         </span>
-        <span className="text-[10px] text-slate-500 font-normal">Auto 5-min intervals</span>
+        <span className="text-[10px] text-[#8c8c8c] font-normal">Auto 5-min intervals</span>
       </div>
 
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -34,7 +34,7 @@ export const RecentScreenshots: React.FC<RecentScreenshotsProps> = ({ screenshot
             <div
               key={sc.id}
               onClick={() => setSelectedPreview(sc)}
-              className="group relative flex-shrink-0 w-24 h-16 rounded-lg overflow-hidden border border-slate-700 bg-slate-850 cursor-pointer transition-transform hover:scale-105 shadow-sm"
+              className="group relative flex-shrink-0 w-24 h-16 rounded-none overflow-hidden border border-[#393939] bg-[#161616] cursor-pointer hover:border-[#0f62fe] transition-colors"
             >
               <img
                 src={sc.dataUrl}
@@ -43,15 +43,15 @@ export const RecentScreenshots: React.FC<RecentScreenshotsProps> = ({ screenshot
               />
 
               {/* Time & Activity Badge */}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 to-transparent p-1 flex items-center justify-between text-[8px] font-mono">
-                <span className="text-slate-300">{timeStr}</span>
+              <div className="absolute inset-x-0 bottom-0 bg-[#161616]/90 border-t border-[#393939] px-1 py-0.5 flex items-center justify-between text-[8px] font-mono">
+                <span className="text-[#c6c6c6]">{timeStr}</span>
                 <span
-                  className={`font-bold ${
+                  className={`font-semibold ${
                     sc.activityPercentage >= 80
-                      ? 'text-emerald-400'
+                      ? 'text-[#24a148]'
                       : sc.activityPercentage >= 50
-                      ? 'text-amber-400'
-                      : 'text-red-400'
+                      ? 'text-[#f1c21b]'
+                      : 'text-[#da1e28]'
                   }`}
                 >
                   {sc.activityPercentage}%
@@ -59,8 +59,8 @@ export const RecentScreenshots: React.FC<RecentScreenshotsProps> = ({ screenshot
               </div>
 
               {/* Hover Eye Overlay */}
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/40">
-                <Eye className="w-4 h-4 text-white drop-shadow" />
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-[#161616]/60">
+                <Eye className="w-4 h-4 text-white" />
               </div>
             </div>
           );
@@ -69,27 +69,27 @@ export const RecentScreenshots: React.FC<RecentScreenshotsProps> = ({ screenshot
 
       {/* Fullscreen Preview Modal */}
       {selectedPreview && (
-        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="relative max-w-lg w-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl space-y-3 p-4">
+        <div className="fixed inset-0 z-50 bg-[#161616]/90 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="relative max-w-lg w-full bg-[#262626] border border-[#393939] rounded-none overflow-hidden space-y-3 p-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-slate-300">
-                <Camera className="w-4 h-4 text-blue-400" />
+              <div className="flex items-center gap-2 text-xs text-[#ffffff]">
+                <Camera className="w-4 h-4 text-[#0f62fe]" />
                 <span className="font-semibold">
                   Captured at {new Date(selectedPreview.timestamp).toLocaleTimeString()}
                 </span>
-                <span className="text-emerald-400 font-bold font-mono">
+                <span className="text-[#24a148] font-semibold font-mono">
                   • {selectedPreview.activityPercentage}% Active
                 </span>
               </div>
               <button
                 onClick={() => setSelectedPreview(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                className="text-[#8c8c8c] hover:text-white p-1 rounded-none hover:bg-[#393939] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="rounded-xl overflow-hidden border border-slate-800 bg-black">
+            <div className="rounded-none overflow-hidden border border-[#393939] bg-black">
               <img
                 src={selectedPreview.dataUrl}
                 alt="Preview"

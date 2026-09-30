@@ -60,30 +60,30 @@ export const TimerCard: React.FC<TimerCardProps> = ({
   const isIdleWarning = status === 'IDLE_WARNING';
 
   return (
-    <div className="bg-slate-800/80 rounded-2xl border border-slate-700/80 p-5 backdrop-blur-sm shadow-xl space-y-4">
+    <div className="bg-[#262626] border border-[#393939] rounded-none p-5 space-y-4 font-sans tracking-carbon">
       {/* Status Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
-            className={`w-2.5 h-2.5 rounded-full ${
+            className={`w-2 h-2 rounded-none ${
               isActive
-                ? 'bg-emerald-500 animate-ping'
+                ? 'bg-[#24a148] animate-ping'
                 : isBreak
-                ? 'bg-amber-400'
+                ? 'bg-[#f1c21b]'
                 : isIdleMode || isIdleWarning
-                ? 'bg-amber-500 animate-pulse'
-                : 'bg-slate-500'
+                ? 'bg-[#f1c21b] animate-pulse'
+                : 'bg-[#8c8c8c]'
             }`}
           />
           <span
-            className={`text-xs font-bold uppercase tracking-wider ${
+            className={`text-xs font-semibold uppercase tracking-wider ${
               isActive
-                ? 'text-emerald-400'
+                ? 'text-[#24a148]'
                 : isBreak
-                ? 'text-amber-400'
+                ? 'text-[#f1c21b]'
                 : isIdleMode || isIdleWarning
-                ? 'text-amber-400'
-                : 'text-slate-400'
+                ? 'text-[#f1c21b]'
+                : 'text-[#8c8c8c]'
             }`}
           >
             {isActive
@@ -100,7 +100,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
 
         {/* Idle Badge indicator */}
         {(isIdleMode || (isActive && isIdle)) && (
-          <div className="flex items-center gap-1 text-[11px] bg-amber-500/10 border border-amber-500/30 text-amber-300 px-2 py-0.5 rounded-full animate-pulse">
+          <div className="flex items-center gap-1 text-[11px] bg-[#f1c21b]/10 border border-[#f1c21b] text-[#f1c21b] px-2 py-0.5 rounded-none animate-pulse">
             <AlertTriangle className="w-3 h-3" />
             <span>{isIdleMode ? `Idle: ${formatTime(currentIdleDuration)}` : `Idle (${Math.floor(idleSeconds / 60)}m)`}</span>
           </div>
@@ -110,9 +110,9 @@ export const TimerCard: React.FC<TimerCardProps> = ({
         {status !== 'OFFLINE' && (
           <button
             onClick={onOpenNotes}
-            className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 bg-slate-700/50 hover:bg-slate-700 px-2 py-1 rounded-lg transition-colors border border-slate-600/40 cursor-pointer"
+            className="text-xs text-[#c6c6c6] hover:text-white flex items-center gap-1.5 bg-[#161616] hover:bg-[#393939] px-2.5 py-1 rounded-none transition-colors border border-[#393939] cursor-pointer"
           >
-            <FileText className="w-3 h-3 text-blue-400" />
+            <FileText className="w-3.5 h-3.5 text-[#0f62fe]" />
             <span>Memo</span>
           </button>
         )}
@@ -121,8 +121,8 @@ export const TimerCard: React.FC<TimerCardProps> = ({
       {/* Big Digital Timer Display */}
       <div className="text-center py-2">
         <div
-          className={`font-mono text-4xl font-extrabold tracking-tight drop-shadow-sm ${
-            isIdleMode ? 'text-amber-400' : isBreak ? 'text-amber-300' : 'text-white'
+          className={`font-mono text-5xl font-light tracking-tight ${
+            isIdleMode ? 'text-[#f1c21b]' : isBreak ? 'text-[#f1c21b]' : 'text-[#ffffff]'
           }`}
         >
           {isBreak
@@ -131,7 +131,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
             ? formatTime(currentIdleDuration)
             : formatTime(todayWorkedSeconds)}
         </div>
-        <p className="text-[11px] text-slate-400 font-medium mt-1">
+        <p className="text-xs text-[#8c8c8c] font-normal mt-1.5">
           {isBreak
             ? `On Break (${formatHoursMins(breakSeconds)}) • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
             : isIdleMode
@@ -154,7 +154,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
           <button
             onClick={onStartSession}
             disabled={loading}
-            className="col-span-2 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50 cursor-pointer"
+            className="col-span-2 py-3 px-4 rounded-none bg-[#0f62fe] hover:bg-[#0043ce] active:bg-[#002d9c] text-white font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
           >
             <Play className="w-4 h-4 fill-white" />
             <span>{loading ? 'Starting...' : todayWorkedSeconds > 0 ? 'Punch In (Resume Today)' : 'Punch In (Start Work)'}</span>
@@ -164,7 +164,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
             <button
               onClick={onResumeFromIdle}
               disabled={loading}
-              className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              className="py-2.5 px-3 rounded-none bg-[#24a148] hover:bg-[#1e8239] text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <UserCheck className="w-3.5 h-3.5" />
               <span>Resume Work</span>
@@ -173,7 +173,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
             <button
               onClick={onStopSession}
               disabled={loading}
-              className="py-2.5 px-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-red-600/20 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              className="py-2.5 px-3 rounded-none bg-[#da1e28] hover:bg-[#b81921] text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <Square className="w-3.5 h-3.5 fill-white" />
               <span>Punch Out</span>
@@ -185,7 +185,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
               <button
                 onClick={onEndBreak}
                 disabled={loading}
-                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                className="py-2.5 px-3 rounded-none bg-[#24a148] hover:bg-[#1e8239] text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 <PlayCircle className="w-3.5 h-3.5" />
                 <span>Resume Work</span>
@@ -194,7 +194,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
               <button
                 onClick={onStartBreak}
                 disabled={loading}
-                className="py-2.5 px-3 rounded-xl bg-slate-700/80 hover:bg-slate-700 text-amber-300 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-600/50 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                className="py-2.5 px-3 rounded-none bg-[#161616] hover:bg-[#393939] text-[#f1c21b] font-medium text-xs flex items-center justify-center gap-1.5 border border-[#393939] transition-colors disabled:opacity-50 cursor-pointer"
               >
                 <Coffee className="w-3.5 h-3.5" />
                 <span>Take Break</span>
@@ -204,7 +204,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
             <button
               onClick={onStopSession}
               disabled={loading}
-              className="py-2.5 px-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-red-600/20 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              className="py-2.5 px-3 rounded-none bg-[#da1e28] hover:bg-[#b81921] text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <Square className="w-3.5 h-3.5 fill-white" />
               <span>Punch Out</span>

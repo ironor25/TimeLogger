@@ -25,21 +25,21 @@ export const WorkNotesModal: React.FC<WorkNotesModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+    <div className="fixed inset-0 z-50 bg-[#161616]/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-[#262626] border border-[#393939] rounded-none w-full max-w-sm p-5 space-y-4 font-sans tracking-carbon">
+        <div className="flex items-center justify-between border-b border-[#393939] pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-none bg-[#0f62fe]/20 text-[#0f62fe] flex items-center justify-center">
               <FileText className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-100">Work Memo / Notes</h3>
-              <p className="text-[10px] text-slate-400">Describe what you are currently working on</p>
+              <h3 className="text-sm font-semibold text-[#ffffff]">Work Memo / Notes</h3>
+              <p className="text-[10px] text-[#8c8c8c]">Describe what you are currently working on</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-[#8c8c8c] hover:text-white p-1 rounded-none hover:bg-[#393939] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -51,7 +51,7 @@ export const WorkNotesModal: React.FC<WorkNotesModalProps> = ({
             placeholder="e.g. Implementing responsive navigation bar, fixing layout bugs in CSS..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-colors resize-none font-sans"
+            className="w-full bg-[#161616] border border-[#393939] rounded-none p-3 text-xs text-[#ffffff] placeholder:text-[#8c8c8c] focus:outline-none focus:border-[#0f62fe] transition-colors resize-none font-sans"
             autoFocus
           />
 
@@ -59,13 +59,13 @@ export const WorkNotesModal: React.FC<WorkNotesModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-1/2 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold transition-colors"
+              className="w-1/2 py-2.5 rounded-none bg-[#161616] hover:bg-[#393939] text-[#c6c6c6] text-xs font-normal border border-[#393939] transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="w-1/2 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/25 transition-all"
+              className="w-1/2 py-2.5 rounded-none bg-[#0f62fe] hover:bg-[#0043ce] active:bg-[#002d9c] text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
               <Check className="w-3.5 h-3.5" />
               <span>Save Memo</span>
