@@ -219,37 +219,44 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
       // 2. State Machine Transitions & Metric Aggregation
       if (status === 'ACTIVE') {
+        // Continuous active work timer progression
+        setSessionSeconds((prev) => prev + 1);
+        setTodayWorkedSeconds((prev) => prev + 1);
+        setTodayActiveSeconds((prev) => prev + 1);
+
+        // Activity bucket classification for screenshot telemetry
         if (currentIdle < 2) {
-          // User is actively interacting
           windowActiveSecondsRef.current += 1;
           activeBucketSecRef.current += 1;
-          setSessionSeconds((prev) => prev + 1);
-          setTodayWorkedSeconds((prev) => prev + 1);
-          setTodayActiveSeconds((prev) => prev + 1);
         } else {
-          // Inactivity detected during active status
           windowIdleSecondsRef.current += 1;
           idleBucketSecRef.current += 1;
-          setTodayIdleSeconds((prev) => prev + 1);
-          setSessionSeconds((prev) => prev + 1);
+        }
 
-          if (currentIdle >= gracePeriod) {
-            // Grace period elapsed -> enter IDLE_WARNING state
-            setStatus('IDLE_WARNING');
-            const secLeft = Math.max(1, totalTimeout - currentIdle);
-            setIdleWarningSecondsLeft(secLeft);
-            console.log(`[IDLE] Inactivity started. Grace period elapsed (${gracePeriod}s). Warning started.`);
-            window.electronAPI?.notify({
-              title: 'PulseTime: Inactivity Warning',
-              body: `Inactivity detected. Warning countdown started (${secLeft}s left).`,
-            });
-          }
+        if (currentIdle >= gracePeriod) {
+          // Grace period elapsed -> enter IDLE_WARNING state
+          setStatus('IDLE_WARNING');
+          const secLeft = Math.max(1, totalTimeout - currentIdle);
+          setIdleWarningSecondsLeft(secLeft);
+          console.log(`[IDLE] Inactivity started. Grace period elapsed (${gracePeriod}s). Warning started.`);
+          window.electronAPI?.notify({
+            title: 'PulseTime: Inactivity Warning',
+            body: `Inactivity detected. Warning countdown started (${secLeft}s left).`,
+          });
         }
       } else if (status === 'IDLE_WARNING') {
-        windowIdleSecondsRef.current += 1;
-        idleBucketSecRef.current += 1;
-        setTodayIdleSeconds((prev) => prev + 1);
+        // During warning, session and worked seconds still progress until confirmed idle
         setSessionSeconds((prev) => prev + 1);
+        setTodayWorkedSeconds((prev) => prev + 1);
+        setTodayActiveSeconds((prev) => prev + 1);
+
+        if (currentIdle < 2) {
+          windowActiveSecondsRef.current += 1;
+          activeBucketSecRef.current += 1;
+        } else {
+          windowIdleSecondsRef.current += 1;
+          idleBucketSecRef.current += 1;
+        }
 
         if (currentIdle < gracePeriod) {
           // Activity detected during warning -> cancel warning, resume ACTIVE
@@ -261,7 +268,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           setStatus('IDLE');
           setIsIdle(true);
           idleStartTimeRef.current = Date.now();
-          setCurrentIdlePeriodSeconds(currentIdle);
+          setCurrentIdlePeriodSeconds(0);
           console.log(`[IDLE] Warning countdown expired (${totalTimeout}s total inactivity). User marked IDLE.`);
           window.electronAPI?.updateTrayStatus('Idle (Paused)');
           window.electronAPI?.notify({
@@ -277,7 +284,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           }
         }
       } else if (status === 'IDLE') {
-        // In confirmed IDLE state: Idle metrics increment
+        // In confirmed IDLE state: Work timer is paused. Idle metrics increment!
         windowIdleSecondsRef.current += 1;
         idleBucketSecRef.current += 1;
         setCurrentIdlePeriodSeconds((prev) => prev + 1);
