@@ -202,7 +202,7 @@ export class EmployeesService {
     });
 
     if (!user) {
-      const password = dto.password || 'TemporaryPassword123!';
+      const password = dto.password || 'Password123!';
       const passwordHash = await bcrypt.hash(password, 10);
       user = await this.prisma.user.create({
         data: {
@@ -210,6 +210,12 @@ export class EmployeesService {
           passwordHash,
           status: UserStatus.ACTIVE,
         },
+      });
+    } else if (dto.password) {
+      const passwordHash = await bcrypt.hash(dto.password, 10);
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
       });
     }
 

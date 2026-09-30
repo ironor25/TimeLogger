@@ -1,12 +1,12 @@
 import React from 'react';
-import { Clock, Activity, Coffee, Camera } from 'lucide-react';
+import { Clock, Activity, Coffee, Timer } from 'lucide-react';
 
 interface TodayStatsProps {
   totalWorkedSeconds: number;
   activeSeconds: number;
   idleSeconds: number;
   breakSeconds: number;
-  screenshotCount: number;
+  screenshotCount?: number;
 }
 
 export const TodayStats: React.FC<TodayStatsProps> = ({
@@ -14,7 +14,6 @@ export const TodayStats: React.FC<TodayStatsProps> = ({
   activeSeconds,
   idleSeconds,
   breakSeconds,
-  screenshotCount,
 }) => {
   const formatHoursMins = (secs: number) => {
     const hrs = Math.floor(secs / 3600);
@@ -65,15 +64,15 @@ export const TodayStats: React.FC<TodayStatsProps> = ({
           <div className="text-[10px] text-[#525252] font-normal mt-0.5">Breaks</div>
         </div>
 
-        {/* Screenshots */}
+        {/* Idle Time Logged */}
         <div className="bg-[#ffffff] border border-[#e0e0e0] rounded-none p-2.5 text-center">
-          <div className="flex items-center justify-center text-[#0f62fe] mb-1">
-            <Camera className="w-3.5 h-3.5" />
+          <div className="flex items-center justify-center text-[#da1e28] mb-1">
+            <Timer className="w-3.5 h-3.5" />
           </div>
-          <div className="text-xs font-semibold text-[#161616] font-mono">
-            {screenshotCount}
+          <div className="text-xs font-semibold text-[#da1e28] font-mono">
+            {formatHoursMins(idleSeconds)}
           </div>
-          <div className="text-[10px] text-[#525252] font-normal mt-0.5">Captures</div>
+          <div className="text-[10px] text-[#525252] font-normal mt-0.5">Idle</div>
         </div>
       </div>
     </div>

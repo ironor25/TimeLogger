@@ -34,6 +34,7 @@ export default function EmployeesPage() {
     firstName: '',
     lastName: '',
     email: '',
+    password: 'Password123!',
     phone: '',
     departmentId: '',
     roleName: 'EMPLOYEE',
@@ -72,6 +73,7 @@ export default function EmployeesPage() {
         firstName: '',
         lastName: '',
         email: '',
+        password: 'Password123!',
         phone: '',
         departmentId: '',
         roleName: 'EMPLOYEE',
@@ -90,7 +92,7 @@ export default function EmployeesPage() {
     createMutation.mutate(formData);
   };
 
-  const employees = employeesData?.data || [];
+  const employees: any[] = Array.isArray(employeesData) ? employeesData : (employeesData?.data || []);
 
   return (
     <AppLayout>
@@ -313,15 +315,30 @@ export default function EmployeesPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-normal text-[#525252] mb-1 tracking-carbon">Email (Login Identity)</label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none text-xs focus:outline-none focus:border-[#0f62fe] tracking-carbon"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-normal text-[#525252] mb-1 tracking-carbon">Email (Login Identity)</label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="name@company.com"
+                      className="w-full px-3 py-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none text-xs focus:outline-none focus:border-[#0f62fe] tracking-carbon"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-normal text-[#525252] mb-1 tracking-carbon">Login Password</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="Password123!"
+                      className="w-full px-3 py-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none text-xs focus:outline-none focus:border-[#0f62fe] tracking-carbon"
+                    />
+                    <span className="text-[10px] text-[#8c8c8c] block mt-0.5">Default: Password123! (Desktop login)</span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
