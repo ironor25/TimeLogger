@@ -72,16 +72,16 @@ export class ReportsService {
       const empActivity = activityRecords.filter((a) => a.employeeId === emp.id);
       const empScreenshots = screenshots.filter((sc) => sc.employeeId === emp.id);
 
-      let totalWorkedSec = 0;
+      let grossSessionSec = 0;
       let breakSec = 0;
       let manualSec = 0;
       let meetingSec = 0;
 
       for (const s of empSessions) {
         if (s.endedAt) {
-          totalWorkedSec += s.durationSeconds;
+          grossSessionSec += s.durationSeconds;
         } else {
-          totalWorkedSec += Math.floor((new Date().getTime() - s.startedAt.getTime()) / 1000);
+          grossSessionSec += Math.floor((new Date().getTime() - s.startedAt.getTime()) / 1000);
         }
 
         if (s.startSource === 'MANUAL') {
@@ -95,21 +95,17 @@ export class ReportsService {
         }
       }
 
-      let activeSec = 0;
       let idleSec = 0;
       for (const a of empActivity) {
-        activeSec += a.activeSeconds;
         idleSec += a.idleSeconds;
       }
 
-      // If session exists but heartbeats are low (e.g. manual time or dev testing)
-      if (totalWorkedSec > 0 && activeSec === 0 && idleSec === 0) {
-        activeSec = Math.floor(totalWorkedSec * 0.85);
-        idleSec = totalWorkedSec - activeSec;
-      }
+      // Net worked seconds = Gross session duration minus break time and confirmed idle time
+      const totalWorkedSec = Math.max(0, grossSessionSec - breakSec - idleSec);
+      const activeSec = totalWorkedSec;
 
       const totalTrackedSec = activeSec + idleSec;
-      const activePct = totalTrackedSec > 0 ? Math.round((activeSec / totalTrackedSec) * 100) : 0;
+      const activePct = totalTrackedSec > 0 ? Math.round((activeSec / totalTrackedSec) * 100) : (totalWorkedSec > 0 ? 100 : 0);
 
       if (totalWorkedSec > 0) {
         orgEmployeesWorked++;
@@ -150,7 +146,7 @@ export class ReportsService {
     });
 
     const orgTotalSec = orgTotalActive + orgTotalIdle;
-    const orgActivePct = orgTotalSec > 0 ? Math.round((orgTotalActive / orgTotalSec) * 100) : 0;
+    const orgActivePct = orgTotalSec > 0 ? Math.round((orgTotalActive / orgTotalSec) * 100) : (orgTotalWorked > 0 ? 100 : 0);
 
     return {
       dateRange: { startDate: startStr, endDate: endStr },
@@ -250,6 +246,13 @@ export class ReportsService {
           dur = Math.max(0, Math.floor((Date.now() - new Date(sess.startedAt).getTime()) / 1000));
         }
 
+        let sessBreakSec = 0;
+        for (const b of sess.breaks || []) {
+          sessBreakSec += b.durationSeconds;
+        }
+
+        const netSessionSec = Math.max(0, dur - sessBreakSec);
+
         return {
           id: sess.id,
           employeeId: sess.employeeId,
@@ -258,8 +261,10 @@ export class ReportsService {
           task: sess.task,
           startedAt: sess.startedAt,
           endedAt: sess.endedAt,
-          durationSeconds: dur,
-          formattedDuration: this.formatHoursMins(dur),
+          durationSeconds: netSessionSec,
+          formattedDuration: this.formatHoursMins(netSessionSec),
+          grossDurationSeconds: dur,
+          breakSeconds: sessBreakSec,
           status: sess.status,
           ipAddress: sess.ipAddress || '127.0.0.1',
           notes: sess.notes,
@@ -271,14 +276,14 @@ export class ReportsService {
     );
 
     // Compute metrics
-    let totalWorkedSeconds = 0;
+    let grossSessionSeconds = 0;
     let breakSeconds = 0;
     let manualSeconds = 0;
     let meetingSeconds = 0;
     const uniqueEmployeesWorked = new Set<string>();
 
     for (const s of enrichedSessions) {
-      totalWorkedSeconds += s.durationSeconds;
+      grossSessionSeconds += s.grossDurationSeconds || s.durationSeconds;
       if (s.employeeId) uniqueEmployeesWorked.add(s.employeeId);
       if (s.startSource === 'MANUAL') {
         manualSeconds += s.durationSeconds;
@@ -295,8 +300,17 @@ export class ReportsService {
       activeHeartbeatSeconds += a.activeSeconds;
     }
 
+    for (const b of breaks) {
+      const alreadyCounted = enrichedSessions.some((s) => s.breaks?.some((sb: any) => sb.id === b.id));
+      if (!alreadyCounted) {
+        breakSeconds += b.durationSeconds || 0;
+      }
+    }
+
+    // Net working time strictly excluding break time and idle time
+    const totalWorkedSeconds = Math.max(0, grossSessionSeconds - breakSeconds - idleSeconds);
     const timerActiveSeconds = totalWorkedSeconds;
-    const timerActiveTimeSeconds = totalWorkedSeconds + breakSeconds;
+    const timerActiveTimeSeconds = grossSessionSeconds;
 
     // Build timeline blocks
     const segments: TimelineSegment[] = [];

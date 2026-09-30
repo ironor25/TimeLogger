@@ -81,19 +81,29 @@ export class AttendanceService {
         offlineCount++;
       }
 
-      // Aggregate worked seconds for employee today
-      let empWorkedSec = 0;
+      // Aggregate gross worked seconds and breaks for employee today
+      let empGrossSec = 0;
+      let empBreakSec = 0;
       for (const s of empSessions) {
         if (s.endedAt) {
-          empWorkedSec += s.durationSeconds;
+          empGrossSec += s.durationSeconds;
         } else {
-          empWorkedSec += Math.floor((new Date().getTime() - s.startedAt.getTime()) / 1000);
+          empGrossSec += Math.floor((new Date().getTime() - s.startedAt.getTime()) / 1000);
+        }
+        if (s.breaks) {
+          for (const b of s.breaks) {
+            empBreakSec += b.durationSeconds;
+          }
         }
       }
 
+      const empIdleSec = attRecord?.totalIdleSeconds || 0;
+      // Net time worked = gross - breaks - idle
+      const empWorkedSec = Math.max(0, empGrossSec - empBreakSec - empIdleSec);
+
       totalWorkSeconds += empWorkedSec;
-      totalActiveSeconds += attRecord?.totalActiveSeconds || Math.floor(empWorkedSec * 0.85);
-      totalIdleSeconds += attRecord?.totalIdleSeconds || Math.floor(empWorkedSec * 0.15);
+      totalActiveSeconds += empWorkedSec;
+      totalIdleSeconds += empIdleSec;
 
       return {
         id: emp.id,
@@ -104,6 +114,8 @@ export class AttendanceService {
         firstPunchIn: attRecord?.firstPunchIn || (empSessions[0]?.startedAt || null),
         lastPunchOut: attRecord?.lastPunchOut || null,
         todayWorkedSeconds: empWorkedSec,
+        todayBreakSeconds: empBreakSec,
+        todayIdleSeconds: empIdleSec,
         formattedWorked: this.formatSeconds(empWorkedSec),
         activeSession: currentSessionData,
         lastSeenDevice: emp.devices[0]?.deviceName || null,
