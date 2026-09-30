@@ -5,16 +5,19 @@
 @layer base {
   :root {
     --ibm-blue: #0f62fe;
-    --ibm-canvas: #161616;
-    --ibm-surface-1: #262626;
-    --ibm-surface-2: #393939;
-    --ibm-border: #393939;
+    --ibm-canvas: #ffffff;
+    --ibm-surface-1: #f4f4f4;
+    --ibm-surface-2: #e0e0e0;
+    --ibm-border: #e0e0e0;
+    --ibm-ink: #161616;
   }
 
   body {
     user-select: none;
     -webkit-user-select: none;
     overflow: hidden;
+    background-color: #f4f4f4;
+    color: #161616;
     font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     letter-spacing: 0.16px;
   }
@@ -24,23 +27,23 @@
   }
 }
 
-/* Custom Carbon compact flat scrollbar */
+/* Custom Carbon compact flat scrollbar for light mode */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #161616;
+  background: #f4f4f4;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #393939;
+  background: #e0e0e0;
   border-radius: 0px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #525252;
+  background: #c6c6c6;
 }
 
 .app-region-drag {
@@ -50,4 +53,3 @@
 .app-region-no-drag {
   -webkit-app-region: no-drag;
 }
-

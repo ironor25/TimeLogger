@@ -60,7 +60,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
   const isIdleWarning = status === 'IDLE_WARNING';
 
   return (
-    <div className="bg-[#262626] border border-[#393939] rounded-none p-5 space-y-4 font-sans tracking-carbon">
+    <div className="bg-[#ffffff] border border-[#e0e0e0] rounded-none p-5 space-y-4 font-sans tracking-carbon">
       {/* Status Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -80,10 +80,10 @@ export const TimerCard: React.FC<TimerCardProps> = ({
               isActive
                 ? 'text-[#24a148]'
                 : isBreak
-                ? 'text-[#f1c21b]'
+                ? 'text-[#6d4f00]'
                 : isIdleMode || isIdleWarning
-                ? 'text-[#f1c21b]'
-                : 'text-[#8c8c8c]'
+                ? 'text-[#6d4f00]'
+                : 'text-[#525252]'
             }`}
           >
             {isActive
@@ -100,8 +100,8 @@ export const TimerCard: React.FC<TimerCardProps> = ({
 
         {/* Idle Badge indicator */}
         {(isIdleMode || (isActive && isIdle)) && (
-          <div className="flex items-center gap-1 text-[11px] bg-[#f1c21b]/10 border border-[#f1c21b] text-[#f1c21b] px-2 py-0.5 rounded-none animate-pulse">
-            <AlertTriangle className="w-3 h-3" />
+          <div className="flex items-center gap-1 text-[11px] bg-[#fdf2cc] border border-[#f1c21b] text-[#6d4f00] px-2 py-0.5 rounded-none animate-pulse font-medium">
+            <AlertTriangle className="w-3 h-3 text-[#f1c21b]" />
             <span>{isIdleMode ? `Idle: ${formatTime(currentIdleDuration)}` : `Idle (${Math.floor(idleSeconds / 60)}m)`}</span>
           </div>
         )}
@@ -110,7 +110,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
         {status !== 'OFFLINE' && (
           <button
             onClick={onOpenNotes}
-            className="text-xs text-[#c6c6c6] hover:text-white flex items-center gap-1.5 bg-[#161616] hover:bg-[#393939] px-2.5 py-1 rounded-none transition-colors border border-[#393939] cursor-pointer"
+            className="text-xs text-[#161616] hover:text-[#0f62fe] flex items-center gap-1.5 bg-[#f4f4f4] hover:bg-[#e0e0e0] px-2.5 py-1 rounded-none transition-colors border border-[#e0e0e0] cursor-pointer"
           >
             <FileText className="w-3.5 h-3.5 text-[#0f62fe]" />
             <span>Memo</span>
@@ -122,7 +122,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
       <div className="text-center py-2">
         <div
           className={`font-mono text-5xl font-light tracking-tight ${
-            isIdleMode ? 'text-[#f1c21b]' : isBreak ? 'text-[#f1c21b]' : 'text-[#ffffff]'
+            isIdleMode ? 'text-[#b28900]' : isBreak ? 'text-[#b28900]' : 'text-[#161616]'
           }`}
         >
           {isBreak
@@ -131,7 +131,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
             ? formatTime(currentIdleDuration)
             : formatTime(todayWorkedSeconds)}
         </div>
-        <p className="text-xs text-[#8c8c8c] font-normal mt-1.5">
+        <p className="text-xs text-[#525252] font-normal mt-1.5">
           {isBreak
             ? `On Break (${formatHoursMins(breakSeconds)}) • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
             : isIdleMode
@@ -194,9 +194,9 @@ export const TimerCard: React.FC<TimerCardProps> = ({
               <button
                 onClick={onStartBreak}
                 disabled={loading}
-                className="py-2.5 px-3 rounded-none bg-[#161616] hover:bg-[#393939] text-[#f1c21b] font-medium text-xs flex items-center justify-center gap-1.5 border border-[#393939] transition-colors disabled:opacity-50 cursor-pointer"
+                className="py-2.5 px-3 rounded-none bg-[#f4f4f4] hover:bg-[#e0e0e0] text-[#6d4f00] font-medium text-xs flex items-center justify-center gap-1.5 border border-[#e0e0e0] transition-colors disabled:opacity-50 cursor-pointer"
               >
-                <Coffee className="w-3.5 h-3.5" />
+                <Coffee className="w-3.5 h-3.5 text-[#f1c21b]" />
                 <span>Take Break</span>
               </button>
             )}

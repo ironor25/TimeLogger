@@ -834,13 +834,13 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
   );
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden select-none bg-[#161616] text-[#f4f4f4] font-sans tracking-carbon">
+    <div className="flex-1 flex flex-col overflow-hidden select-none bg-[#f4f4f4] text-[#161616] font-sans tracking-carbon">
       <Header onOpenSettings={() => setIsSettingsOpen(true)} isOnline={isOnline} />
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 scrollbar-thin scrollbar-thumb-[#393939]">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 scrollbar-thin scrollbar-thumb-[#e0e0e0]">
         {/* Employee Bar & Online Status */}
-        <div className="flex items-center justify-between bg-[#262626] border border-[#393939] rounded-none px-3 py-2 text-xs">
+        <div className="flex items-center justify-between bg-[#ffffff] border border-[#e0e0e0] rounded-none px-3 py-2 text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-7 h-7 rounded-none bg-[#0f62fe] text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
               {employee?.firstName?.[0] || employee?.displayName?.[0] || 'U'}
@@ -848,17 +848,17 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-[#ffffff] truncate">
+                <span className="font-semibold text-[#161616] truncate">
                   {employee?.displayName || 'PulseTime User'}
                 </span>
                 {employee?.employeeCode && (
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-none bg-[#161616] text-[#c6c6c6] border border-[#393939]">
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-none bg-[#f4f4f4] text-[#161616] border border-[#e0e0e0]">
                     {employee.employeeCode}
                   </span>
                 )}
               </div>
-              <div className="text-[11px] text-[#8c8c8c] truncate">
-                {employee?.email ? <span className="text-[#c6c6c6]">{employee.email} • </span> : null}
+              <div className="text-[11px] text-[#525252] truncate">
+                {employee?.email ? <span className="text-[#161616]">{employee.email} • </span> : null}
                 {organization?.name || 'Workspace'} • {schedule?.name || 'Standard Shift'}
               </div>
             </div>
@@ -871,17 +871,17 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
                 onClick={runSync}
                 disabled={isSyncing}
                 title="Sync offline records to server"
-                className="px-2 py-1 rounded-none bg-[#f1c21b]/10 border border-[#f1c21b] text-[#f1c21b] text-xs font-medium flex items-center gap-1 transition-colors hover:bg-[#f1c21b]/20 cursor-pointer"
+                className="px-2 py-1 rounded-none bg-[#fdf2cc] border border-[#f1c21b] text-[#6d4f00] text-xs font-medium flex items-center gap-1 transition-colors hover:bg-[#fae79d] cursor-pointer"
               >
-                <CloudOff className="w-3.5 h-3.5 text-[#f1c21b]" />
+                <CloudOff className="w-3.5 h-3.5 text-[#6d4f00]" />
                 <span>{isSyncing ? 'Syncing...' : `${pendingSyncCount} Offline`}</span>
                 <RefreshCw className={`w-3 h-3 ml-0.5 ${isSyncing ? 'animate-spin' : ''}`} />
               </button>
             )}
 
             {lastPunchOutTime && status === 'OFFLINE' && (
-              <div className="text-[11px] text-[#8c8c8c] bg-[#161616] px-2 py-1 rounded-none border border-[#393939] hidden sm:block">
-                Last Out: <span className="text-[#ffffff] font-semibold">{lastPunchOutTime}</span>
+              <div className="text-[11px] text-[#525252] bg-[#f4f4f4] px-2 py-1 rounded-none border border-[#e0e0e0] hidden sm:block">
+                Last Out: <span className="text-[#161616] font-semibold">{lastPunchOutTime}</span>
               </div>
             )}
 
@@ -889,7 +889,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
               type="button"
               onClick={handleLogoutWithReset}
               title="Sign out / Switch user"
-              className="px-2.5 py-1 rounded-none bg-[#161616] hover:bg-[#da1e28] hover:text-white border border-[#393939] text-[#c6c6c6] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded-none bg-[#f4f4f4] hover:bg-[#da1e28] hover:text-white border border-[#e0e0e0] text-[#161616] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Sign Out</span>

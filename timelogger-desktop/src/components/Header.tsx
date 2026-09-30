@@ -41,21 +41,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
   } as React.CSSProperties;
 
   return (
-    <header className="h-10 bg-[#161616] border-b border-[#393939] flex items-center justify-between px-3 select-none app-region-drag font-sans tracking-carbon">
+    <header className="h-10 bg-[#ffffff] border-b border-[#e0e0e0] flex items-center justify-between px-3 select-none app-region-drag font-sans tracking-carbon">
       {/* Brand & Status */}
       <div className="flex items-center gap-2 app-region-no-drag" style={noDragStyle}>
         <div className="w-5 h-5 rounded-none bg-[#0f62fe] flex items-center justify-center text-white font-bold text-[10px] tracking-wider">
           PT
         </div>
-        <span className="font-semibold text-xs text-[#ffffff] tracking-tight">PulseTime</span>
+        <span className="font-semibold text-xs text-[#161616] tracking-tight">PulseTime</span>
 
-        <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#393939] text-[10px]">
+        <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#e0e0e0] text-[10px]">
           <span
             className={`w-1.5 h-1.5 rounded-none ${
               isOnline ? 'bg-[#24a148] animate-pulse' : 'bg-[#f1c21b]'
             }`}
           />
-          <span className="text-[#8c8c8c] font-medium">
+          <span className="text-[#525252] font-medium">
             {isOnline ? 'Connected' : 'Offline Mode'}
           </span>
         </div>
@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
             onClick={onOpenSettings}
             style={noDragStyle}
             title="Settings"
-            className="w-7 h-7 rounded-none hover:bg-[#262626] text-[#c6c6c6] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-[#393939]"
+            className="w-7 h-7 rounded-none hover:bg-[#f4f4f4] text-[#525252] hover:text-[#161616] flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-[#e0e0e0]"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
           className={`w-7 h-7 rounded-none flex items-center justify-center transition-colors cursor-pointer border ${
             alwaysOnTop
               ? 'bg-[#0f62fe] text-white border-[#0f62fe]'
-              : 'hover:bg-[#262626] text-[#c6c6c6] hover:text-white border-transparent hover:border-[#393939]'
+              : 'hover:bg-[#f4f4f4] text-[#525252] hover:text-[#161616] border-transparent hover:border-[#e0e0e0]'
           }`}
         >
           {alwaysOnTop ? <Pin className="w-3.5 h-3.5" /> : <PinOff className="w-3.5 h-3.5" />}
@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
           onClick={handleMinimize}
           style={noDragStyle}
           title="Minimize"
-          className="w-7 h-7 rounded-none hover:bg-[#262626] text-[#c6c6c6] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-[#393939]"
+          className="w-7 h-7 rounded-none hover:bg-[#f4f4f4] text-[#525252] hover:text-[#161616] flex items-center justify-center transition-colors cursor-pointer border border-transparent hover:border-[#e0e0e0]"
         >
           <Minus className="w-3.5 h-3.5" />
         </button>
@@ -104,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
           onClick={handleClose}
           style={noDragStyle}
           title="Close"
-          className="w-7 h-7 rounded-none hover:bg-[#da1e28] text-[#c6c6c6] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-transparent"
+          className="w-7 h-7 rounded-none hover:bg-[#da1e28] text-[#525252] hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-transparent"
         >
           <X className="w-3.5 h-3.5" />
         </button>

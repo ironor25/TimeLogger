@@ -44,29 +44,29 @@ export const IdleWarningModal: React.FC<IdleWarningModalProps> = ({
   const pctRemaining = Math.min(100, Math.max(0, (secondsRemaining / totalWarningDuration) * 100));
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#161616]/85 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#262626] border-2 border-[#f1c21b] rounded-none w-full max-w-sm p-5 space-y-4 text-center font-sans tracking-carbon">
+    <div className="fixed inset-0 z-50 bg-[#161616]/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-[#ffffff] border-2 border-[#f1c21b] rounded-none w-full max-w-sm p-5 space-y-4 text-center font-sans tracking-carbon shadow-2xl">
         {/* Warning Icon */}
         <div className="flex justify-center">
-          <div className="w-12 h-12 rounded-none bg-[#f1c21b]/10 border border-[#f1c21b] flex items-center justify-center text-[#f1c21b]">
+          <div className="w-12 h-12 rounded-none bg-[#fdf2cc] border border-[#f1c21b] flex items-center justify-center text-[#6d4f00]">
             <AlertTriangle className="w-6 h-6 animate-pulse" />
           </div>
         </div>
 
         {/* Title & Countdown */}
         <div className="space-y-1">
-          <h3 className="text-base font-semibold text-[#ffffff] flex items-center justify-center gap-1.5">
+          <h3 className="text-base font-semibold text-[#161616] flex items-center justify-center gap-1.5">
             <Activity className="w-4 h-4 text-[#f1c21b]" />
             <span>Idle Timeout Warning</span>
           </h3>
 
-          <div className="text-3xl font-light text-[#f1c21b] font-mono tracking-tight pt-1">
+          <div className="text-3xl font-light text-[#6d4f00] font-mono tracking-tight pt-1">
             {secondsRemaining} {secondsRemaining === 1 ? 'second' : 'seconds'} left
           </div>
         </div>
 
         {/* Countdown Progress Bar */}
-        <div className="w-full bg-[#161616] rounded-none h-2 overflow-hidden border border-[#393939]">
+        <div className="w-full bg-[#f4f4f4] rounded-none h-2 overflow-hidden border border-[#e0e0e0]">
           <div
             className="h-full bg-[#f1c21b] rounded-none transition-all duration-300 ease-linear"
             style={{ width: `${pctRemaining}%` }}
@@ -74,12 +74,12 @@ export const IdleWarningModal: React.FC<IdleWarningModalProps> = ({
         </div>
 
         {/* TeamLogger-style Clear Message */}
-        <div className="bg-[#161616] border border-[#393939] rounded-none p-3 text-left">
-          <p className="text-xs text-[#c6c6c6] leading-relaxed">
+        <div className="bg-[#fdf2cc]/50 border border-[#f1c21b]/60 rounded-none p-3 text-left">
+          <p className="text-xs text-[#161616] leading-relaxed">
             Your employer has enabled idle detection for your account and has set your idle timeout to{' '}
-            <span className="font-semibold text-[#ffffff]">{idleTimeoutMinutes} minute{idleTimeoutMinutes > 1 ? 's' : ''}</span>.
+            <span className="font-semibold text-[#161616]">{idleTimeoutMinutes} minute{idleTimeoutMinutes > 1 ? 's' : ''}</span>.
             Please use your keyboard, mouse or trackpad within the next{' '}
-            <span className="font-semibold text-[#f1c21b]">{secondsRemaining} seconds</span> to indicate that you are still actively working.
+            <span className="font-bold text-[#6d4f00]">{secondsRemaining} seconds</span> to indicate that you are still actively working.
           </p>
         </div>
 
@@ -93,7 +93,7 @@ export const IdleWarningModal: React.FC<IdleWarningModalProps> = ({
           <span>I'm Working (Keep Active)</span>
         </button>
 
-        <p className="text-[11px] text-[#8c8c8c]">
+        <p className="text-[11px] text-[#525252]">
           Moving your mouse or pressing any key will automatically dismiss this warning.
         </p>
       </div>
