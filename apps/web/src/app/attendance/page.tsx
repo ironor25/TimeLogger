@@ -182,7 +182,7 @@ export default function AttendancePage() {
                           {emp.lastPunchOut ? new Date(emp.lastPunchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                         </td>
                         <td className="px-5 py-3 font-semibold text-slate-900">
-                          {emp.formattedWorked || '00:00'} hrs
+                          {emp.formattedWorked || '00:00'}
                         </td>
                         <td className="px-5 py-3 text-right">
                           <Link

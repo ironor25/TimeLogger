@@ -81,18 +81,38 @@ export class AttendanceService {
         offlineCount++;
       }
 
-      // Aggregate gross worked seconds and breaks for employee today
+      // Aggregate gross worked seconds and breaks for employee strictly within target day
       let empGrossSec = 0;
       let empBreakSec = 0;
       for (const s of empSessions) {
-        if (s.endedAt) {
-          empGrossSec += s.durationSeconds;
-        } else {
-          empGrossSec += Math.floor((new Date().getTime() - s.startedAt.getTime()) / 1000);
+        const sessStart = new Date(s.startedAt);
+        // Skip sessions that ended before start of today
+        if (s.endedAt && new Date(s.endedAt) < startOfDay) {
+          continue;
         }
+        // Skip sessions that started after end of today
+        if (sessStart > endOfDay) {
+          continue;
+        }
+
+        const effectiveStart = sessStart < startOfDay ? startOfDay : sessStart;
+        const effectiveEnd = s.endedAt
+          ? new Date(s.endedAt) > endOfDay
+            ? endOfDay
+            : new Date(s.endedAt)
+          : new Date() > endOfDay
+          ? endOfDay
+          : new Date();
+
+        const dur = Math.max(0, Math.floor((effectiveEnd.getTime() - effectiveStart.getTime()) / 1000));
+        empGrossSec += dur;
+
         if (s.breaks) {
           for (const b of s.breaks) {
-            empBreakSec += b.durationSeconds;
+            const bStart = new Date(b.startedAt);
+            if (bStart >= startOfDay && bStart <= endOfDay) {
+              empBreakSec += b.durationSeconds || 0;
+            }
           }
         }
       }
@@ -105,13 +125,15 @@ export class AttendanceService {
       totalActiveSeconds += empWorkedSec;
       totalIdleSeconds += empIdleSec;
 
+      const todayEmpSessions = empSessions.filter((s) => new Date(s.startedAt) >= startOfDay);
+
       return {
         id: emp.id,
         employeeCode: emp.employeeCode,
         displayName: emp.displayName,
         department: emp.department?.name || null,
         status,
-        firstPunchIn: attRecord?.firstPunchIn || (empSessions[0]?.startedAt || null),
+        firstPunchIn: attRecord?.firstPunchIn || (todayEmpSessions[0]?.startedAt || null),
         lastPunchOut: attRecord?.lastPunchOut || null,
         todayWorkedSeconds: empWorkedSec,
         todayBreakSeconds: empBreakSec,

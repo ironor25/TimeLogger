@@ -533,14 +533,31 @@ export class WorkSessionsService {
     let lastPunchOutTime: string = '';
 
     for (const sess of sessions) {
+      const sessStart = new Date(sess.startedAt);
+      if (sess.endedAt && new Date(sess.endedAt) < startOfDay) {
+        continue;
+      }
+      if (sessStart > endOfDay) {
+        continue;
+      }
+
+      const effectiveStart = sessStart < startOfDay ? startOfDay : sessStart;
+      const effectiveEnd = sess.endedAt
+        ? new Date(sess.endedAt) > endOfDay
+          ? endOfDay
+          : new Date(sess.endedAt)
+        : now > endOfDay
+        ? endOfDay
+        : now;
+
       if (sess.status === WorkSessionStatus.ACTIVE || sess.status === WorkSessionStatus.PAUSED) {
         activeSession = sess;
-        const currentElapsed = Math.max(0, Math.floor((now.getTime() - sess.startedAt.getTime()) / 1000));
+        const currentElapsed = Math.max(0, Math.floor((effectiveEnd.getTime() - effectiveStart.getTime()) / 1000));
         totalWorkedSeconds += currentElapsed;
       } else {
-        const dur = sess.durationSeconds || Math.max(0, Math.floor(((sess.endedAt || sess.startedAt).getTime() - sess.startedAt.getTime()) / 1000));
+        const dur = Math.max(0, Math.floor((effectiveEnd.getTime() - effectiveStart.getTime()) / 1000));
         totalWorkedSeconds += dur;
-        if (sess.endedAt) {
+        if (sess.endedAt && new Date(sess.endedAt) >= startOfDay) {
           lastPunchOutTime = new Date(sess.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
       }
