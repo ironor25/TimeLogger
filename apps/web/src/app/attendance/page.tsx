@@ -105,7 +105,7 @@ export default function AttendancePage() {
 
           <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-sm">
             <span className="text-slate-500 text-xs font-medium block mb-1">Total Logged Time</span>
-            <div className="text-2xl font-bold text-slate-900">{formatSecondsToHours(metrics.totalWorkSeconds)} hrs</div>
+            <div className="text-2xl font-bold text-slate-900">{metrics.formattedTotalWorked || formatSecondsToHours(metrics.totalWorkSeconds)}</div>
             <div className="text-[11px] text-slate-500 mt-1">Across all sessions</div>
           </div>
 

@@ -12,7 +12,7 @@ export class AttendanceService {
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const [allEmployees, todaySessions, attendanceRecords] = await Promise.all([
+    const [allEmployees, todaySessions, activityRecords, attendanceRecords] = await Promise.all([
       this.prisma.employee.findMany({
         where: { organizationId, status: 'ACTIVE' },
         include: {
@@ -22,14 +22,12 @@ export class AttendanceService {
             orderBy: { lastSeenAt: 'desc' },
           },
         },
+        orderBy: { displayName: 'asc' },
       }),
       this.prisma.workSession.findMany({
         where: {
           organizationId,
-          OR: [
-            { startedAt: { gte: startOfDay, lte: endOfDay } },
-            { status: { in: ['ACTIVE', 'PAUSED'] } },
-          ],
+          startedAt: { gte: startOfDay, lte: endOfDay },
         },
         include: {
           breaks: true,
@@ -37,6 +35,17 @@ export class AttendanceService {
           task: { select: { title: true } },
         },
         orderBy: { startedAt: 'desc' },
+      }),
+      this.prisma.activityRecord.findMany({
+        where: {
+          organizationId,
+          capturedAt: { gte: startOfDay, lte: endOfDay },
+        },
+        select: {
+          employeeId: true,
+          activeSeconds: true,
+          idleSeconds: true,
+        },
       }),
       this.prisma.attendanceRecord.findMany({
         where: {
@@ -54,8 +63,9 @@ export class AttendanceService {
     let totalIdleSeconds = 0;
 
     const employeeList = allEmployees.map((emp) => {
-      // Find employee's sessions today
+      // Find employee's sessions and activity strictly for today (matching timeline logic)
       const empSessions = todaySessions.filter((s) => s.employeeId === emp.id);
+      const empActivity = activityRecords.filter((a) => a.employeeId === emp.id);
       const activeSession = empSessions.find((s) => s.status === 'ACTIVE' || s.status === 'PAUSED');
       const attRecord = attendanceRecords.find((a) => a.employeeId === emp.id);
 
@@ -81,51 +91,40 @@ export class AttendanceService {
         offlineCount++;
       }
 
-      // Aggregate gross worked seconds and breaks for employee strictly within target day
-      let empGrossSec = 0;
-      let empBreakSec = 0;
+      let grossSessionSec = 0;
+      let breakSec = 0;
+      let manualSec = 0;
+
       for (const s of empSessions) {
-        const sessStart = new Date(s.startedAt);
-        // Skip sessions that ended before start of today
-        if (s.endedAt && new Date(s.endedAt) < startOfDay) {
-          continue;
-        }
-        // Skip sessions that started after end of today
-        if (sessStart > endOfDay) {
-          continue;
+        if (s.endedAt) {
+          grossSessionSec += s.durationSeconds;
+        } else {
+          grossSessionSec += Math.floor((new Date().getTime() - s.startedAt.getTime()) / 1000);
         }
 
-        const effectiveStart = sessStart < startOfDay ? startOfDay : sessStart;
-        const effectiveEnd = s.endedAt
-          ? new Date(s.endedAt) > endOfDay
-            ? endOfDay
-            : new Date(s.endedAt)
-          : new Date() > endOfDay
-          ? endOfDay
-          : new Date();
-
-        const dur = Math.max(0, Math.floor((effectiveEnd.getTime() - effectiveStart.getTime()) / 1000));
-        empGrossSec += dur;
+        if (s.startSource === 'MANUAL') {
+          manualSec += s.durationSeconds;
+        }
 
         if (s.breaks) {
           for (const b of s.breaks) {
-            const bStart = new Date(b.startedAt);
-            if (bStart >= startOfDay && bStart <= endOfDay) {
-              empBreakSec += b.durationSeconds || 0;
-            }
+            breakSec += b.durationSeconds;
           }
         }
       }
 
-      const empIdleSec = attRecord?.totalIdleSeconds || 0;
-      // Net time worked = gross - breaks - idle
-      const empWorkedSec = Math.max(0, empGrossSec - empBreakSec - empIdleSec);
+      let idleSec = 0;
+      for (const a of empActivity) {
+        idleSec += a.idleSeconds;
+      }
+
+      // Exact same formula as Work Timeline: Net worked seconds = gross - breaks - idle
+      const empWorkedSec = Math.max(0, grossSessionSec - breakSec - idleSec);
+      const empActiveSec = empWorkedSec;
 
       totalWorkSeconds += empWorkedSec;
-      totalActiveSeconds += empWorkedSec;
-      totalIdleSeconds += empIdleSec;
-
-      const todayEmpSessions = empSessions.filter((s) => new Date(s.startedAt) >= startOfDay);
+      totalActiveSeconds += empActiveSec;
+      totalIdleSeconds += idleSec;
 
       return {
         id: emp.id,
@@ -133,16 +132,24 @@ export class AttendanceService {
         displayName: emp.displayName,
         department: emp.department?.name || null,
         status,
-        firstPunchIn: attRecord?.firstPunchIn || (todayEmpSessions[0]?.startedAt || null),
+        firstPunchIn: attRecord?.firstPunchIn || (empSessions[empSessions.length - 1]?.startedAt || null),
         lastPunchOut: attRecord?.lastPunchOut || null,
         todayWorkedSeconds: empWorkedSec,
-        todayBreakSeconds: empBreakSec,
-        todayIdleSeconds: empIdleSec,
+        todayActiveSeconds: empActiveSec,
+        todayBreakSeconds: breakSec,
+        todayIdleSeconds: idleSec,
         formattedWorked: this.formatSeconds(empWorkedSec),
+        formattedActive: this.formatSeconds(empActiveSec),
+        formattedBreak: this.formatSeconds(breakSec),
+        formattedIdle: this.formatSeconds(idleSec),
         activeSession: currentSessionData,
         lastSeenDevice: emp.devices[0]?.deviceName || null,
       };
     });
+
+    const totalTrackedSec = totalActiveSeconds + totalIdleSeconds;
+    const activePercentage =
+      totalTrackedSec > 0 ? Math.round((totalActiveSeconds / totalTrackedSec) * 100) : totalWorkSeconds > 0 ? 100 : 0;
 
     return {
       date: startOfDay.toISOString().split('T')[0],
@@ -155,7 +162,9 @@ export class AttendanceService {
         totalActiveSeconds,
         totalIdleSeconds,
         formattedTotalWorked: this.formatSeconds(totalWorkSeconds),
-        activePercentage: totalWorkSeconds > 0 ? Math.round((totalActiveSeconds / totalWorkSeconds) * 100) : 0,
+        formattedTotalActive: this.formatSeconds(totalActiveSeconds),
+        formattedTotalIdle: this.formatSeconds(totalIdleSeconds),
+        activePercentage,
       },
       employees: employeeList,
     };

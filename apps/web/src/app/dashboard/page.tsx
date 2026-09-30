@@ -104,10 +104,10 @@ export default function DashboardPage() {
               <Clock className="w-4 h-4 text-slate-400" />
             </div>
             <div className="text-2xl font-bold text-slate-900">
-              {formatSecondsToHours(metrics.totalWorkSeconds)} hrs
+              {metrics.formattedTotalWorked || formatSecondsToHours(metrics.totalWorkSeconds)}
             </div>
             <div className="text-[11px] text-slate-500 mt-1">
-              Active: {formatSecondsToHours(metrics.totalActiveSeconds)} hrs
+              Active: {metrics.formattedTotalActive || formatSecondsToHours(metrics.totalActiveSeconds)}
             </div>
           </div>
 
