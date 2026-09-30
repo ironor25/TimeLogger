@@ -240,7 +240,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           setIdleWarningSecondsLeft(secLeft);
           console.log(`[IDLE] Inactivity started. Grace period elapsed (${gracePeriod}s). Warning started.`);
           window.electronAPI?.notify({
-            title: 'PulseTime: Inactivity Warning',
+            title: 'TimeLogger: Inactivity Warning',
             body: `Inactivity detected. Warning countdown started (${secLeft}s left).`,
           });
         }
@@ -272,7 +272,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           console.log(`[IDLE] Warning countdown expired (${totalTimeout}s total inactivity). User marked IDLE.`);
           window.electronAPI?.updateTrayStatus('Idle (Paused)');
           window.electronAPI?.notify({
-            title: 'PulseTime: Marked IDLE',
+            title: 'TimeLogger: Marked IDLE',
             body: 'Work tracking paused due to inactivity. Move mouse to resume.',
           });
         } else {
@@ -318,7 +318,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           setStatus('ACTIVE');
           window.electronAPI?.updateTrayStatus('Working');
           window.electronAPI?.notify({
-            title: 'PulseTime: Work Resumed',
+            title: 'TimeLogger: Work Resumed',
             body: 'Active work tracking resumed.',
           });
         }
@@ -372,7 +372,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           activeSeconds: act,
           idleSeconds: idl,
           activeApplication: 'Desktop Work Session',
-          windowTitle: workNotes || 'PulseTime Client',
+          windowTitle: workNotes || 'TimeLogger Client',
         });
       } catch (err: any) {
         console.warn('[HEARTBEAT] Warning:', err?.message);
@@ -469,15 +469,17 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     }
   };
 
-  // Automated Periodic Screenshot Pipeline (Every 10 Seconds in dev or configured interval)
+  // Automated Periodic Screenshot Pipeline (Default: 5 Minutes or organization / schedule configured interval)
   useEffect(() => {
     if (status === 'OFFLINE' || status === 'BREAK' || !activeSession) return;
 
     const initialTimer = setTimeout(() => {
       executeScreenshotCapture(activeSession.id);
-    }, 2000);
+    }, 5000);
 
-    const screenshotIntervalMs = 10 * 1000;
+    const intervalMinutes = organization?.screenshotIntervalMinutes || 5;
+    const screenshotIntervalMs = intervalMinutes * 60 * 1000;
+
     const screenshotTimer = setInterval(() => {
       executeScreenshotCapture(activeSession.id);
     }, screenshotIntervalMs);
@@ -486,7 +488,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       clearTimeout(initialTimer);
       clearInterval(screenshotTimer);
     };
-  }, [status, activeSession]);
+  }, [status, activeSession, organization]);
 
   // Actions
   const handleStartSession = async () => {
@@ -551,7 +553,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             activeSeconds: 1,
             idleSeconds: 0,
             activeApplication: 'Desktop Work Session',
-            windowTitle: workNotes || 'PulseTime Client',
+            windowTitle: workNotes || 'TimeLogger Client',
           })
           .catch(() => {});
       }
@@ -620,7 +622,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             activeSeconds: act,
             idleSeconds: idl,
             activeApplication: 'Desktop Work Session',
-            windowTitle: workNotes || 'PulseTime Client',
+            windowTitle: workNotes || 'TimeLogger Client',
           })
           .catch(() => {});
       }
@@ -909,7 +911,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="font-semibold text-[#161616] truncate">
-                  {employee?.displayName || 'PulseTime User'}
+                  {employee?.displayName || 'TimeLogger User'}
                 </span>
                 {employee?.employeeCode && (
                   <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-none bg-[#f4f4f4] text-[#161616] border border-[#e0e0e0]">

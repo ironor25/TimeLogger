@@ -1,16 +1,16 @@
 {
-  "name": "pulsetime-desktop",
+  "name": "timelogger-desktop",
   "version": "1.0.0",
-  "description": "PulseTime - Workforce Desktop Time Tracker & Activity Monitor",
+  "description": "TimeLogger - Workforce Desktop Time Tracker & Activity Monitor",
   "private": true,
-  "author": "PulseTime Engineering",
+  "author": "TimeLogger Engineering",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "package": "tsc && vite build && electron-packager . PulseTime --platform=win32 --arch=x64 --icon=public/icon.ico --out=dist-package --overwrite --prune=false --ignore=\"^/(src|electron|release|dist-app|release-app|release-build|node_modules)\""
+    "package": "tsc && vite build && electron-packager . TimeLogger --platform=win32 --arch=x64 --icon=public/icon.ico --out=dist-package --overwrite --prune=false --ignore=\"^/(src|electron|release|dist-app|release-app|release-build|node_modules)\""
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -37,8 +37,8 @@
     "vite-plugin-electron-renderer": "^0.14.5"
   },
   "build": {
-    "appId": "com.pulsetime.desktop",
-    "productName": "PulseTime",
+    "appId": "com.timelogger.desktop",
+    "productName": "TimeLogger",
     "directories": {
       "output": "release"
     },
@@ -48,7 +48,7 @@
     ],
     "win": {
       "target": "dir",
-      "executableName": "PulseTime",
+      "executableName": "TimeLogger",
       "icon": "public/icon.ico",
       "sign": null,
       "signAndEditExecutable": false

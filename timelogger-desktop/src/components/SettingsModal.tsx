@@ -77,7 +77,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const res = await fetch(`${cleanUrl}/health`);
       if (res.ok) {
         setTestStatus('success');
-        setTestMsg('Connected to PulseTime Server successfully!');
+        setTestMsg('Connected to TimeLogger Server successfully!');
       } else {
         setTestStatus('error');
         setTestMsg(`Server returned HTTP ${res.status}`);

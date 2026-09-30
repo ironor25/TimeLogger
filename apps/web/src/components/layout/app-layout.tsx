@@ -13,7 +13,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <div className="min-h-screen flex items-center justify-center bg-[#f4f4f4]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#0f62fe] border-t-transparent animate-spin"></div>
-          <span className="text-xs font-normal text-[#525252] tracking-carbon">Loading PulseTime...</span>
+          <span className="text-xs font-normal text-[#525252] tracking-carbon">Loading TimeLogger...</span>
         </div>
       </div>
     );

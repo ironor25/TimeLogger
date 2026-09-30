@@ -3,7 +3,7 @@ import { Providers } from './providers';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'PulseTime - Workforce Time Tracking & Productivity SaaS',
+  title: 'TimeLogger - Workforce Time Tracking & Productivity SaaS',
   description: 'Enterprise multi-tenant workforce monitoring, time-tracking, activity analytics, and employee productivity platform.',
 };
 

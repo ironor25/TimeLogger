@@ -128,7 +128,7 @@ function createTray() {
   }
 
   tray = new Tray(icon);
-  tray.setToolTip('PulseTime Desktop Tracker');
+  tray.setToolTip('TimeLogger Desktop Tracker');
 
   tray.on('click', () => {
     if (mainWindow) {
@@ -146,7 +146,7 @@ function createTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Open PulseTime',
+      label: 'Open TimeLogger',
       click: () => {
         mainWindow?.show();
         mainWindow?.focus();
@@ -154,7 +154,7 @@ function createTray() {
     },
     { type: 'separator' },
     {
-      label: 'Quit PulseTime',
+      label: 'Quit TimeLogger',
       click: () => {
         isQuitting = true;
         app.quit();
@@ -302,5 +302,5 @@ ipcMain.handle('system:notify', (_event, { title, body }: { title: string; body:
 
 // Tray Status Updater
 ipcMain.handle('tray:update-status', (_event, statusText: string) => {
-  tray?.setToolTip(`PulseTime: ${statusText}`);
+  tray?.setToolTip(`TimeLogger: ${statusText}`);
 });

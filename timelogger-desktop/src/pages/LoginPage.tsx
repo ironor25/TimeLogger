@@ -66,8 +66,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       <div className="w-full max-w-sm mx-auto space-y-5">
         {/* Brand Header */}
         <div className="text-center space-y-1.5">
-          <img src={appLogo} alt="PulseTime" className="w-12 h-12 rounded-none object-contain mx-auto mb-1" />
-          <h1 className="text-2xl font-light text-[#161616] tracking-tight">PulseTime Desktop</h1>
+          <img src={appLogo} alt="TimeLogger" className="w-12 h-12 rounded-none object-contain mx-auto mb-1" />
+          <h1 className="text-2xl font-light text-[#161616] tracking-tight">TimeLogger Desktop</h1>
           <p className="text-xs text-[#525252]">Sign in to track work time & screenshot activity</p>
         </div>
 
@@ -203,7 +203,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         </form>
 
         <p className="text-center text-[11px] text-[#8c8c8c]">
-          PulseTime Secure Desktop Agent • Carbon v1.0.0
+          TimeLogger Secure Desktop Agent • Carbon v1.0.0
         </p>
       </div>
     </div>

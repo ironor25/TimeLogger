@@ -94,7 +94,7 @@ export function Sidebar() {
           <Timer className="w-4 h-4" />
         </div>
         <div className="flex flex-col">
-          <span className="font-medium text-sm text-white tracking-tight">PulseTime</span>
+          <span className="font-medium text-sm text-white tracking-tight">TimeLogger</span>
           <span className="text-[11px] text-[#8c8c8c] font-normal truncate max-w-[140px]">
             {organization?.name || 'Enterprise'}
           </span>

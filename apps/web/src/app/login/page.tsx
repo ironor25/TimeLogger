@@ -39,7 +39,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-10 h-10 bg-[#0f62fe] text-white rounded-none mb-3">
             <Timer className="w-5 h-5" />
           </div>
-          <h1 className="text-3xl font-light text-[#161616] tracking-tight">PulseTime</h1>
+          <h1 className="text-3xl font-light text-[#161616] tracking-tight">TimeLogger</h1>
           <p className="text-xs text-[#525252] mt-1 tracking-carbon">Enterprise Workforce Time Tracking & Productivity Platform</p>
         </div>
 
@@ -145,7 +145,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center text-[#8c8c8c] text-[11px] mt-6 tracking-carbon">
-          PulseTime • Carbon Enterprise Design • Strict Multi-Tenancy
+          TimeLogger • Carbon Enterprise Design • Strict Multi-Tenancy
         </p>
       </div>
     </div>
