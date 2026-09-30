@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Lock, Mail, Server, ArrowRight, AlertCircle, Sparkles } from 'lucide-react';
 import { agentApi } from '../services/api';
 import { storage } from '../services/storage';
+import appLogo from '../assets/icon.png';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -65,9 +66,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       <div className="w-full max-w-sm mx-auto space-y-5">
         {/* Brand Header */}
         <div className="text-center space-y-1.5">
-          <div className="inline-flex w-10 h-10 rounded-none bg-[#0f62fe] items-center justify-center text-white font-bold text-base mb-1">
-            PT
-          </div>
+          <img src={appLogo} alt="PulseTime" className="w-12 h-12 rounded-none object-contain mx-auto mb-1" />
           <h1 className="text-2xl font-light text-[#161616] tracking-tight">PulseTime Desktop</h1>
           <p className="text-xs text-[#525252]">Sign in to track work time & screenshot activity</p>
         </div>

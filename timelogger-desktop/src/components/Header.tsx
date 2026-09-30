@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Minus, X, Pin, PinOff, Settings } from 'lucide-react';
+import appLogo from '../assets/icon.png';
 
 interface HeaderProps {
   onOpenSettings?: () => void;
@@ -44,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
     <header className="h-10 bg-[#ffffff] border-b border-[#e0e0e0] flex items-center justify-between px-3 select-none app-region-drag font-sans tracking-carbon">
       {/* Brand & Status */}
       <div className="flex items-center gap-2 app-region-no-drag" style={noDragStyle}>
-        <img src="/icon.png" alt="PulseTime" className="w-5 h-5 rounded-none object-contain flex-shrink-0" />
+        <img src={appLogo} alt="PulseTime" className="w-5 h-5 rounded-none object-contain flex-shrink-0" />
         <span className="font-semibold text-xs text-[#161616] tracking-tight">PulseTime</span>
 
         <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#e0e0e0] text-[10px]">
