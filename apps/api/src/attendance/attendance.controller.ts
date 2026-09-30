@@ -25,10 +25,11 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Admin: List attendance logs by date range and department' })
   async getAttendance(
     @CurrentTenant() orgId: string,
+    @Query('date') date?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('departmentId') departmentId?: string,
   ) {
-    return this.attendanceService.getAttendanceList(orgId, { startDate, endDate, departmentId });
+    return this.attendanceService.getAttendanceList(orgId, { date, startDate, endDate, departmentId });
   }
 }
