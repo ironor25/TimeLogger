@@ -211,7 +211,11 @@ function TimelinesPageContent() {
           {/* 4. Meeting / Break Hours */}
           <div className="bg-white border border-[#e0e0e0] p-4 rounded-none flex flex-col justify-between min-h-[96px]">
             <div className="text-2xl font-light text-[#0043ce] tracking-tight">
-              {summary?.formattedMeeting || summary?.formattedBreak || '0h'}
+              {(summary?.breakSeconds > 0
+                ? summary?.formattedBreak
+                : summary?.meetingSeconds > 0
+                ? summary?.formattedMeeting
+                : summary?.formattedBreak || '0h')}
             </div>
             <div className="text-xs font-normal text-[#525252] mt-1 tracking-carbon">Break / Meeting</div>
           </div>

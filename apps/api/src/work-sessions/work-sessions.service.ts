@@ -489,7 +489,7 @@ export class WorkSessionsService {
     const endOfDay = new Date(`${todayStr}T23:59:59.999Z`);
     const now = new Date();
 
-    const [sessions, screenshots, breaks] = await Promise.all([
+    const [sessions, screenshots, breaks, activityRecords] = await Promise.all([
       this.prisma.workSession.findMany({
         where: {
           organizationId,
@@ -523,6 +523,17 @@ export class WorkSessionsService {
           organizationId,
           employeeId,
           startedAt: { gte: startOfDay, lte: endOfDay },
+        },
+      }),
+      this.prisma.activityRecord.findMany({
+        where: {
+          organizationId,
+          employeeId,
+          capturedAt: { gte: startOfDay, lte: endOfDay },
+        },
+        select: {
+          activeSeconds: true,
+          idleSeconds: true,
         },
       }),
     ]);
@@ -571,8 +582,12 @@ export class WorkSessionsService {
       }
     }
 
-    const totalActiveSeconds = Math.max(0, totalWorkedSeconds - totalBreakSeconds);
-    const totalIdleSeconds = 0;
+    let totalIdleSeconds = 0;
+    for (const a of activityRecords) {
+      totalIdleSeconds += a.idleSeconds || 0;
+    }
+
+    const totalActiveSeconds = Math.max(0, totalWorkedSeconds - totalBreakSeconds - totalIdleSeconds);
 
     return {
       date: todayStr,
