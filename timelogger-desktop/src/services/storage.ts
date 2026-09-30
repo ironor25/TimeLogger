@@ -161,18 +161,47 @@ export const storage = {
     base64: string;
     dataUrl?: string;
   }) {
-    const list = this.getOfflineScreenshots();
+    let list = this.getOfflineScreenshots();
     const item = {
       ...sc,
       id: `offline_sc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     };
     list.push(item);
-    localStorage.setItem('pulsetime_offline_screenshots', JSON.stringify(list));
+    // Keep at most 15 screenshots to avoid LocalStorage quota limits (5MB limit)
+    if (list.length > 15) {
+      list = list.slice(-15);
+    }
+    try {
+      localStorage.setItem('pulsetime_offline_screenshots', JSON.stringify(list));
+    } catch (e) {
+      console.warn('LocalStorage quota reached when saving offline screenshot, trimming older items:', e);
+      list = list.slice(-5);
+      try {
+        localStorage.setItem('pulsetime_offline_screenshots', JSON.stringify(list));
+      } catch {}
+    }
     return item;
   },
 
   setOfflineScreenshots(list: any[]) {
-    localStorage.setItem('pulsetime_offline_screenshots', JSON.stringify(list));
+    try {
+      localStorage.setItem('pulsetime_offline_screenshots', JSON.stringify(list.slice(-15)));
+    } catch (e) {
+      console.warn('Failed to set offline screenshots in storage:', e);
+    }
+  },
+
+  clearOfflineQueue() {
+    localStorage.removeItem(STORAGE_KEYS.OFFLINE_QUEUE);
+  },
+
+  clearOfflineScreenshots() {
+    localStorage.removeItem('pulsetime_offline_screenshots');
+  },
+
+  clearAllOfflineData() {
+    this.clearOfflineQueue();
+    this.clearOfflineScreenshots();
   },
 
   /**

@@ -300,13 +300,24 @@ export const agentApi = {
     }
     console.log('[UPLOAD] targetUploadUrl:', targetUploadUrl);
 
-    const uploadRes = await fetch(targetUploadUrl, {
-      method,
-      headers: {
-        'Content-Type': payload.mimeType,
-      },
-      body: uploadBlob,
-    });
+    let uploadRes: Response;
+    if (method.toUpperCase() === 'PUT') {
+      uploadRes = await fetch(targetUploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': payload.mimeType,
+        },
+        body: uploadBlob,
+      });
+    } else {
+      // Use standard FormData with 'file' field for NestJS FileInterceptor
+      const formData = new FormData();
+      formData.append('file', uploadBlob, 'screenshot.jpg');
+      uploadRes = await fetch(targetUploadUrl, {
+        method: 'POST',
+        body: formData,
+      });
+    }
 
     console.log('[UPLOAD] Storage response HTTP status:', uploadRes.status);
     if (!uploadRes.ok) {
@@ -376,7 +387,10 @@ export const agentApi = {
     });
   },
 
-  async syncAllOfflineData(): Promise<{
+  async syncAllOfflineData(
+    currentActiveSessionId?: string,
+    onSessionIdMapped?: (oldId: string, newId: string) => void,
+  ): Promise<{
     syncedSessions: number;
     syncedScreenshots: number;
     syncedTelemetry: number;
@@ -399,8 +413,11 @@ export const agentApi = {
             method: 'POST',
             body: JSON.stringify(item.payload),
           });
-          if (item.payload.clientSessionId && res?.id) {
+          if (item.payload?.clientSessionId && res?.id) {
             sessionIdMap[item.payload.clientSessionId] = res.id;
+            if (onSessionIdMapped) {
+              onSessionIdMapped(item.payload.clientSessionId, res.id);
+            }
           }
           syncedSessions++;
         } else {
@@ -408,16 +425,34 @@ export const agentApi = {
           let payload = { ...item.payload };
           if (payload.sessionId && sessionIdMap[payload.sessionId]) {
             payload.sessionId = sessionIdMap[payload.sessionId];
+          } else if (
+            payload.sessionId &&
+            payload.sessionId.startsWith('offline_') &&
+            currentActiveSessionId &&
+            !currentActiveSessionId.startsWith('offline_')
+          ) {
+            payload.sessionId = currentActiveSessionId;
           }
+
           await request(item.endpoint, {
             method: 'POST',
             body: JSON.stringify(payload),
           });
           syncedTelemetry++;
         }
-      } catch {
-        item.retries += 1;
-        remainingQueue.push(item);
+      } catch (err: any) {
+        // If error is 404 (session deleted or permanently gone) or retry count >= 5, drop stale item
+        if (
+          (item.retries || 0) >= 5 ||
+          err?.message?.includes('not found') ||
+          err?.message?.includes('404') ||
+          err?.message?.includes('does not belong')
+        ) {
+          console.warn(`[SYNC] Dropping stale offline queue item (${item.type}) due to error:`, err?.message);
+        } else {
+          item.retries = (item.retries || 0) + 1;
+          remainingQueue.push(item);
+        }
       }
     }
     storage.setOfflineQueue(remainingQueue);
@@ -428,9 +463,19 @@ export const agentApi = {
 
     for (const sc of offlineScreenshots) {
       try {
-        const targetSessionId = sessionIdMap[sc.sessionId] || sc.sessionId;
-        // Skip upload if sessionId is dummy offline and was never synced
-        if (targetSessionId.startsWith('offline_') && !sessionIdMap[sc.sessionId]) {
+        let targetSessionId = sessionIdMap[sc.sessionId] || sc.sessionId;
+
+        // If targetSessionId is an unmapped offline ID, try using the current active server session
+        if (
+          targetSessionId.startsWith('offline_') &&
+          currentActiveSessionId &&
+          !currentActiveSessionId.startsWith('offline_')
+        ) {
+          targetSessionId = currentActiveSessionId;
+        }
+
+        // If still a dummy offline ID and no server session mapping exists, skip for now
+        if (targetSessionId.startsWith('offline_')) {
           remainingScreenshots.push(sc);
           continue;
         }
@@ -449,9 +494,18 @@ export const agentApi = {
           taskId: sc.taskId,
         });
         syncedScreenshots++;
-      } catch (err) {
-        console.error('Failed to upload queued offline screenshot:', err);
-        remainingScreenshots.push(sc);
+      } catch (err: any) {
+        console.error('Failed to upload queued offline screenshot:', err?.message || err);
+        // If session was not found on backend, drop this screenshot so queue doesn't stay blocked
+        if (
+          err?.message?.includes('not found') ||
+          err?.message?.includes('404') ||
+          err?.message?.includes('does not belong')
+        ) {
+          console.warn('[SYNC] Discarding orphaned screenshot for non-existent session');
+        } else {
+          remainingScreenshots.push(sc);
+        }
       }
     }
     storage.setOfflineScreenshots(remainingScreenshots);

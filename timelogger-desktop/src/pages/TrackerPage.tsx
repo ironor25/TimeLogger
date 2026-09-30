@@ -141,7 +141,14 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
     try {
       setIsSyncing(true);
-      const res = await agentApi.syncAllOfflineData();
+      const res = await agentApi.syncAllOfflineData(
+        activeSession?.id,
+        (oldId, newId) => {
+          if (activeSession?.id === oldId) {
+            setActiveSession((prev) => (prev ? { ...prev, id: newId } : prev));
+          }
+        },
+      );
       updatePendingCount();
 
       if (res.syncedSessions > 0 || res.syncedScreenshots > 0 || res.syncedTelemetry > 0) {
@@ -152,6 +159,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           setTodayWorkedSeconds(summary.workedSeconds ?? summary.activeSeconds ?? 0);
           setTodayActiveSeconds(summary.activeSeconds ?? summary.workedSeconds ?? 0);
           setTodayBreakSeconds(summary.breakSeconds || 0);
+          if (summary.activeSession) {
+            setActiveSession(summary.activeSession);
+          }
         }
       }
     } catch (err) {
@@ -159,7 +169,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     } finally {
       setIsSyncing(false);
     }
-  }, [isSyncing, updatePendingCount]);
+  }, [isSyncing, updatePendingCount, activeSession]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -473,9 +483,20 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           session = await agentApi.startWorkSession({
             notes: workNotes || undefined,
           });
-        } catch (netErr) {
-          console.warn('Network error starting session, starting offline session:', netErr);
-          session = createOfflineSession();
+        } catch (netErr: any) {
+          console.warn('Network / API response starting session:', netErr);
+          // If already active or error occurs, fetch current active server session first
+          const current = await agentApi.getCurrentSession().catch(() => null);
+          if (current) {
+            session = current;
+          } else {
+            const todaySum = await agentApi.getTodaySummary().catch(() => null);
+            if (todaySum?.activeSession) {
+              session = todaySum.activeSession;
+            } else {
+              session = createOfflineSession();
+            }
+          }
         }
       } else {
         session = createOfflineSession();

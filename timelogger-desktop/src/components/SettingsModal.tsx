@@ -21,14 +21,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMsg, setTestMsg] = useState('');
   const [deviceInfo, setDeviceInfo] = useState<any>(null);
-  const [offlineCount, setOfflineCount] = useState(storage.getOfflineQueue().length);
+  const getCombinedOfflineCount = () => {
+    return storage.getOfflineQueue().length + storage.getOfflineScreenshots().length;
+  };
+
+  const [offlineCount, setOfflineCount] = useState(getCombinedOfflineCount);
   const [isSyncing, setIsSyncing] = useState(false);
   const [idleConfig, setIdleConfig] = useState<IdleConfig>(storage.getIdleConfig());
 
   useEffect(() => {
     if (isOpen) {
       setServerUrl(storage.getServerUrl());
-      setOfflineCount(storage.getOfflineQueue().length);
+      setOfflineCount(getCombinedOfflineCount());
       setIdleConfig(storage.getIdleConfig());
       if (window.electronAPI) {
         window.electronAPI.getDeviceInfo().then(setDeviceInfo);
@@ -88,7 +92,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setIsSyncing(true);
     try {
       const count = await agentApi.flushOfflineQueue();
-      setOfflineCount(storage.getOfflineQueue().length);
+      setOfflineCount(getCombinedOfflineCount());
       setTestStatus('success');
       setTestMsg(`Synced ${count} queued items to server!`);
     } catch {
@@ -97,6 +101,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleClearOfflineData = () => {
+    storage.clearAllOfflineData();
+    setOfflineCount(0);
+    setTestStatus('success');
+    setTestMsg('Offline cache cleared successfully.');
+    setTimeout(() => setTestStatus('idle'), 3000);
   };
 
   return (
@@ -233,18 +245,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Offline Queue */}
         {offlineCount > 0 && (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-center justify-between text-xs text-amber-300">
-            <div>
-              <div className="font-semibold">{offlineCount} telemetry items cached offline</div>
-              <div className="text-[10px] text-amber-400/80">Will auto-sync when connected</div>
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 space-y-2 text-xs text-amber-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-semibold">{offlineCount} offline item(s) pending</div>
+                <div className="text-[10px] text-amber-400/80">
+                  {storage.getOfflineQueue().length} telemetry / events • {storage.getOfflineScreenshots().length} screenshots
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleClearOfflineData}
+                  type="button"
+                  title="Clear any orphaned offline data"
+                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-300 border border-slate-700 text-[10px] font-medium transition-all"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={handleSyncOfflineQueue}
+                  disabled={isSyncing}
+                  type="button"
+                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] transition-all"
+                >
+                  {isSyncing ? 'Syncing...' : 'Sync Now'}
+                </button>
+              </div>
             </div>
-            <button
-              onClick={handleSyncOfflineQueue}
-              disabled={isSyncing}
-              className="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] transition-all"
-            >
-              {isSyncing ? 'Syncing...' : 'Sync Now'}
-            </button>
           </div>
         )}
 
