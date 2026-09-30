@@ -213,37 +213,44 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       }
       setIdleSeconds(currentIdle);
 
-      // 2. 1-Second Activity Bucket Classification for Screenshot Window
-      if (currentIdle < 2) {
-        windowActiveSecondsRef.current += 1;
-        activeBucketSecRef.current += 1;
-      } else {
-        windowIdleSecondsRef.current += 1;
-        idleBucketSecRef.current += 1;
-      }
-
       const gracePeriod = idleConfig.gracePeriodSeconds || 60;
       const warningDuration = idleConfig.warningDurationSeconds || 60;
       const totalTimeout = gracePeriod + warningDuration;
 
-      // 3. State Machine Transitions
+      // 2. State Machine Transitions & Metric Aggregation
       if (status === 'ACTIVE') {
-        setSessionSeconds((prev) => prev + 1);
-        setTodayWorkedSeconds((prev) => prev + 1);
-        setTodayActiveSeconds((prev) => prev + 1);
+        if (currentIdle < 2) {
+          // User is actively interacting
+          windowActiveSecondsRef.current += 1;
+          activeBucketSecRef.current += 1;
+          setSessionSeconds((prev) => prev + 1);
+          setTodayWorkedSeconds((prev) => prev + 1);
+          setTodayActiveSeconds((prev) => prev + 1);
+        } else {
+          // Inactivity detected during active status
+          windowIdleSecondsRef.current += 1;
+          idleBucketSecRef.current += 1;
+          setTodayIdleSeconds((prev) => prev + 1);
+          setSessionSeconds((prev) => prev + 1);
 
-        if (currentIdle >= gracePeriod) {
-          // Grace period elapsed -> enter IDLE_WARNING state
-          setStatus('IDLE_WARNING');
-          const secLeft = Math.max(1, totalTimeout - currentIdle);
-          setIdleWarningSecondsLeft(secLeft);
-          console.log(`[IDLE] Inactivity started. Grace period elapsed (${gracePeriod}s). Warning started.`);
-          window.electronAPI?.notify({
-            title: 'PulseTime: Inactivity Warning',
-            body: `Inactivity detected. Warning countdown started (${secLeft}s left).`,
-          });
+          if (currentIdle >= gracePeriod) {
+            // Grace period elapsed -> enter IDLE_WARNING state
+            setStatus('IDLE_WARNING');
+            const secLeft = Math.max(1, totalTimeout - currentIdle);
+            setIdleWarningSecondsLeft(secLeft);
+            console.log(`[IDLE] Inactivity started. Grace period elapsed (${gracePeriod}s). Warning started.`);
+            window.electronAPI?.notify({
+              title: 'PulseTime: Inactivity Warning',
+              body: `Inactivity detected. Warning countdown started (${secLeft}s left).`,
+            });
+          }
         }
       } else if (status === 'IDLE_WARNING') {
+        windowIdleSecondsRef.current += 1;
+        idleBucketSecRef.current += 1;
+        setTodayIdleSeconds((prev) => prev + 1);
+        setSessionSeconds((prev) => prev + 1);
+
         if (currentIdle < gracePeriod) {
           // Activity detected during warning -> cancel warning, resume ACTIVE
           setStatus('ACTIVE');
@@ -254,7 +261,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           setStatus('IDLE');
           setIsIdle(true);
           idleStartTimeRef.current = Date.now();
-          setCurrentIdlePeriodSeconds(0);
+          setCurrentIdlePeriodSeconds(currentIdle);
           console.log(`[IDLE] Warning countdown expired (${totalTimeout}s total inactivity). User marked IDLE.`);
           window.electronAPI?.updateTrayStatus('Idle (Paused)');
           window.electronAPI?.notify({
@@ -270,7 +277,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           }
         }
       } else if (status === 'IDLE') {
-        // In confirmed IDLE state: Work timer does NOT increment. Idle timer increments.
+        // In confirmed IDLE state: Idle metrics increment
+        windowIdleSecondsRef.current += 1;
+        idleBucketSecRef.current += 1;
         setCurrentIdlePeriodSeconds((prev) => prev + 1);
         setTodayIdleSeconds((prev) => prev + 1);
 
@@ -282,7 +291,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
           console.log(`[IDLE] Activity detected. Idle ended. Confirmed idle duration: ${idleDurationSec}s.`);
 
-          // Record idle telemetry heartbeat
+          // Record idle telemetry heartbeat immediately
           if (activeSession && !activeSession.id.startsWith('offline_')) {
             agentApi
               .sendHeartbeat({
@@ -502,6 +511,18 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         session = createOfflineSession();
       }
 
+      // Refresh authoritative today summary on start
+      const todayStr = getTodayDateStr();
+      if (navigator.onLine && !session.id.startsWith('offline_')) {
+        const todaySum = await agentApi.getTodaySummary(todayStr).catch(() => null);
+        if (todaySum) {
+          setTodayWorkedSeconds(todaySum.workedSeconds ?? todaySum.activeSeconds ?? 0);
+          setTodayActiveSeconds(todaySum.activeSeconds ?? todaySum.workedSeconds ?? 0);
+          setTodayIdleSeconds(todaySum.idleSeconds || 0);
+          setTodayBreakSeconds(todaySum.breakSeconds || 0);
+        }
+      }
+
       setActiveSession(session);
       setStatus('ACTIVE');
       setIsIdle(false);
@@ -511,6 +532,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       idleStartTimeRef.current = null;
       windowActiveSecondsRef.current = 0;
       windowIdleSecondsRef.current = 0;
+      activeBucketSecRef.current = 0;
+      idleBucketSecRef.current = 0;
 
       // Send initial heartbeat if online
       if (!session.id.startsWith('offline_')) {
@@ -577,26 +600,23 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         console.log(`[IDLE] Session stopped while in IDLE. Finalized idle duration: ${idleDurationSec}s.`);
       }
 
-      storage.setDailyState(
-        {
-          date: todayStr,
-          workedSeconds: todayWorkedSeconds,
-          activeSeconds: todayActiveSeconds,
-          idleSeconds: todayIdleSeconds,
-          breakSeconds: todayBreakSeconds,
-          lastPunchOutTime: punchOutStr,
-        },
-        employee,
-      );
-
-      setStatus('OFFLINE');
-      setActiveSession(null);
-      setIsIdle(false);
-      setLastPunchOutTime(punchOutStr);
-      setSessionSeconds(0);
-      setBreakSeconds(0);
-      setCurrentIdlePeriodSeconds(0);
-      idleStartTimeRef.current = null;
+      // Flush any telemetry buffers before stopping
+      const act = activeBucketSecRef.current;
+      const idl = idleBucketSecRef.current;
+      if ((act > 0 || idl > 0) && !activeSession.id.startsWith('offline_') && navigator.onLine) {
+        activeBucketSecRef.current = 0;
+        idleBucketSecRef.current = 0;
+        await agentApi
+          .sendHeartbeat({
+            sessionId: activeSession.id,
+            capturedAt: now.toISOString(),
+            activeSeconds: act,
+            idleSeconds: idl,
+            activeApplication: 'Desktop Work Session',
+            windowTitle: workNotes || 'PulseTime Client',
+          })
+          .catch(() => {});
+      }
 
       if (activeSession.id.startsWith('offline_')) {
         storage.addToOfflineQueue({
@@ -616,6 +636,28 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             sessionId: activeSession.id,
             notes: workNotes || undefined,
           });
+
+          // Fetch authoritative server summary immediately after stop
+          const serverSummary = await agentApi.getTodaySummary(todayStr).catch(() => null);
+          if (serverSummary) {
+            setTodayWorkedSeconds(serverSummary.workedSeconds ?? serverSummary.activeSeconds ?? 0);
+            setTodayActiveSeconds(serverSummary.activeSeconds ?? serverSummary.workedSeconds ?? 0);
+            setTodayIdleSeconds(serverSummary.idleSeconds || 0);
+            setTodayBreakSeconds(serverSummary.breakSeconds || 0);
+            setLastPunchOutTime(serverSummary.lastPunchOutTime || punchOutStr);
+
+            storage.setDailyState(
+              {
+                date: todayStr,
+                workedSeconds: serverSummary.workedSeconds ?? serverSummary.activeSeconds ?? 0,
+                activeSeconds: serverSummary.activeSeconds ?? serverSummary.workedSeconds ?? 0,
+                idleSeconds: serverSummary.idleSeconds || 0,
+                breakSeconds: serverSummary.breakSeconds || 0,
+                lastPunchOutTime: serverSummary.lastPunchOutTime || punchOutStr,
+              },
+              employee,
+            );
+          }
         } catch {
           storage.addToOfflineQueue({
             type: 'SESSION_STOP',
@@ -638,6 +680,17 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         });
         updatePendingCount();
       }
+
+      setStatus('OFFLINE');
+      setActiveSession(null);
+      setIsIdle(false);
+      setLastPunchOutTime(punchOutStr);
+      setSessionSeconds(0);
+      setBreakSeconds(0);
+      setCurrentIdlePeriodSeconds(0);
+      idleStartTimeRef.current = null;
+      activeBucketSecRef.current = 0;
+      idleBucketSecRef.current = 0;
 
       window.electronAPI?.updateTrayStatus('Offline');
       window.electronAPI?.notify({
