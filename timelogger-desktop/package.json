@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "package": "tsc && vite build && electron-packager . PulseTime --platform=win32 --arch=x64 --out=dist-package --overwrite --prune=false --ignore=\"^/(src|electron|release|dist-app|release-app|release-build|node_modules)\""
+    "package": "tsc && vite build && electron-packager . PulseTime --platform=win32 --arch=x64 --icon=public/icon.ico --out=dist-package --overwrite --prune=false --ignore=\"^/(src|electron|release|dist-app|release-app|release-build|node_modules)\""
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -49,6 +49,7 @@
     "win": {
       "target": "dir",
       "executableName": "PulseTime",
+      "icon": "public/icon.ico",
       "sign": null,
       "signAndEditExecutable": false
     }

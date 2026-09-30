@@ -18,9 +18,29 @@ function resolvePreloadPath(): string {
   return path.join(__dirname, 'preload.cjs');
 }
 
+function getIconPath(filename: string): string {
+  const candidatePaths = [
+    path.join(__dirname, '../public', filename),
+    path.join(__dirname, '../dist', filename),
+    path.join(__dirname, '..', filename),
+    path.join(app.getAppPath(), 'public', filename),
+    path.join(app.getAppPath(), 'dist', filename),
+    path.join(process.resourcesPath, 'public', filename),
+    path.join(process.resourcesPath, filename),
+  ];
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return candidatePaths[0];
+}
+
 function createWindow() {
   const preload = resolvePreloadPath();
   console.log('[Main Process] Resolved preload path:', preload);
+
+  const iconPath = getIconPath('icon.ico');
+  const iconPngPath = getIconPath('icon.png');
+  const windowIcon = nativeImage.createFromPath(fs.existsSync(iconPath) ? iconPath : iconPngPath);
 
   mainWindow = new BrowserWindow({
     width: 420,
@@ -33,9 +53,10 @@ function createWindow() {
     show: true,
     frame: false,
     transparent: false,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     resizable: true,
     alwaysOnTop: false,
+    icon: windowIcon,
     webPreferences: {
       preload,
       nodeIntegration: false,
@@ -43,6 +64,10 @@ function createWindow() {
       sandbox: false,
     },
   });
+
+  if (!windowIcon.isEmpty()) {
+    mainWindow.setIcon(windowIcon);
+  }
 
   // Enable F12 and Ctrl+Shift+I to toggle DevTools
   mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -79,16 +104,45 @@ function createWindow() {
 }
 
 function createTray() {
-  // 16x16 icon data URL or simple canvas placeholder
-  const icon = nativeImage.createFromBuffer(
-    Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAA7SURBVDhPY/wPBAwUACZGBgYGBkYmRgYGBiZGGBgYGBkZGBgYmBiBhg0cNYChBkA0Y0iG//8ZGBgYGBgABQ8LAe4t9nEAAAAASUVORK5CYII=',
-      'base64'
-    )
-  );
+  const trayIcon16 = getIconPath('icon-16.png');
+  const trayIcon32 = getIconPath('icon-32.png');
+  const trayIconPng = getIconPath('icon.png');
+  const trayIconIco = getIconPath('icon.ico');
+
+  let icon: Electron.NativeImage;
+  if (fs.existsSync(trayIcon16)) {
+    icon = nativeImage.createFromPath(trayIcon16);
+  } else if (fs.existsSync(trayIcon32)) {
+    icon = nativeImage.createFromPath(trayIcon32);
+  } else if (fs.existsSync(trayIconPng)) {
+    icon = nativeImage.createFromPath(trayIconPng).resize({ width: 16, height: 16 });
+  } else if (fs.existsSync(trayIconIco)) {
+    icon = nativeImage.createFromPath(trayIconIco).resize({ width: 16, height: 16 });
+  } else {
+    icon = nativeImage.createFromBuffer(
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAA7SURBVDhPY/wPBAwUACZGBgYGBkYmRgYGBiZGGBgYGBkZGBgYmBiBhg0cNYChBkA0Y0iG//8ZGBgYGBgABQ8LAe4t9nEAAAAASUVORK5CYII=',
+        'base64'
+      )
+    );
+  }
 
   tray = new Tray(icon);
   tray.setToolTip('PulseTime Desktop Tracker');
+
+  tray.on('click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        if (mainWindow.isMinimized()) {
+          mainWindow.restore();
+        }
+        mainWindow.focus();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }
+  });
 
   const contextMenu = Menu.buildFromTemplate([
     {
