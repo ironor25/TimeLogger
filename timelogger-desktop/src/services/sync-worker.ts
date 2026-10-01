@@ -39,21 +39,13 @@ class SyncWorkerService {
     window.addEventListener('online', () => this.handleNetworkChange(true));
     window.addEventListener('offline', () => this.handleNetworkChange(false));
 
-    // Listen to direct API network signals for instant 0ms state switching
-    window.addEventListener('network:status', (e: any) => {
-      const isOnline = !!e.detail?.isOnline;
-      if (isOnline !== this.isOnline) {
-        this.handleNetworkChange(isOnline);
-      }
-    });
-
     // Initial check
     this.updatePendingCount();
 
-    // Start background polling worker (every 2.5 seconds for fast online detection & seamless sync)
+    // Start background polling worker (every 12 seconds)
     this.checkTimer = setInterval(() => {
       this.backgroundPulse();
-    }, 2500);
+    }, 12000);
 
     // Initial connectivity probe
     this.probeConnectivity();
@@ -106,18 +98,13 @@ class SyncWorkerService {
   }
 
   private handleNetworkChange(online: boolean) {
-    console.log(`[SYNC WORKER] Network state update: ${online ? 'ONLINE' : 'OFFLINE'}`);
+    console.log(`[SYNC WORKER] Network change detected: ${online ? 'ONLINE' : 'OFFLINE'}`);
     this.isOnline = online;
     if (!online) {
       this.syncState = 'DISCONNECTED';
       this.statusMessage = 'Offline — data will sync automatically';
       this.notify();
     } else {
-      if (this.syncState !== 'SYNCING') {
-        this.syncState = 'CONNECTED';
-        this.statusMessage = 'Connected';
-        this.notify();
-      }
       this.probeConnectivity();
     }
   }
@@ -150,8 +137,6 @@ class SyncWorkerService {
   private async backgroundPulse() {
     await this.updatePendingCount();
     if (this.pendingCount > 0 && !this.isRunning) {
-      await this.probeConnectivity();
-    } else if (!this.isOnline) {
       await this.probeConnectivity();
     }
   }
