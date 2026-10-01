@@ -1,20 +1,27 @@
 import React, { useState } from 'react';
-import { Lock, Mail, Server, ArrowRight, AlertCircle, Sparkles } from 'lucide-react';
-import { agentApi } from '../services/api';
+import { Lock, Mail, Server, ArrowRight, AlertCircle, Sparkles, WifiOff } from 'lucide-react';
+import { authService } from '../services/auth';
 import { storage } from '../services/storage';
+import { connectivity } from '../services/connectivity';
 import appLogo from '../assets/icon.png';
 
 interface LoginPageProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (isOnline: boolean) => void;
+  initialError?: string;
+  isOfflineStartup?: boolean;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({
+  onLoginSuccess,
+  initialError = '',
+  isOfflineStartup = false,
+}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [serverUrl, setServerUrl] = useState(storage.getServerUrl());
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,8 +35,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
     try {
       storage.setServerUrl(serverUrl);
-      await agentApi.login({ email, password });
-      onLoginSuccess();
+      const isOnline = connectivity.isOnlineFast();
+      if (!isOnline) {
+        setError('First login requires an active internet connection. Please connect to the internet and try again.');
+        setLoading(false);
+        return;
+      }
+
+      const res = await authService.login({ email, password, serverUrl });
+      if (res.success) {
+        onLoginSuccess(res.isOnline);
+      } else {
+        setError(res.error || 'Login failed. Please check credentials or server connection.');
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check credentials or server connection.');
     } finally {
@@ -70,6 +88,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           <h1 className="text-2xl font-light text-[#161616] tracking-tight">TimeLogger Desktop</h1>
           <p className="text-xs text-[#525252]">Sign in to track work time & screenshot activity</p>
         </div>
+
+        {/* Offline Notice if starting without internet & no credentials */}
+        {isOfflineStartup && (
+          <div className="p-3 rounded-none bg-[#fff1f1] border border-[#da1e28] text-[#da1e28] text-xs flex items-start gap-2">
+            <WifiOff className="w-4 h-4 flex-shrink-0 text-[#da1e28] mt-0.5" />
+            <div>
+              <div className="font-semibold">No Internet Connection</div>
+              <div className="text-[11px] text-[#525252] mt-0.5">
+                First login requires an active internet connection to register your device and save credentials.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Demo Fill Pills */}
         <div className="space-y-1.5">

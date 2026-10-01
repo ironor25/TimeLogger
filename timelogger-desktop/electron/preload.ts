@@ -27,44 +27,30 @@ export interface ElectronAPI {
   }>;
   notify: (payload: { title: string; body: string }) => Promise<void>;
   updateTrayStatus: (statusText: string) => Promise<void>;
-  offlineStore: {
-    enqueueEvent: (params: {
-      type: string;
-      endpoint: string;
-      payload: any;
-      occurredAt?: string;
-    }) => Promise<any>;
-    saveScreenshot: (params: {
-      sessionId: string;
-      capturedAt: string;
-      fileSize: number;
-      mimeType: string;
-      width: number;
-      height: number;
-      activityPercentage: number;
-      projectId?: string | null;
-      taskId?: string | null;
-      buffer?: number[];
-      base64?: string;
-    }) => Promise<any>;
-    getPendingItems: (limit?: number) => Promise<any[]>;
-    getPendingCount: () => Promise<number>;
-    updateItemStatus: (params: {
-      id: string;
-      status: string;
-      updates?: { errorMessage?: string; retries?: number; sessionId?: string };
-    }) => Promise<boolean>;
-    readScreenshot: (filePath: string) => Promise<{ base64: string; size: number } | null>;
-    removeItem: (id: string) => Promise<boolean>;
-    getStorageStats: () => Promise<{
-      pendingCount: number;
-      screenshotCount: number;
-      totalSizeBytes: number;
-      totalSizeMB: string;
-      warning: boolean;
-    }>;
+  // Secure Credentials API
+  saveCredentials: (data: any) => Promise<boolean>;
+  getCredentials: () => Promise<any>;
+  hasCredentials: () => Promise<boolean>;
+  clearCredentials: () => Promise<boolean>;
+  // Offline Database API
+  offlineDb: {
+    getPendingCount: () => Promise<{ sessions: number; events: number; screenshots: number; total: number }>;
+    saveSession: (session: any) => Promise<any>;
+    updateSession: (localSessionId: string, updates: any) => Promise<any>;
+    getActiveSession: (employeeId?: string) => Promise<any>;
+    getPendingSessions: () => Promise<any[]>;
+    markSessionSynced: (localSessionId: string, serverSessionId: string) => Promise<boolean>;
+    addEvent: (event: any) => Promise<any>;
+    getPendingEvents: () => Promise<any[]>;
+    markEventSynced: (eventId: string) => Promise<boolean>;
+    incrementEventRetry: (eventId: string) => Promise<boolean>;
+    saveScreenshot: (metadata: any, base64Data: string) => Promise<any>;
+    getPendingScreenshots: () => Promise<any[]>;
+    markScreenshotSynced: (localScreenshotId: string) => Promise<boolean>;
     clearAll: () => Promise<boolean>;
   };
+  // Connectivity probe
+  probeConnection: (targetUrl: string) => Promise<boolean>;
 }
 
 const api: ElectronAPI = {
@@ -78,18 +64,30 @@ const api: ElectronAPI = {
   captureScreenshot: () => ipcRenderer.invoke('system:capture-screenshot'),
   notify: (payload) => ipcRenderer.invoke('system:notify', payload),
   updateTrayStatus: (statusText) => ipcRenderer.invoke('tray:update-status', statusText),
-  offlineStore: {
-    enqueueEvent: (params) => ipcRenderer.invoke('offline:enqueue-event', params),
-    saveScreenshot: (params) => ipcRenderer.invoke('offline:save-screenshot', params),
-    getPendingItems: (limit) => ipcRenderer.invoke('offline:get-pending-items', limit),
-    getPendingCount: () => ipcRenderer.invoke('offline:get-pending-count'),
-    updateItemStatus: (params) => ipcRenderer.invoke('offline:update-item-status', params),
-    readScreenshot: (filePath) => ipcRenderer.invoke('offline:read-screenshot', filePath),
-    removeItem: (id) => ipcRenderer.invoke('offline:remove-item', id),
-    getStorageStats: () => ipcRenderer.invoke('offline:get-storage-stats'),
-    clearAll: () => ipcRenderer.invoke('offline:clear-all'),
+  // Secure Credentials
+  saveCredentials: (data) => ipcRenderer.invoke('credentials:save', data),
+  getCredentials: () => ipcRenderer.invoke('credentials:get'),
+  hasCredentials: () => ipcRenderer.invoke('credentials:has'),
+  clearCredentials: () => ipcRenderer.invoke('credentials:clear'),
+  // Offline DB
+  offlineDb: {
+    getPendingCount: () => ipcRenderer.invoke('offline-db:get-pending-count'),
+    saveSession: (session) => ipcRenderer.invoke('offline-db:save-session', session),
+    updateSession: (id, updates) => ipcRenderer.invoke('offline-db:update-session', id, updates),
+    getActiveSession: (empId) => ipcRenderer.invoke('offline-db:get-active-session', empId),
+    getPendingSessions: () => ipcRenderer.invoke('offline-db:get-pending-sessions'),
+    markSessionSynced: (localId, serverId) => ipcRenderer.invoke('offline-db:mark-session-synced', localId, serverId),
+    addEvent: (event) => ipcRenderer.invoke('offline-db:add-event', event),
+    getPendingEvents: () => ipcRenderer.invoke('offline-db:get-pending-events'),
+    markEventSynced: (eventId) => ipcRenderer.invoke('offline-db:mark-event-synced', eventId),
+    incrementEventRetry: (eventId) => ipcRenderer.invoke('offline-db:increment-event-retry', eventId),
+    saveScreenshot: (metadata, base64) => ipcRenderer.invoke('offline-db:save-screenshot', metadata, base64),
+    getPendingScreenshots: () => ipcRenderer.invoke('offline-db:get-pending-screenshots'),
+    markScreenshotSynced: (id) => ipcRenderer.invoke('offline-db:mark-screenshot-synced', id),
+    clearAll: () => ipcRenderer.invoke('offline-db:clear-all'),
   },
+  // Connectivity
+  probeConnection: (targetUrl) => ipcRenderer.invoke('connectivity:probe', targetUrl),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);
-

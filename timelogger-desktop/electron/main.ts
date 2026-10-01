@@ -306,49 +306,113 @@ ipcMain.handle('tray:update-status', (_event, statusText: string) => {
 });
 
 // ==========================================
-// Durable Offline Storage IPC Handlers
+// Secure Credentials Storage IPC
 // ==========================================
-import { offlineStore } from './offline-store';
+import { secureStorage } from './secure-storage';
+import { offlineDb } from './offline-db';
 
-app.whenReady().then(() => {
-  offlineStore.init();
+ipcMain.handle('credentials:save', (_event, data: any) => {
+  return secureStorage.saveCredentials(data);
 });
 
-ipcMain.handle('offline:enqueue-event', (_event, params: any) => {
-  return offlineStore.enqueueEvent(params);
+ipcMain.handle('credentials:get', () => {
+  return secureStorage.getCredentials();
 });
 
-ipcMain.handle('offline:save-screenshot', (_event, params: any) => {
-  return offlineStore.enqueueScreenshot(params);
+ipcMain.handle('credentials:has', () => {
+  return secureStorage.hasCredentials();
 });
 
-ipcMain.handle('offline:get-pending-items', (_event, limit?: number) => {
-  return offlineStore.getPendingItems(limit);
+ipcMain.handle('credentials:clear', () => {
+  return secureStorage.clearCredentials();
 });
 
-ipcMain.handle('offline:get-pending-count', () => {
-  return offlineStore.getPendingCount();
+// ==========================================
+// Offline Database IPC Handlers
+// ==========================================
+ipcMain.handle('offline-db:get-pending-count', () => {
+  return offlineDb.getPendingCount();
 });
 
-ipcMain.handle('offline:update-item-status', (_event, { id, status, updates }: any) => {
-  offlineStore.updateItemStatus(id, status, updates);
+ipcMain.handle('offline-db:save-session', (_event, session: any) => {
+  return offlineDb.saveSession(session);
+});
+
+ipcMain.handle('offline-db:update-session', (_event, localSessionId: string, updates: any) => {
+  return offlineDb.updateSession(localSessionId, updates);
+});
+
+ipcMain.handle('offline-db:get-active-session', (_event, employeeId?: string) => {
+  return offlineDb.getActiveSession(employeeId);
+});
+
+ipcMain.handle('offline-db:get-pending-sessions', () => {
+  return offlineDb.getPendingSessions();
+});
+
+ipcMain.handle('offline-db:mark-session-synced', (_event, localSessionId: string, serverSessionId: string) => {
+  offlineDb.markSessionSynced(localSessionId, serverSessionId);
   return true;
 });
 
-ipcMain.handle('offline:read-screenshot', (_event, filePath: string) => {
-  return offlineStore.readScreenshotData(filePath);
+ipcMain.handle('offline-db:add-event', (_event, event: any) => {
+  return offlineDb.addEvent(event);
 });
 
-ipcMain.handle('offline:remove-item', (_event, id: string) => {
-  return offlineStore.removeCompletedItem(id);
+ipcMain.handle('offline-db:get-pending-events', () => {
+  return offlineDb.getPendingEvents();
 });
 
-ipcMain.handle('offline:get-storage-stats', () => {
-  return offlineStore.getStorageStats();
-});
-
-ipcMain.handle('offline:clear-all', () => {
-  offlineStore.clearAll();
+ipcMain.handle('offline-db:mark-event-synced', (_event, eventId: string) => {
+  offlineDb.markEventSynced(eventId);
   return true;
+});
+
+ipcMain.handle('offline-db:increment-event-retry', (_event, eventId: string) => {
+  offlineDb.incrementEventRetry(eventId);
+  return true;
+});
+
+ipcMain.handle('offline-db:save-screenshot', (_event, metadata: any, base64Data: string) => {
+  return offlineDb.saveScreenshot(metadata, base64Data);
+});
+
+ipcMain.handle('offline-db:get-pending-screenshots', () => {
+  return offlineDb.getPendingScreenshots();
+});
+
+ipcMain.handle('offline-db:mark-screenshot-synced', (_event, localScreenshotId: string) => {
+  offlineDb.markScreenshotSynced(localScreenshotId);
+  return true;
+});
+
+ipcMain.handle('offline-db:clear-all', () => {
+  offlineDb.clearAll();
+  return true;
+});
+
+// ==========================================
+// Connectivity Probe
+// ==========================================
+ipcMain.handle('connectivity:probe', async (_event, targetUrl: string) => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const probeUrl = targetUrl.replace(/\/+$/, '');
+    const res = await fetch(`${probeUrl}/health`, {
+      method: 'GET',
+      signal: controller.signal,
+    }).catch(async () => {
+      // Fallback probe to targetUrl directly
+      return await fetch(probeUrl, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+    });
+    clearTimeout(timeoutId);
+    return res.status < 500;
+  } catch {
+    return false;
+  }
 });
 

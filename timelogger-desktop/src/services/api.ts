@@ -1,34 +1,5 @@
 import { storage } from './storage';
-import { durableOfflineStore } from './durable-offline-store';
 import { Project, Task, ActiveSession } from '../types';
-
-declare global {
-  interface Window {
-    electronAPI?: {
-      minimize: () => Promise<void>;
-      maximize: () => Promise<void>;
-      hide: () => Promise<void>;
-      close: () => Promise<void>;
-      setAlwaysOnTop: (flag: boolean) => Promise<boolean>;
-      getDeviceInfo: () => Promise<any>;
-      getIdleSeconds: () => Promise<number>;
-      captureScreenshot: () => Promise<any>;
-      notify: (payload: { title: string; body: string }) => Promise<void>;
-      updateTrayStatus: (statusText: string) => Promise<void>;
-      offlineStore?: {
-        enqueueEvent: (params: any) => Promise<any>;
-        saveScreenshot: (params: any) => Promise<any>;
-        getPendingItems: (limit?: number) => Promise<any[]>;
-        getPendingCount: () => Promise<number>;
-        updateItemStatus: (params: any) => Promise<boolean>;
-        readScreenshot: (filePath: string) => Promise<{ base64: string; size: number } | null>;
-        removeItem: (id: string) => Promise<boolean>;
-        getStorageStats: () => Promise<any>;
-        clearAll: () => Promise<boolean>;
-      };
-    };
-  }
-}
 
 async function request<T = any>(
   endpoint: string,
@@ -76,7 +47,7 @@ async function request<T = any>(
     return json.data !== undefined ? json.data : json;
   } catch (err: any) {
     if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('network')) {
-      throw new Error('Network error: Unable to connect to TimeLogger API server.');
+      throw new Error('Network error: Unable to connect to PulseTime API server.');
     }
     throw err;
   }
@@ -107,37 +78,6 @@ async function refreshToken(): Promise<boolean> {
 }
 
 export const agentApi = {
-  async checkHealth(): Promise<boolean> {
-    try {
-      const baseUrl = storage.getServerUrl();
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-      const res = await fetch(`${baseUrl}/health/ping`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-      }).catch(() => null);
-
-      clearTimeout(timeoutId);
-      if (res && res.ok) return true;
-
-      const fallbackController = new AbortController();
-      const fallbackTimeoutId = setTimeout(() => fallbackController.abort(), 3000);
-
-      const fallbackRes = await fetch(`${baseUrl}/health`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        signal: fallbackController.signal,
-      }).catch(() => null);
-
-      clearTimeout(fallbackTimeoutId);
-      return !!(fallbackRes && fallbackRes.ok);
-    } catch {
-      return false;
-    }
-  },
-
   async login(payload: { email: string; password: string }) {
     let deviceInfo = {
       deviceIdentifier: 'DESKTOP-DEFAULT',
@@ -242,10 +182,21 @@ export const agentApi = {
       deviceId: device?.id,
     };
 
-    return await request<any>('/agent/activity/heartbeat', {
-      method: 'POST',
-      body: JSON.stringify(fullPayload),
-    });
+    try {
+      return await request<any>('/agent/activity/heartbeat', {
+        method: 'POST',
+        body: JSON.stringify(fullPayload),
+      });
+    } catch (err: any) {
+      // Store in offline queue if server is unreachable
+      storage.addToOfflineQueue({
+        type: 'HEARTBEAT',
+        endpoint: '/agent/activity/heartbeat',
+        payload: fullPayload,
+      });
+      console.warn('Network offline: Queued heartbeat telemetry locally');
+      return { queuedOffline: true };
+    }
   },
 
   async uploadScreenshotPipeline(payload: {
@@ -262,7 +213,14 @@ export const agentApi = {
     projectId?: string | null;
     taskId?: string | null;
   }) {
-    // STEP 1: Request upload URL
+    console.log('[UPLOAD] ================================');
+    console.log('[UPLOAD] Starting screenshot upload');
+    console.log('[UPLOAD] sessionId:', payload.sessionId);
+    console.log('[UPLOAD] fileSize:', payload.fileSize);
+    console.log('[UPLOAD] mimeType:', payload.mimeType);
+
+    // STEP 1
+    console.log('[UPLOAD] STEP 1: Requesting upload URL');
     const uploadInfo = await request<{
       uploadUrl: string;
       storageKey: string;
@@ -275,6 +233,11 @@ export const agentApi = {
         fileSize: payload.fileSize,
       }),
     });
+
+    console.log('[UPLOAD] STEP 1 SUCCESS');
+    console.log('[UPLOAD] storageKey:', uploadInfo.storageKey);
+    console.log('[UPLOAD] method:', uploadInfo.method);
+    console.log('[UPLOAD] uploadUrl exists:', !!uploadInfo.uploadUrl);
 
     // STEP 2
     console.log('[UPLOAD] STEP 2: Preparing binary');

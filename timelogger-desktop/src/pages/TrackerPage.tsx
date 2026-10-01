@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Header } from '../components/Header';
 import { TimerCard } from '../components/TimerCard';
 import { WorkNotesModal } from '../components/WorkNotesModal';
@@ -6,23 +6,31 @@ import { TodayStats } from '../components/TodayStats';
 import { RecentScreenshots } from '../components/RecentScreenshots';
 import { SettingsModal } from '../components/SettingsModal';
 import { IdleWarningModal } from '../components/IdleWarningModal';
+import { OfflineStatusBar, ConnectionState } from '../components/OfflineStatusBar';
 import { agentApi } from '../services/api';
 import { storage } from '../services/storage';
-import { durableOfflineStore } from '../services/durable-offline-store';
-import { syncWorker, SyncStatusInfo } from '../services/sync-worker';
-import { LogOut, CloudOff, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { offlineStore } from '../local/offline-store';
+import { localDb } from '../local/database';
+import { offlineSync } from '../services/offline-sync';
+import { LogOut } from 'lucide-react';
 import { SessionStatus, ActiveSession, CapturedScreenshot, IdleConfig } from '../types';
 
 interface TrackerPageProps {
+  initialIsOnline?: boolean;
   onLogout: () => void;
 }
 
-export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
+export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true, onLogout }) => {
   const employee = useMemo(() => storage.getEmployee(), []);
   const organization = useMemo(() => storage.getOrganization(), []);
   const schedule = useMemo(() => storage.getSchedule(), []);
 
-  const [syncStatus, setSyncStatus] = useState<SyncStatusInfo>(() => syncWorker.getStatus());
+  // Connection State Machine: CONNECTED | OFFLINE | RECONNECTING | SYNCING | ERROR
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    initialIsOnline ? 'CONNECTED' : 'OFFLINE',
+  );
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
 
   // State Machine: OFFLINE | ACTIVE | IDLE_WARNING | IDLE | BREAK
   const [status, setStatus] = useState<SessionStatus>('OFFLINE');
@@ -60,27 +68,24 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
   const activeBucketSecRef = useRef<number>(0);
   const idleBucketSecRef = useRef<number>(0);
 
-  // Screenshot throttling & tracking refs to prevent duplicate/clustered screenshot captures
-  const lastScreenshotTimeRef = useRef<number>(0);
-  const initialCaptureDoneSessionIdRef = useRef<string | null>(null);
-  const isCapturingScreenshotRef = useRef<boolean>(false);
-
   const getTodayDateStr = () => new Date().toISOString().split('T')[0];
 
-  // 1. Initial Load: Load Cached Data, subscribe to Sync Worker, fetch authoritative Summary from DB ONCE
+  const updatePendingCount = useCallback(async () => {
+    try {
+      const counts = await localDb.getPendingCount();
+      const legacyCount = storage.getOfflineQueue().length + storage.getOfflineScreenshots().length;
+      setPendingSyncCount(counts.total + legacyCount);
+    } catch {
+      setPendingSyncCount(0);
+    }
+  }, []);
+
+  // 1. Initial Load: Load cached daily state and check for active server / local sessions
   useEffect(() => {
     const todayStr = getTodayDateStr();
+    updatePendingCount();
 
-    // Subscribe to background sync worker updates
-    const unsubscribeSync = syncWorker.subscribe((statusInfo) => {
-      setSyncStatus(statusInfo);
-    });
-
-    syncWorker.setSessionMappedCallback((oldId, newId) => {
-      setActiveSession((prev) => (prev && prev.id === oldId ? { ...prev, id: newId } : prev));
-    });
-
-    // Check if this specific employee has an entry in the local array for today
+    // Check cached daily state for this employee
     const employeeIdentifier = employee?.email || employee?.id;
     const cachedDaily = storage.getDailyState(employeeIdentifier, todayStr);
 
@@ -90,78 +95,155 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       setTodayIdleSeconds(cachedDaily.idleSeconds || 0);
       setTodayBreakSeconds(cachedDaily.breakSeconds || 0);
       setLastPunchOutTime(cachedDaily.lastPunchOutTime || '');
-    } else {
-      setTodayWorkedSeconds(0);
-      setTodayActiveSeconds(0);
-      setTodayIdleSeconds(0);
-      setTodayBreakSeconds(0);
-      setLastPunchOutTime('');
     }
 
-    // Fetch authoritative server summary once
-    agentApi
-      .getTodaySummary(todayStr)
-      .then((summary) => {
-        if (!summary) return;
-        const sWorked = summary.workedSeconds ?? summary.activeSeconds ?? 0;
-        const sActive = summary.activeSeconds ?? summary.workedSeconds ?? 0;
-        setTodayWorkedSeconds((prev) => Math.max(prev, sWorked));
-        setTodayActiveSeconds((prev) => Math.max(prev, sActive));
-        setTodayIdleSeconds((prev) => Math.max(prev, summary.idleSeconds || 0));
-        setTodayBreakSeconds((prev) => Math.max(prev, summary.breakSeconds || 0));
-        setLastPunchOutTime((prev) => summary.lastPunchOutTime || prev);
+    // Check if there is an active local offline session in DB
+    localDb.getActiveSession(employee?.id).then((localActive) => {
+      if (localActive) {
+        setActiveSession({
+          id: localActive.localSessionId,
+          status: localActive.status,
+          startedAt: localActive.startedAt,
+          projectId: localActive.projectId || null,
+          taskId: localActive.taskId || null,
+          notes: localActive.notes || null,
+        });
+        const isPaused = localActive.status === 'PAUSED';
+        setStatus(isPaused ? 'BREAK' : 'ACTIVE');
+        const startMs = new Date(localActive.startedAt).getTime();
+        setSessionSeconds(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
+        window.electronAPI?.updateTrayStatus(isPaused ? 'On Break' : 'Working');
+      }
+    });
 
-        if (summary.activeSession) {
-          setActiveSession(summary.activeSession);
-          const isPaused = summary.activeSession.status === 'PAUSED';
-          setStatus(isPaused ? 'BREAK' : 'ACTIVE');
+    // If online on startup, fetch authoritative server summary
+    if (initialIsOnline && connectionState === 'CONNECTED') {
+      agentApi
+        .getTodaySummary(todayStr)
+        .then((summary) => {
+          if (!summary) return;
+          setTodayWorkedSeconds(summary.workedSeconds ?? summary.activeSeconds ?? 0);
+          setTodayActiveSeconds(summary.activeSeconds ?? summary.workedSeconds ?? 0);
+          setTodayIdleSeconds(summary.idleSeconds || 0);
+          setTodayBreakSeconds(summary.breakSeconds || 0);
+          setLastPunchOutTime(summary.lastPunchOutTime || '');
 
-          const startMs = new Date(summary.activeSession.startedAt).getTime();
-          const curElapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
-          setSessionSeconds(curElapsed);
-          window.electronAPI?.updateTrayStatus(isPaused ? 'On Break' : 'Working');
-        } else {
-          setActiveSession(null);
-          setStatus('OFFLINE');
-          setSessionSeconds(0);
-          window.electronAPI?.updateTrayStatus('Offline');
-        }
+          if (summary.activeSession) {
+            setActiveSession(summary.activeSession);
+            const isPaused = summary.activeSession.status === 'PAUSED';
+            setStatus(isPaused ? 'BREAK' : 'ACTIVE');
 
-        if (summary.recentScreenshots && Array.isArray(summary.recentScreenshots) && summary.recentScreenshots.length > 0) {
-          const mapped: CapturedScreenshot[] = summary.recentScreenshots.map((sc: any) => ({
-            id: sc.id,
-            timestamp: sc.capturedAt,
-            dataUrl:
-              sc.fileUrl ||
-              (sc.storageKey?.startsWith('http') || sc.storageKey?.startsWith('data:')
-                ? sc.storageKey
-                : `${storage.getServerUrl()}/storage/files?key=${encodeURIComponent(sc.storageKey || '')}`),
-            activityPercentage: sc.activityPercentage ?? 100,
-            storageKey: sc.storageKey || '',
-          }));
-          setScreenshots(mapped);
-        }
+            const startMs = new Date(summary.activeSession.startedAt).getTime();
+            const curElapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+            setSessionSeconds(curElapsed);
+            window.electronAPI?.updateTrayStatus(isPaused ? 'On Break' : 'Working');
+          } else {
+            setActiveSession(null);
+            setStatus('OFFLINE');
+            setSessionSeconds(0);
+            window.electronAPI?.updateTrayStatus('Offline');
+          }
 
-        storage.setDailyState(
-          {
-            date: todayStr,
-            workedSeconds: sWorked,
-            activeSeconds: sActive,
-            idleSeconds: summary.idleSeconds || 0,
-            breakSeconds: summary.breakSeconds || 0,
-            lastPunchOutTime: summary.lastPunchOutTime || '',
-          },
-          employee,
-        );
-      })
-      .catch((err) => {
-        console.warn('Initial summary fetch error (offline or server starting):', err?.message);
-      });
+          storage.setDailyState(
+            {
+              date: todayStr,
+              workedSeconds: summary.workedSeconds ?? summary.activeSeconds ?? 0,
+              activeSeconds: summary.activeSeconds ?? summary.workedSeconds ?? 0,
+              idleSeconds: summary.idleSeconds || 0,
+              breakSeconds: summary.breakSeconds || 0,
+              lastPunchOutTime: summary.lastPunchOutTime || '',
+            },
+            employee,
+          );
+        })
+        .catch((err) => {
+          console.warn('Initial summary fetch error (offline or server starting):', err?.message);
+        });
+    }
+  }, []); // Run ONCE on mount
+
+  // Network State Change Listeners (No background sync worker!)
+  useEffect(() => {
+    const handleOffline = () => {
+      console.log('[NETWORK] Connection lost. Switching tracker status to OFFLINE.');
+      setConnectionState('OFFLINE');
+    };
+
+    const handleOnline = () => {
+      console.log('[NETWORK] Internet restored. Prompting user to reconnect via status bar.');
+      // Keep state as OFFLINE until user clicks "Click here to go online"
+      // or if connection was already CONNECTED, retain it
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
 
     return () => {
-      unsubscribeSync();
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
     };
-  }, [employee]); // Run ONCE on mount
+  }, []);
+
+  // MANUAL RECONNECT & SYNC (Triggered explicitly by user click)
+  const handleManualReconnect = async () => {
+    if (connectionState === 'RECONNECTING' || connectionState === 'SYNCING') return;
+
+    setConnectionState('RECONNECTING');
+    setErrorMessage('');
+
+    try {
+      // Step into SYNCING
+      setConnectionState('SYNCING');
+      const res = await offlineSync.sync(activeSession?.id);
+
+      if (res.success && res.isOnline) {
+        setConnectionState('CONNECTED');
+        setErrorMessage('');
+        await updatePendingCount();
+
+        // CRITICAL: Immediately update and reconcile combined totals (Sections 23 - 30)
+        if (res.reconciledSummary) {
+          const rec = res.reconciledSummary;
+          setTodayWorkedSeconds(rec.todayWorkedSeconds);
+          setTodayActiveSeconds(rec.todayActiveSeconds);
+          setTodayIdleSeconds(rec.todayIdleSeconds);
+          setTodayBreakSeconds(rec.todayBreakSeconds);
+
+          if (rec.lastPunchOutTime) {
+            setLastPunchOutTime(rec.lastPunchOutTime);
+          }
+
+          if (rec.activeSession) {
+            setActiveSession(rec.activeSession);
+            const isPaused = rec.activeSession.status === 'PAUSED';
+            setStatus(isPaused ? 'BREAK' : 'ACTIVE');
+            const startMs = new Date(rec.activeSession.startedAt).getTime();
+            const curElapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+            setSessionSeconds(curElapsed);
+            window.electronAPI?.updateTrayStatus(isPaused ? 'On Break' : 'Working');
+          } else if (status !== 'ACTIVE' && status !== 'BREAK') {
+            setActiveSession(null);
+            setStatus('OFFLINE');
+            setSessionSeconds(0);
+            window.electronAPI?.updateTrayStatus('Offline');
+          }
+        }
+
+        window.electronAPI?.notify({
+          title: 'TimeLogger: Connected',
+          body: `Successfully synced ${res.syncedSessions + res.syncedEvents + res.syncedScreenshots} offline items.`,
+        });
+      } else {
+        setConnectionState(res.isOnline ? 'ERROR' : 'OFFLINE');
+        setErrorMessage(res.error || 'Unable to connect. Click to retry.');
+        await updatePendingCount();
+      }
+    } catch (err: any) {
+      console.error('[MANUAL SYNC] Unexpected sync error:', err);
+      setConnectionState('ERROR');
+      setErrorMessage(err?.message || 'Sync failed. Click to retry.');
+    }
+  };
 
   // 2. High Resolution Timer & System-Wide Idle Detection State Machine (1s Tick)
   useEffect(() => {
@@ -186,37 +268,18 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       // 2. State Machine Transitions & Metric Aggregation
       if (status === 'ACTIVE') {
         // Continuous active work timer progression
-        setSessionSeconds((prev) => {
-          const nextSec = prev + 1;
-
-          // Master Screenshot Schedule Check: strictly 1 initial shot at 5s, then every 5 minutes (300s)
-          if (activeSession) {
-            const intervalMinutes = organization?.screenshotIntervalMinutes || 5;
-            const intervalSec = intervalMinutes * 60; // 300s
-
-            if (nextSec === 5 && initialCaptureDoneSessionIdRef.current !== activeSession.id) {
-              initialCaptureDoneSessionIdRef.current = activeSession.id;
-              executeScreenshotCapture(activeSession.id, true);
-            } else if (nextSec > 0 && nextSec % intervalSec === 0) {
-              executeScreenshotCapture(activeSession.id, false);
-            }
-          }
-
-          return nextSec;
-        });
-
+        setSessionSeconds((prev) => prev + 1);
         setTodayWorkedSeconds((prev) => prev + 1);
         setTodayActiveSeconds((prev) => prev + 1);
 
-        // Activity bucket classification for screenshot density
+        // Activity bucket classification for screenshot telemetry
         if (currentIdle < 2) {
           windowActiveSecondsRef.current += 1;
+          activeBucketSecRef.current += 1;
         } else {
           windowIdleSecondsRef.current += 1;
+          idleBucketSecRef.current += 1;
         }
-
-        // Active work telemetry accumulates active worked seconds
-        activeBucketSecRef.current += 1;
 
         if (currentIdle >= gracePeriod) {
           // Grace period elapsed -> enter IDLE_WARNING state
@@ -231,28 +294,17 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         }
       } else if (status === 'IDLE_WARNING') {
         // During warning, session and worked seconds still progress until confirmed idle
-        setSessionSeconds((prev) => {
-          const nextSec = prev + 1;
-          if (activeSession) {
-            const intervalMinutes = organization?.screenshotIntervalMinutes || 5;
-            const intervalSec = intervalMinutes * 60;
-            if (nextSec > 0 && nextSec % intervalSec === 0) {
-              executeScreenshotCapture(activeSession.id, false);
-            }
-          }
-          return nextSec;
-        });
+        setSessionSeconds((prev) => prev + 1);
         setTodayWorkedSeconds((prev) => prev + 1);
         setTodayActiveSeconds((prev) => prev + 1);
 
         if (currentIdle < 2) {
           windowActiveSecondsRef.current += 1;
+          activeBucketSecRef.current += 1;
         } else {
           windowIdleSecondsRef.current += 1;
+          idleBucketSecRef.current += 1;
         }
-
-        // User is still in warning countdown (not yet confirmed idle) -> count as active work
-        activeBucketSecRef.current += 1;
 
         if (currentIdle < gracePeriod) {
           // Activity detected during warning -> cancel warning, resume ACTIVE
@@ -265,7 +317,6 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           setIsIdle(true);
           idleStartTimeRef.current = Date.now();
           setCurrentIdlePeriodSeconds(0);
-          idleBucketSecRef.current = 0;
           console.log(`[IDLE] Warning countdown expired (${totalTimeout}s total inactivity). User marked IDLE.`);
           window.electronAPI?.updateTrayStatus('Idle (Paused)');
           window.electronAPI?.notify({
@@ -276,9 +327,6 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           // Continue warning countdown
           const secLeft = Math.max(1, totalTimeout - currentIdle);
           setIdleWarningSecondsLeft(secLeft);
-          if (secLeft % 15 === 0 || secLeft <= 5) {
-            console.log(`[IDLE] Warning countdown: ${secLeft}s`);
-          }
         }
       } else if (status === 'IDLE') {
         // In confirmed IDLE state: Work timer is paused. Idle metrics increment!
@@ -295,20 +343,37 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
           console.log(`[IDLE] Activity detected. Idle ended. Confirmed idle duration: ${idleDurationSec}s.`);
 
-          // Reset idle telemetry buffer and record idle telemetry heartbeat immediately
-          idleBucketSecRef.current = 0;
-
+          // Record idle telemetry
           if (activeSession) {
-            agentApi
-              .sendHeartbeat({
+            if (connectionState === 'CONNECTED' && !activeSession.id.startsWith('offline_')) {
+              agentApi
+                .sendHeartbeat({
+                  sessionId: activeSession.id,
+                  capturedAt: new Date().toISOString(),
+                  activeSeconds: 0,
+                  idleSeconds: idleDurationSec,
+                  activeApplication: 'Desktop Work Session',
+                  windowTitle: 'Resumed from Inactivity',
+                })
+                .catch(() => {
+                  offlineStore.recordHeartbeat({
+                    sessionId: activeSession.id,
+                    activeSeconds: 0,
+                    idleSeconds: idleDurationSec,
+                    activeApplication: 'Desktop Work Session',
+                    windowTitle: 'Resumed from Inactivity',
+                  });
+                });
+            } else {
+              offlineStore.recordHeartbeat({
                 sessionId: activeSession.id,
-                capturedAt: new Date().toISOString(),
                 activeSeconds: 0,
                 idleSeconds: idleDurationSec,
                 activeApplication: 'Desktop Work Session',
                 windowTitle: 'Resumed from Inactivity',
-              })
-              .catch(() => {});
+              });
+              updatePendingCount();
+            }
           }
 
           idleStartTimeRef.current = null;
@@ -328,9 +393,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [status, idleConfig, activeSession, organization?.screenshotIntervalMinutes]);
+  }, [status, idleConfig, activeSession, connectionState, updatePendingCount]);
 
-  // Periodic persistence of this employee's active runtime metrics
+  // Periodic persistence of this employee's active runtime metrics to local daily state
   useEffect(() => {
     if (status === 'OFFLINE' || !employee) return;
     const interval = setInterval(() => {
@@ -364,63 +429,52 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       activeBucketSecRef.current = 0;
       idleBucketSecRef.current = 0;
 
-      const payload = {
-        sessionId: activeSession.id,
-        capturedAt: new Date().toISOString(),
-        activeSeconds: act,
-        idleSeconds: idl,
-        activeApplication: 'Desktop Work Session',
-        windowTitle: workNotes || 'TimeLogger Client',
-      };
+      const nowIso = new Date().toISOString();
 
-      if (syncStatus.isOnline && !activeSession.id.startsWith('offline_')) {
+      if (connectionState === 'CONNECTED' && !activeSession.id.startsWith('offline_')) {
         try {
-          await agentApi.sendHeartbeat(payload);
-        } catch (err: any) {
-          console.warn('[HEARTBEAT] Online send failed, queuing in durable store:', err?.message);
-          await durableOfflineStore.enqueueEvent({
-            type: 'HEARTBEAT',
-            endpoint: '/agent/activity/heartbeat',
-            payload,
-            occurredAt: payload.capturedAt,
+          await agentApi.sendHeartbeat({
+            sessionId: activeSession.id,
+            capturedAt: nowIso,
+            activeSeconds: act,
+            idleSeconds: idl,
+            activeApplication: 'Desktop Work Session',
+            windowTitle: workNotes || 'TimeLogger Client',
           });
+        } catch (err: any) {
+          console.warn('[HEARTBEAT] Online send failed, storing offline:', err?.message);
+          await offlineStore.recordHeartbeat({
+            sessionId: activeSession.id,
+            capturedAt: nowIso,
+            activeSeconds: act,
+            idleSeconds: idl,
+            activeApplication: 'Desktop Work Session',
+            windowTitle: workNotes || 'TimeLogger Client',
+          });
+          setConnectionState('OFFLINE');
+          updatePendingCount();
         }
       } else {
-        await durableOfflineStore.enqueueEvent({
-          type: 'HEARTBEAT',
-          endpoint: '/agent/activity/heartbeat',
-          payload,
-          occurredAt: payload.capturedAt,
+        await offlineStore.recordHeartbeat({
+          sessionId: activeSession.id,
+          capturedAt: nowIso,
+          activeSeconds: act,
+          idleSeconds: idl,
+          activeApplication: 'Desktop Work Session',
+          windowTitle: workNotes || 'TimeLogger Client',
         });
+        updatePendingCount();
       }
     }, 60000);
 
     return () => clearInterval(heartbeatInterval);
-  }, [status, activeSession, workNotes, syncStatus.isOnline]);
+  }, [status, activeSession, workNotes, connectionState, updatePendingCount]);
 
-  // 4. Robust Screenshot Capture Function (Strictly Cooldown-Enforced)
-  const executeScreenshotCapture = async (sessionId: string, isInitial: boolean = false) => {
-    if (!window.electronAPI || isCapturingScreenshotRef.current) return;
-
-    const now = Date.now();
-    const intervalMinutes = organization?.screenshotIntervalMinutes || 5;
-    const minIntervalMs = intervalMinutes * 60 * 1000 - 15000; // Minimum 4m 45s between regular shots
-
-    // If not the initial 5-second capture, enforce strict cooldown
-    if (!isInitial && (now - lastScreenshotTimeRef.current) < minIntervalMs) {
-      console.log(
-        `[SCREENSHOT] Throttled: only ${Math.round((now - lastScreenshotTimeRef.current) / 1000)}s since last screenshot. Next capture scheduled in 5m.`,
-      );
-      return;
-    }
+  // 4. Screenshot Pipeline with Local File Storage
+  const executeScreenshotCapture = async (sessionId: string) => {
+    if (!window.electronAPI) return;
 
     try {
-      isCapturingScreenshotRef.current = true;
-      lastScreenshotTimeRef.current = now;
-      if (isInitial) {
-        initialCaptureDoneSessionIdRef.current = sessionId;
-      }
-
       const capture = await window.electronAPI.captureScreenshot();
       if (!capture || !capture.base64) return;
 
@@ -436,15 +490,11 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           ? 100
           : 0;
 
-      console.log(
-        `[SCREENSHOT] Captured at ${new Date().toLocaleTimeString()} (Active: ${actSec}s, Tracked: ${trackedSec}s, Activity: ${actPct}%)`,
-      );
-
-      // Reset activity accumulators for next window
+      // Reset activity accumulators for the next window
       windowActiveSecondsRef.current = 0;
       windowIdleSecondsRef.current = 0;
 
-      if (syncStatus.isOnline && !sessionId.startsWith('offline_')) {
+      if (connectionState === 'CONNECTED' && !sessionId.startsWith('offline_')) {
         try {
           const res = await agentApi.uploadScreenshotPipeline({
             sessionId,
@@ -466,43 +516,61 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             storageKey: res.storageKey || '',
           };
 
-          setScreenshots((prev) => [newScreenshot, ...prev.filter(s => s.id !== newScreenshot.id).slice(0, 19)]);
+          setScreenshots((prev) => [newScreenshot, ...prev.slice(0, 19)]);
           return;
         } catch (uploadErr) {
-          console.warn('[SCREENSHOT] Online upload failed, persisting to durable offline store:', uploadErr);
+          console.warn('[SCREENSHOT] Online upload failed, saving to local file disk:', uploadErr);
+          setConnectionState('OFFLINE');
         }
       }
 
-      // Save to Durable Offline Screenshot Storage (Disk JPEG file + SQLite / JSON queue)
-      await durableOfflineStore.enqueueScreenshot({
+      // Save to local offline file storage
+      const savedSc = await offlineStore.recordScreenshot({
         sessionId,
         capturedAt: capture.capturedAt,
-        fileSize: capture.fileSize,
-        mimeType: capture.mimeType,
+        base64: capture.base64,
         width: capture.width,
         height: capture.height,
         activityPercentage: actPct,
-        base64: capture.base64,
+        mimeType: capture.mimeType,
       });
 
+      await updatePendingCount();
+
       const newScreenshot: CapturedScreenshot = {
-        id: `offline_${Date.now()}`,
+        id: savedSc.localScreenshotId,
         timestamp: capture.capturedAt,
         dataUrl: capture.dataUrl || `data:${capture.mimeType};base64,${capture.base64}`,
         activityPercentage: actPct,
-        storageKey: 'offline',
+        storageKey: 'offline_local',
       };
 
-      setScreenshots((prev) => [newScreenshot, ...prev.filter(s => s.id !== newScreenshot.id).slice(0, 19)]);
-
-      // Request automatic sync in background if connection is healthy
-      syncWorker.triggerAutoSync(sessionId);
+      setScreenshots((prev) => [newScreenshot, ...prev.slice(0, 19)]);
     } catch (err: any) {
       console.error('[SCREENSHOT] Capture error:', err);
-    } finally {
-      isCapturingScreenshotRef.current = false;
     }
   };
+
+  // Automated Periodic Screenshot Pipeline (Default: 5 Minutes or organization configured interval)
+  useEffect(() => {
+    if (status === 'OFFLINE' || status === 'BREAK' || !activeSession) return;
+
+    const initialTimer = setTimeout(() => {
+      executeScreenshotCapture(activeSession.id);
+    }, 5000);
+
+    const intervalMinutes = organization?.screenshotIntervalMinutes || 5;
+    const screenshotIntervalMs = intervalMinutes * 60 * 1000;
+
+    const screenshotTimer = setInterval(() => {
+      executeScreenshotCapture(activeSession.id);
+    }, screenshotIntervalMs);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(screenshotTimer);
+    };
+  }, [status, activeSession, organization, connectionState]);
 
   // Actions
   const handleStartSession = async () => {
@@ -510,40 +578,47 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     try {
       let session: ActiveSession;
 
-      if (syncStatus.isOnline) {
+      if (connectionState === 'CONNECTED') {
         try {
           session = await agentApi.startWorkSession({
             notes: workNotes || undefined,
           });
         } catch (netErr: any) {
-          console.warn('Network / API response starting session:', netErr);
-          const current = await agentApi.getCurrentSession().catch(() => null);
-          if (current) {
-            session = current;
-          } else {
-            const todaySum = await agentApi.getTodaySummary().catch(() => null);
-            if (todaySum?.activeSession) {
-              session = todaySum.activeSession;
-            } else {
-              session = await createOfflineSession();
-            }
-          }
+          console.warn('Network / API response starting session, falling back to local offline session:', netErr);
+          setConnectionState('OFFLINE');
+          const offSess = await offlineStore.startOfflineSession({ notes: workNotes });
+          session = {
+            id: offSess.localSessionId,
+            status: 'ACTIVE',
+            startedAt: offSess.startedAt,
+            projectId: null,
+            taskId: null,
+            notes: workNotes || null,
+          };
         }
       } else {
-        session = await createOfflineSession();
+        const offSess = await offlineStore.startOfflineSession({ notes: workNotes });
+        session = {
+          id: offSess.localSessionId,
+          status: 'ACTIVE',
+          startedAt: offSess.startedAt,
+          projectId: null,
+          taskId: null,
+          notes: workNotes || null,
+        };
       }
 
-      // Refresh authoritative today summary on start if online
+      await updatePendingCount();
+
+      // Refresh authoritative today summary if online
       const todayStr = getTodayDateStr();
-      if (syncStatus.isOnline && !session.id.startsWith('offline_')) {
+      if (connectionState === 'CONNECTED' && !session.id.startsWith('offline_')) {
         const todaySum = await agentApi.getTodaySummary(todayStr).catch(() => null);
         if (todaySum) {
-          const sWorked = todaySum.workedSeconds ?? todaySum.activeSeconds ?? 0;
-          const sActive = todaySum.activeSeconds ?? todaySum.workedSeconds ?? 0;
-          setTodayWorkedSeconds((prev) => Math.max(prev, sWorked));
-          setTodayActiveSeconds((prev) => Math.max(prev, sActive));
-          setTodayIdleSeconds((prev) => Math.max(prev, todaySum.idleSeconds || 0));
-          setTodayBreakSeconds((prev) => Math.max(prev, todaySum.breakSeconds || 0));
+          setTodayWorkedSeconds(todaySum.workedSeconds ?? todaySum.activeSeconds ?? 0);
+          setTodayActiveSeconds(todaySum.activeSeconds ?? todaySum.workedSeconds ?? 0);
+          setTodayIdleSeconds(todaySum.idleSeconds || 0);
+          setTodayBreakSeconds(todaySum.breakSeconds || 0);
         }
       }
 
@@ -559,12 +634,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       activeBucketSecRef.current = 0;
       idleBucketSecRef.current = 0;
 
-      // Reset screenshot tracker for new session
-      initialCaptureDoneSessionIdRef.current = null;
-      lastScreenshotTimeRef.current = 0;
-
       // Send initial heartbeat if online
-      if (!session.id.startsWith('offline_')) {
+      if (connectionState === 'CONNECTED' && !session.id.startsWith('offline_')) {
         agentApi
           .sendHeartbeat({
             sessionId: session.id,
@@ -589,31 +660,6 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     }
   };
 
-  const createOfflineSession = async (): Promise<ActiveSession> => {
-    const offlineId = `offline_sess_${Date.now()}`;
-    const startedAt = new Date().toISOString();
-
-    await durableOfflineStore.enqueueEvent({
-      type: 'SESSION_START',
-      endpoint: '/agent/work-sessions/sync-offline',
-      payload: {
-        clientSessionId: offlineId,
-        startedAt,
-        notes: workNotes || undefined,
-      },
-      occurredAt: startedAt,
-    });
-
-    return {
-      id: offlineId,
-      status: 'ACTIVE',
-      startedAt,
-      projectId: null,
-      taskId: null,
-      notes: workNotes || null,
-    };
-  };
-
   const handleStopSession = async () => {
     if (!activeSession) return;
     setLoading(true);
@@ -622,49 +668,39 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       const punchOutStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const todayStr = getTodayDateStr();
 
-      // Finalize idle period if stopping while in IDLE
-      if (status === 'IDLE' && idleStartTimeRef.current) {
-        const idleDurationSec = Math.max(1, Math.round((Date.now() - idleStartTimeRef.current) / 1000));
-        console.log(`[IDLE] Session stopped while in IDLE. Finalized idle duration: ${idleDurationSec}s.`);
-      }
-
       // Flush any telemetry buffers before stopping
       const act = activeBucketSecRef.current;
       const idl = idleBucketSecRef.current;
-      if ((act > 0 || idl > 0) && !activeSession.id.startsWith('offline_') && syncStatus.isOnline) {
+      if (act > 0 || idl > 0) {
         activeBucketSecRef.current = 0;
         idleBucketSecRef.current = 0;
-        await agentApi
-          .sendHeartbeat({
+        if (connectionState === 'CONNECTED' && !activeSession.id.startsWith('offline_')) {
+          await agentApi
+            .sendHeartbeat({
+              sessionId: activeSession.id,
+              capturedAt: now.toISOString(),
+              activeSeconds: act,
+              idleSeconds: idl,
+              activeApplication: 'Desktop Work Session',
+              windowTitle: workNotes || 'TimeLogger Client',
+            })
+            .catch(() => {});
+        } else {
+          await offlineStore.recordHeartbeat({
             sessionId: activeSession.id,
             capturedAt: now.toISOString(),
             activeSeconds: act,
             idleSeconds: idl,
             activeApplication: 'Desktop Work Session',
             windowTitle: workNotes || 'TimeLogger Client',
-          })
-          .catch(() => {});
+          });
+        }
       }
 
-      let finalWorked = todayWorkedSeconds;
-      let finalActive = todayActiveSeconds;
-      let finalIdle = todayIdleSeconds;
-      let finalBreak = todayBreakSeconds;
-      let finalLastPunchOut = punchOutStr;
-
       if (activeSession.id.startsWith('offline_')) {
-        await durableOfflineStore.enqueueEvent({
-          type: 'SESSION_STOP',
-          endpoint: '/agent/work-sessions/sync-offline',
-          payload: {
-            clientSessionId: activeSession.id,
-            startedAt: activeSession.startedAt,
-            endedAt: now.toISOString(),
-            notes: workNotes || undefined,
-          },
-          occurredAt: now.toISOString(),
-        });
-      } else if (syncStatus.isOnline) {
+        await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
+        await updatePendingCount();
+      } else if (connectionState === 'CONNECTED') {
         try {
           await agentApi.stopWorkSession({
             sessionId: activeSession.id,
@@ -674,59 +710,32 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           // Fetch authoritative server summary immediately after stop
           const serverSummary = await agentApi.getTodaySummary(todayStr).catch(() => null);
           if (serverSummary) {
-            const sWorked = serverSummary.workedSeconds ?? serverSummary.activeSeconds ?? 0;
-            const sActive = serverSummary.activeSeconds ?? serverSummary.workedSeconds ?? 0;
-            finalWorked = Math.max(todayWorkedSeconds, sWorked);
-            finalActive = Math.max(todayActiveSeconds, sActive);
-            finalIdle = Math.max(todayIdleSeconds, serverSummary.idleSeconds || 0);
-            finalBreak = Math.max(todayBreakSeconds, serverSummary.breakSeconds || 0);
-            finalLastPunchOut = serverSummary.lastPunchOutTime || punchOutStr;
+            setTodayWorkedSeconds(serverSummary.workedSeconds ?? serverSummary.activeSeconds ?? 0);
+            setTodayActiveSeconds(serverSummary.activeSeconds ?? serverSummary.workedSeconds ?? 0);
+            setTodayIdleSeconds(serverSummary.idleSeconds || 0);
+            setTodayBreakSeconds(serverSummary.breakSeconds || 0);
+            setLastPunchOutTime(serverSummary.lastPunchOutTime || punchOutStr);
 
-            setTodayWorkedSeconds(finalWorked);
-            setTodayActiveSeconds(finalActive);
-            setTodayIdleSeconds(finalIdle);
-            setTodayBreakSeconds(finalBreak);
-            setLastPunchOutTime(finalLastPunchOut);
+            storage.setDailyState(
+              {
+                date: todayStr,
+                workedSeconds: serverSummary.workedSeconds ?? serverSummary.activeSeconds ?? 0,
+                activeSeconds: serverSummary.activeSeconds ?? serverSummary.workedSeconds ?? 0,
+                idleSeconds: serverSummary.idleSeconds || 0,
+                breakSeconds: serverSummary.breakSeconds || 0,
+                lastPunchOutTime: serverSummary.lastPunchOutTime || punchOutStr,
+              },
+              employee,
+            );
           }
         } catch {
-          await durableOfflineStore.enqueueEvent({
-            type: 'SESSION_STOP',
-            endpoint: '/agent/work-sessions/stop',
-            payload: {
-              sessionId: activeSession.id,
-              startedAt: activeSession.startedAt,
-              endedAt: now.toISOString(),
-              notes: workNotes || undefined,
-            },
-            occurredAt: now.toISOString(),
-          });
+          await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
+          await updatePendingCount();
         }
       } else {
-        await durableOfflineStore.enqueueEvent({
-          type: 'SESSION_STOP',
-          endpoint: '/agent/work-sessions/stop',
-          payload: {
-            sessionId: activeSession.id,
-            startedAt: activeSession.startedAt,
-            endedAt: now.toISOString(),
-            notes: workNotes || undefined,
-          },
-          occurredAt: now.toISOString(),
-        });
+        await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
+        await updatePendingCount();
       }
-
-      // Persist daily state locally to ensure continuity across app restarts/sign outs
-      storage.setDailyState(
-        {
-          date: todayStr,
-          workedSeconds: finalWorked,
-          activeSeconds: finalActive,
-          idleSeconds: finalIdle,
-          breakSeconds: finalBreak,
-          lastPunchOutTime: finalLastPunchOut,
-        },
-        employee,
-      );
 
       setStatus('OFFLINE');
       setActiveSession(null);
@@ -738,16 +747,12 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       idleStartTimeRef.current = null;
       activeBucketSecRef.current = 0;
       idleBucketSecRef.current = 0;
-      initialCaptureDoneSessionIdRef.current = null;
 
       window.electronAPI?.updateTrayStatus('Offline');
       window.electronAPI?.notify({
         title: 'Work Session Stopped',
         body: `Punched out at ${punchOutStr}. Today Total: ${Math.floor(todayWorkedSeconds / 3600)}h ${Math.floor((todayWorkedSeconds % 3600) / 60)}m`,
       });
-
-      // Automatically trigger sync worker
-      syncWorker.triggerAutoSync();
     } catch (err: any) {
       alert(err.message || 'Failed to stop session');
     } finally {
@@ -759,18 +764,14 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     if (!activeSession) return;
     setLoading(true);
     try {
-      if (syncStatus.isOnline && !activeSession.id.startsWith('offline_')) {
+      if (connectionState === 'CONNECTED' && !activeSession.id.startsWith('offline_')) {
         await agentApi.startBreak({
           sessionId: activeSession.id,
           reason,
         });
       } else {
-        await durableOfflineStore.enqueueEvent({
-          type: 'SESSION_BREAK_START',
-          endpoint: '/agent/work-sessions/break/start',
-          payload: { sessionId: activeSession.id, reason },
-          occurredAt: new Date().toISOString(),
-        });
+        await offlineStore.recordBreakStart(activeSession.id, reason);
+        await updatePendingCount();
       }
 
       setStatus('BREAK');
@@ -794,15 +795,11 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     if (!activeSession) return;
     setLoading(true);
     try {
-      if (syncStatus.isOnline && !activeSession.id.startsWith('offline_')) {
+      if (connectionState === 'CONNECTED' && !activeSession.id.startsWith('offline_')) {
         await agentApi.endBreak({ sessionId: activeSession.id });
       } else {
-        await durableOfflineStore.enqueueEvent({
-          type: 'SESSION_BREAK_END',
-          endpoint: '/agent/work-sessions/break/end',
-          payload: { sessionId: activeSession.id },
-          occurredAt: new Date().toISOString(),
-        });
+        await offlineStore.recordBreakEnd(activeSession.id);
+        await updatePendingCount();
       }
 
       setStatus('ACTIVE');
@@ -833,19 +830,28 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
     console.log(`[IDLE] User clicked Resume Work. Idle ended. Idle duration: ${idleDurationSec}s.`);
 
-    idleBucketSecRef.current = 0;
-
-    if (activeSession && !activeSession.id.startsWith('offline_')) {
-      agentApi
-        .sendHeartbeat({
+    if (activeSession) {
+      if (connectionState === 'CONNECTED' && !activeSession.id.startsWith('offline_')) {
+        agentApi
+          .sendHeartbeat({
+            sessionId: activeSession.id,
+            capturedAt: new Date().toISOString(),
+            activeSeconds: 0,
+            idleSeconds: idleDurationSec,
+            activeApplication: 'Desktop Work Session',
+            windowTitle: 'Resumed from Inactivity via Button',
+          })
+          .catch(() => {});
+      } else {
+        offlineStore.recordHeartbeat({
           sessionId: activeSession.id,
-          capturedAt: new Date().toISOString(),
           activeSeconds: 0,
           idleSeconds: idleDurationSec,
           activeApplication: 'Desktop Work Session',
           windowTitle: 'Resumed from Inactivity via Button',
-        })
-        .catch(() => {});
+        });
+        updatePendingCount();
+      }
     }
 
     idleStartTimeRef.current = null;
@@ -862,52 +868,21 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
     if (activeSession) {
       if (activeSession.id.startsWith('offline_')) {
-        await durableOfflineStore.enqueueEvent({
-          type: 'SESSION_STOP',
-          endpoint: '/agent/work-sessions/sync-offline',
-          payload: {
-            clientSessionId: activeSession.id,
-            startedAt: activeSession.startedAt,
-            endedAt: now.toISOString(),
-            notes: workNotes || undefined,
-          },
-          occurredAt: now.toISOString(),
-        });
-      } else if (syncStatus.isOnline) {
+        await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
+      } else if (connectionState === 'CONNECTED') {
         try {
           await agentApi.stopWorkSession({
             sessionId: activeSession.id,
             notes: workNotes || undefined,
           });
         } catch {
-          await durableOfflineStore.enqueueEvent({
-            type: 'SESSION_STOP',
-            endpoint: '/agent/work-sessions/stop',
-            payload: {
-              sessionId: activeSession.id,
-              startedAt: activeSession.startedAt,
-              endedAt: now.toISOString(),
-              notes: workNotes || undefined,
-            },
-            occurredAt: now.toISOString(),
-          });
+          await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
         }
       } else {
-        await durableOfflineStore.enqueueEvent({
-          type: 'SESSION_STOP',
-          endpoint: '/agent/work-sessions/stop',
-          payload: {
-            sessionId: activeSession.id,
-            startedAt: activeSession.startedAt,
-            endedAt: now.toISOString(),
-            notes: workNotes || undefined,
-          },
-          occurredAt: now.toISOString(),
-        });
+        await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
       }
     }
 
-    // Save final daily state to employee array
     if (employee) {
       storage.setDailyState(
         {
@@ -922,7 +897,6 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       );
     }
 
-    // Clear local in-memory states and update tray
     setStatus('OFFLINE');
     setActiveSession(null);
     setIsIdle(false);
@@ -935,10 +909,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     idleStartTimeRef.current = null;
     setScreenshots([]);
     setLastPunchOutTime('');
-    initialCaptureDoneSessionIdRef.current = null;
     window.electronAPI?.updateTrayStatus('Offline');
 
-    // Trigger logout
     onLogout();
   };
 
@@ -948,11 +920,14 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden select-none bg-[#f4f4f4] text-[#161616] font-sans tracking-carbon">
-      <Header onOpenSettings={() => setIsSettingsOpen(true)} isOnline={syncStatus.isOnline} />
+      <Header
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        isOnline={connectionState === 'CONNECTED'}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 scrollbar-thin scrollbar-thumb-[#e0e0e0]">
-        {/* Employee Bar & Automatic Sync Status */}
+        {/* Employee Bar */}
         <div className="flex items-center justify-between bg-[#ffffff] border border-[#e0e0e0] rounded-none px-3 py-2 text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-7 h-7 rounded-none bg-[#0f62fe] text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
@@ -978,43 +953,6 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Real-time sync status indicator */}
-            {syncStatus.syncState === 'SYNCING' && (
-              <div className="px-2 py-1 rounded-none bg-[#edf5ff] border border-[#0f62fe] text-[#0f62fe] text-xs font-medium flex items-center gap-1.5 animate-pulse">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#0f62fe]" />
-                <span>
-                  Syncing {syncStatus.syncedCount > 0 ? `${syncStatus.syncedCount}/${syncStatus.totalToSync}` : '...'}
-                </span>
-              </div>
-            )}
-
-            {syncStatus.syncState === 'SYNC_COMPLETE' && (
-              <div className="px-2 py-1 rounded-none bg-[#defbe6] border border-[#24a148] text-[#0e6027] text-xs font-medium flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#24a148]" />
-                <span>Synced</span>
-              </div>
-            )}
-
-            {syncStatus.syncState === 'DISCONNECTED' && syncStatus.pendingCount > 0 && (
-              <div
-                className="px-2 py-1 rounded-none bg-[#fdf2cc] border border-[#f1c21b] text-[#6d4f00] text-xs font-medium flex items-center gap-1.5"
-                title="Offline: Saved locally and will sync automatically when reconnected."
-              >
-                <CloudOff className="w-3.5 h-3.5 text-[#6d4f00]" />
-                <span>{syncStatus.pendingCount} Queued</span>
-              </div>
-            )}
-
-            {syncStatus.storageWarning && (
-              <div
-                className="px-2 py-1 rounded-none bg-[#fff1f1] border border-[#da1e28] text-[#da1e28] text-xs font-medium flex items-center gap-1.5"
-                title="Offline storage threshold reached. Data will continue syncing automatically."
-              >
-                <AlertCircle className="w-3.5 h-3.5 text-[#da1e28]" />
-                <span>Storage warning</span>
-              </div>
-            )}
-
             {lastPunchOutTime && status === 'OFFLINE' && (
               <div className="text-[11px] text-[#525252] bg-[#f4f4f4] px-2 py-1 rounded-none border border-[#e0e0e0] hidden sm:block">
                 Last Out: <span className="text-[#161616] font-semibold">{lastPunchOutTime}</span>
@@ -1064,6 +1002,14 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         {/* Recent Screenshot Captures */}
         <RecentScreenshots screenshots={screenshots} />
       </div>
+
+      {/* Persistent Bottom Offline / Online Status Bar */}
+      <OfflineStatusBar
+        connectionState={connectionState}
+        pendingCount={pendingSyncCount}
+        onReconnect={handleManualReconnect}
+        errorMessage={errorMessage}
+      />
 
       {/* TeamLogger-style Idle Warning Countdown Modal */}
       <IdleWarningModal

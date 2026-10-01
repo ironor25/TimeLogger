@@ -36,6 +36,8 @@ export interface DeviceInfo {
   platform: 'WINDOWS' | 'MACOS' | 'LINUX';
   platformVersion: string;
   appVersion: string;
+  cpuModel?: string;
+  totalMemoryGB?: number;
 }
 
 export interface WorkScheduleInfo {
@@ -122,3 +124,61 @@ export interface EmployeeDailyState {
   updatedAt?: string;
 }
 
+export interface ElectronAPI {
+  minimize: () => Promise<void>;
+  maximize: () => Promise<void>;
+  hide: () => Promise<void>;
+  close: () => Promise<void>;
+  setAlwaysOnTop: (flag: boolean) => Promise<boolean>;
+  getDeviceInfo: () => Promise<{
+    deviceIdentifier: string;
+    deviceName: string;
+    platform: 'WINDOWS' | 'MACOS' | 'LINUX';
+    platformVersion: string;
+    appVersion: string;
+    cpuModel: string;
+    totalMemoryGB: number;
+  }>;
+  getIdleSeconds: () => Promise<number>;
+  captureScreenshot: () => Promise<{
+    base64: string;
+    dataUrl: string;
+    width: number;
+    height: number;
+    fileSize: number;
+    mimeType: string;
+    capturedAt: string;
+  }>;
+  notify: (payload: { title: string; body: string }) => Promise<void>;
+  updateTrayStatus: (statusText: string) => Promise<void>;
+  // Secure Credentials API
+  saveCredentials: (data: any) => Promise<boolean>;
+  getCredentials: () => Promise<any>;
+  hasCredentials: () => Promise<boolean>;
+  clearCredentials: () => Promise<boolean>;
+  // Offline Database API
+  offlineDb: {
+    getPendingCount: () => Promise<{ sessions: number; events: number; screenshots: number; total: number }>;
+    saveSession: (session: any) => Promise<any>;
+    updateSession: (localSessionId: string, updates: any) => Promise<any>;
+    getActiveSession: (employeeId?: string) => Promise<any>;
+    getPendingSessions: () => Promise<any[]>;
+    markSessionSynced: (localSessionId: string, serverSessionId: string) => Promise<boolean>;
+    addEvent: (event: any) => Promise<any>;
+    getPendingEvents: () => Promise<any[]>;
+    markEventSynced: (eventId: string) => Promise<boolean>;
+    incrementEventRetry: (eventId: string) => Promise<boolean>;
+    saveScreenshot: (metadata: any, base64Data: string) => Promise<any>;
+    getPendingScreenshots: () => Promise<any[]>;
+    markScreenshotSynced: (localScreenshotId: string) => Promise<boolean>;
+    clearAll: () => Promise<boolean>;
+  };
+  // Connectivity probe
+  probeConnection: (targetUrl: string) => Promise<boolean>;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
+}
