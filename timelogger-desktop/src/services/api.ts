@@ -73,9 +73,13 @@ async function request<T = any>(
       throw new Error(errMsg);
     }
 
+    // Instant notification that network is healthy
+    window.dispatchEvent(new CustomEvent('network:status', { detail: { isOnline: true } }));
+
     return json.data !== undefined ? json.data : json;
   } catch (err: any) {
-    if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('network')) {
+    if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('network') || err.name === 'AbortError') {
+      window.dispatchEvent(new CustomEvent('network:status', { detail: { isOnline: false } }));
       throw new Error('Network error: Unable to connect to TimeLogger API server.');
     }
     throw err;
@@ -110,17 +114,29 @@ export const agentApi = {
   async checkHealth(): Promise<boolean> {
     try {
       const baseUrl = storage.getServerUrl();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
+
       const res = await fetch(`${baseUrl}/health/ping`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
       }).catch(() => null);
 
+      clearTimeout(timeoutId);
+
       if (res && res.ok) return true;
+
+      const fallbackController = new AbortController();
+      const fallbackTimeoutId = setTimeout(() => fallbackController.abort(), 1500);
 
       const fallbackRes = await fetch(`${baseUrl}/health`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        signal: fallbackController.signal,
       }).catch(() => null);
+
+      clearTimeout(fallbackTimeoutId);
 
       return !!(fallbackRes && fallbackRes.ok);
     } catch {

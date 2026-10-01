@@ -39,6 +39,10 @@ export const RecentScreenshots: React.FC<RecentScreenshotsProps> = ({ screenshot
               <img
                 src={sc.dataUrl}
                 alt="Captured screen"
+                onError={(e) => {
+                  // Fallback to stylized SVG placeholder if raw URL fails
+                  (e.target as HTMLImageElement).src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64" viewBox="0 0 96 64"><rect width="96" height="64" fill="%23262626"/><text x="50%25" y="45%25" dominant-baseline="middle" text-anchor="middle" fill="%238c8c8c" font-size="10" font-family="sans-serif">Screen Capture</text><text x="50%25" y="65%25" dominant-baseline="middle" text-anchor="middle" fill="%230f62fe" font-size="8" font-family="sans-serif">${sc.activityPercentage}% Active</text></svg>`;
+                }}
                 className="w-full h-full object-cover group-hover:brightness-75 transition-all"
               />
 
@@ -93,6 +97,9 @@ export const RecentScreenshots: React.FC<RecentScreenshotsProps> = ({ screenshot
               <img
                 src={selectedPreview.dataUrl}
                 alt="Preview"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="%23161616"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%238c8c8c" font-size="16" font-family="sans-serif">Screen Capture Preview Unavailable</text></svg>`;
+                }}
                 className="w-full h-auto object-contain max-h-72"
               />
             </div>
