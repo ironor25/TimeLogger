@@ -144,6 +144,18 @@ class SyncWorkerService {
   public async triggerAutoSync(currentActiveSessionId?: string): Promise<void> {
     if (this.isRunning) return;
 
+    // Do NOT start sync if user is not authenticated
+    const { accessToken } = storage.getTokens();
+    if (!accessToken) {
+      await this.updatePendingCount();
+      if (this.isOnline) {
+        this.syncState = 'CONNECTED';
+        this.statusMessage = 'Connected';
+        this.notify();
+      }
+      return;
+    }
+
     await this.updatePendingCount();
     if (this.pendingCount === 0) {
       if (this.isOnline && this.syncState !== 'SYNC_COMPLETE') {
@@ -170,6 +182,12 @@ class SyncWorkerService {
       let hasMore = true;
 
       while (hasMore && this.isOnline) {
+        const { accessToken: curToken } = storage.getTokens();
+        if (!curToken) {
+          console.log('[SYNC WORKER] User logged out during sync, pausing');
+          break;
+        }
+
         const batch = await durableOfflineStore.getPendingItems(8);
         if (batch.length === 0) {
           hasMore = false;
@@ -179,6 +197,9 @@ class SyncWorkerService {
         for (const item of batch) {
           if (!this.isOnline) break;
 
+          const { accessToken: tokenCheck } = storage.getTokens();
+          if (!tokenCheck) break;
+
           try {
             await this.processItem(item, currentActiveSessionId);
             this.syncedCount++;
@@ -186,7 +207,16 @@ class SyncWorkerService {
             this.statusMessage = `Syncing timeline (${this.syncedCount}/${this.totalToSync})...`;
             this.notify();
           } catch (itemErr: any) {
-            console.error(`[SYNC WORKER] Error syncing item ${item.id} (${item.type}):`, itemErr?.message || itemErr);
+            const errorMsg = itemErr?.message || String(itemErr);
+            console.error(`[SYNC WORKER] Error syncing item ${item.id} (${item.type}):`, errorMsg);
+
+            // If 401 Unauthorized or session expired, halt sync until user logs in
+            if (errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('expired')) {
+              console.warn('[SYNC WORKER] Authentication token expired or missing. Halting sync until user logs in.');
+              hasMore = false;
+              break;
+            }
+
             await this.handleItemError(item, itemErr);
           }
         }
@@ -337,13 +367,15 @@ class SyncWorkerService {
     const errorMsg = err?.message || String(err);
     const retries = (item.retries || 0) + 1;
 
-    // If permanent failure (e.g. 404 session deleted / 400 bad data) after 5 retries, safely drop stale item
+    // Drop stale / invalid heartbeats or permanently failing items after 3 retries
     if (
-      retries >= 5 &&
+      retries >= 3 &&
       (errorMsg.includes('not found') ||
         errorMsg.includes('404') ||
         errorMsg.includes('does not belong') ||
-        errorMsg.includes('Forbidden'))
+        errorMsg.includes('Forbidden') ||
+        errorMsg.includes('403') ||
+        item.type === 'HEARTBEAT')
     ) {
       console.warn(`[SYNC WORKER] Dropping permanently failed item ${item.id} (${item.type}): ${errorMsg}`);
       await durableOfflineStore.removeItem(item.id);

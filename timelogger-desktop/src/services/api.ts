@@ -232,22 +232,10 @@ export const agentApi = {
       deviceId: device?.id,
     };
 
-    try {
-      return await request<any>('/agent/activity/heartbeat', {
-        method: 'POST',
-        body: JSON.stringify(fullPayload),
-      });
-    } catch (err: any) {
-      // Store in durable offline queue if server is unreachable
-      await durableOfflineStore.enqueueEvent({
-        type: 'HEARTBEAT',
-        endpoint: '/agent/activity/heartbeat',
-        payload: fullPayload,
-        occurredAt: payload.capturedAt,
-      });
-      console.warn('Network offline: Queued heartbeat telemetry in durable store');
-      return { queuedOffline: true };
-    }
+    return await request<any>('/agent/activity/heartbeat', {
+      method: 'POST',
+      body: JSON.stringify(fullPayload),
+    });
   },
 
   async uploadScreenshotPipeline(payload: {

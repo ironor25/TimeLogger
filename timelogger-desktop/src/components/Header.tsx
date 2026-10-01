@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Minus, X, Pin, PinOff, Settings, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { syncWorker, SyncStatusInfo } from '../services/sync-worker';
+import { storage } from '../services/storage';
 import appLogo from '../assets/icon.png';
 
 interface HeaderProps {
@@ -52,6 +53,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
 
   // Render status badge
   const renderStatusBadge = () => {
+    const { accessToken } = storage.getTokens();
+    if (!accessToken) {
+      return (
+        <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#e0e0e0] text-[10px]">
+          <span className={`w-1.5 h-1.5 rounded-none ${syncStatus.isOnline ? 'bg-[#24a148]' : 'bg-[#f1c21b]'}`} />
+          <span className={syncStatus.isOnline ? 'text-[#0e6027] font-medium' : 'text-[#6d4f00] font-medium'}>
+            {syncStatus.isOnline ? 'Connected' : 'Offline'}
+          </span>
+        </div>
+      );
+    }
+
     const { syncState, pendingCount, syncedCount, totalToSync } = syncStatus;
 
     if (syncState === 'SYNCING') {
