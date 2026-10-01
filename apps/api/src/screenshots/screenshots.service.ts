@@ -61,6 +61,26 @@ export class ScreenshotsService {
 
     const capturedAt = new Date(dto.capturedAt);
 
+    // Idempotency Check: Check if screenshot record already exists for this storageKey or (workSessionId, capturedAt)
+    const existing = await this.prisma.screenshot.findFirst({
+      where: {
+        organizationId,
+        employeeId,
+        OR: [
+          { storageKey: dto.storageKey },
+          { workSessionId: session.id, capturedAt },
+        ],
+      },
+    });
+
+    if (existing) {
+      const fileUrl = await this.storageService.getFileUrl(existing.storageKey);
+      return {
+        ...existing,
+        fileUrl,
+      };
+    }
+
     const record = await this.prisma.screenshot.create({
       data: {
         organizationId,

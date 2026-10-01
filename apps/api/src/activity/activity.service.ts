@@ -51,7 +51,26 @@ export class ActivityService {
       }
     }
 
-    // 4. Create Activity Record
+    // 4. Idempotency Check: Prevent duplicate activity ingestion on retry
+    const existing = await this.prisma.activityRecord.findFirst({
+      where: {
+        organizationId,
+        employeeId,
+        workSessionId: session.id,
+        capturedAt,
+      },
+    });
+
+    if (existing) {
+      return {
+        recorded: true,
+        activityRecordId: existing.id,
+        capturedAt: existing.capturedAt,
+        duplicate: true,
+      };
+    }
+
+    // 5. Create Activity Record
     const record = await this.prisma.activityRecord.create({
       data: {
         organizationId,
