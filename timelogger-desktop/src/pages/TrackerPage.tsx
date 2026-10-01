@@ -128,29 +128,13 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         }
 
         if (summary.recentScreenshots && Array.isArray(summary.recentScreenshots) && summary.recentScreenshots.length > 0) {
-          const serverUrl = storage.getServerUrl();
-          const mapped: CapturedScreenshot[] = summary.recentScreenshots.map((sc: any) => {
-            let imgUrl = sc.fileUrl || '';
-            if (!imgUrl) {
-              const isDirect = sc.storageKey?.startsWith('http') || sc.storageKey?.startsWith('data:');
-              imgUrl = isDirect
-                ? sc.storageKey
-                : `${serverUrl}/storage/files?key=${encodeURIComponent(sc.storageKey || '')}`;
-            } else if (imgUrl.startsWith('/')) {
-              try {
-                const origin = new URL(serverUrl).origin;
-                imgUrl = `${origin}${imgUrl}`;
-              } catch {}
-            }
-
-            return {
-              id: sc.id || `sc_${Date.now()}_${Math.random()}`,
-              timestamp: sc.capturedAt || new Date().toISOString(),
-              dataUrl: imgUrl,
-              activityPercentage: sc.activityPercentage ?? 100,
-              storageKey: sc.storageKey || '',
-            };
-          });
+          const mapped: CapturedScreenshot[] = summary.recentScreenshots.map((sc: any) => ({
+            id: sc.id,
+            timestamp: sc.capturedAt,
+            dataUrl: sc.fileUrl || (sc.storageKey?.startsWith('http') || sc.storageKey?.startsWith('data:') ? sc.storageKey : `${storage.getServerUrl()}/agent/screenshots/${sc.id}/image`),
+            activityPercentage: sc.activityPercentage ?? 100,
+            storageKey: sc.storageKey || '',
+          }));
           setScreenshots(mapped);
         }
 
