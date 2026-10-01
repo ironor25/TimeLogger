@@ -110,18 +110,28 @@ export const agentApi = {
   async checkHealth(): Promise<boolean> {
     try {
       const baseUrl = storage.getServerUrl();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
       const res = await fetch(`${baseUrl}/health/ping`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
       }).catch(() => null);
 
+      clearTimeout(timeoutId);
       if (res && res.ok) return true;
+
+      const fallbackController = new AbortController();
+      const fallbackTimeoutId = setTimeout(() => fallbackController.abort(), 3000);
 
       const fallbackRes = await fetch(`${baseUrl}/health`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        signal: fallbackController.signal,
       }).catch(() => null);
 
+      clearTimeout(fallbackTimeoutId);
       return !!(fallbackRes && fallbackRes.ok);
     } catch {
       return false;
@@ -252,14 +262,7 @@ export const agentApi = {
     projectId?: string | null;
     taskId?: string | null;
   }) {
-    console.log('[UPLOAD] ================================');
-    console.log('[UPLOAD] Starting screenshot upload');
-    console.log('[UPLOAD] sessionId:', payload.sessionId);
-    console.log('[UPLOAD] fileSize:', payload.fileSize);
-    console.log('[UPLOAD] mimeType:', payload.mimeType);
-
-    // STEP 1
-    console.log('[UPLOAD] STEP 1: Requesting upload URL');
+    // STEP 1: Request upload URL
     const uploadInfo = await request<{
       uploadUrl: string;
       storageKey: string;
@@ -272,11 +275,6 @@ export const agentApi = {
         fileSize: payload.fileSize,
       }),
     });
-
-    console.log('[UPLOAD] STEP 1 SUCCESS');
-    console.log('[UPLOAD] storageKey:', uploadInfo.storageKey);
-    console.log('[UPLOAD] method:', uploadInfo.method);
-    console.log('[UPLOAD] uploadUrl exists:', !!uploadInfo.uploadUrl);
 
     // STEP 2
     console.log('[UPLOAD] STEP 2: Preparing binary');

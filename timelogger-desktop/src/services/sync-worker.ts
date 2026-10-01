@@ -110,6 +110,14 @@ class SyncWorkerService {
   }
 
   private async probeConnectivity() {
+    if (!navigator.onLine) {
+      this.isOnline = false;
+      this.syncState = 'DISCONNECTED';
+      this.statusMessage = 'Offline — data will sync automatically';
+      this.notify();
+      return;
+    }
+
     try {
       const isHealthy = await agentApi.checkHealth();
       this.isOnline = isHealthy;
@@ -137,12 +145,29 @@ class SyncWorkerService {
   private async backgroundPulse() {
     await this.updatePendingCount();
     if (this.pendingCount > 0 && !this.isRunning) {
+      if (!navigator.onLine) {
+        if (this.isOnline || this.syncState !== 'DISCONNECTED') {
+          this.isOnline = false;
+          this.syncState = 'DISCONNECTED';
+          this.statusMessage = 'Offline — data will sync automatically';
+          this.notify();
+        }
+        return;
+      }
       await this.probeConnectivity();
     }
   }
 
   public async triggerAutoSync(currentActiveSessionId?: string): Promise<void> {
     if (this.isRunning) return;
+
+    // Do NOT start sync if offline
+    if (!navigator.onLine || !this.isOnline) {
+      this.syncState = 'DISCONNECTED';
+      this.statusMessage = 'Offline — data will sync automatically';
+      this.notify();
+      return;
+    }
 
     // Do NOT start sync if user is not authenticated
     const { accessToken } = storage.getTokens();
@@ -166,8 +191,6 @@ class SyncWorkerService {
       return;
     }
 
-    if (!this.isOnline) return;
-
     this.isRunning = true;
     this.totalToSync = this.pendingCount;
     this.syncedCount = 0;
@@ -181,7 +204,7 @@ class SyncWorkerService {
       let processedAny = false;
       let hasMore = true;
 
-      while (hasMore && this.isOnline) {
+      while (hasMore && this.isOnline && navigator.onLine) {
         const { accessToken: curToken } = storage.getTokens();
         if (!curToken) {
           console.log('[SYNC WORKER] User logged out during sync, pausing');
@@ -195,7 +218,7 @@ class SyncWorkerService {
         }
 
         for (const item of batch) {
-          if (!this.isOnline) break;
+          if (!this.isOnline || !navigator.onLine) break;
 
           const { accessToken: tokenCheck } = storage.getTokens();
           if (!tokenCheck) break;
@@ -208,6 +231,31 @@ class SyncWorkerService {
             this.notify();
           } catch (itemErr: any) {
             const errorMsg = itemErr?.message || String(itemErr);
+
+            // If network error, instantly mark offline, pause sync, and break loop cleanly
+            if (
+              !navigator.onLine ||
+              errorMsg.includes('Network error') ||
+              errorMsg.includes('Failed to fetch') ||
+              errorMsg.includes('ERR_NAME_NOT_RESOLVED') ||
+              errorMsg.includes('ERR_INTERNET_DISCONNECTED') ||
+              errorMsg.includes('ECONNREFUSED') ||
+              errorMsg.includes('ENOTFOUND') ||
+              errorMsg.includes('timeout')
+            ) {
+              console.log('[SYNC WORKER] Network offline detected during sync. Halting background sync.');
+              this.isOnline = false;
+              this.syncState = 'DISCONNECTED';
+              this.statusMessage = 'Offline — data will sync automatically';
+              await durableOfflineStore.updateItemStatus({
+                id: item.id,
+                status: 'PENDING',
+              });
+              this.notify();
+              hasMore = false;
+              break;
+            }
+
             console.error(`[SYNC WORKER] Error syncing item ${item.id} (${item.type}):`, errorMsg);
 
             // If 401 Unauthorized or session expired, halt sync until user logs in
@@ -244,8 +292,11 @@ class SyncWorkerService {
           }
         }, 4000);
       } else {
-        this.syncState = this.isOnline ? 'CONNECTED' : 'DISCONNECTED';
-        this.statusMessage = this.isOnline ? `${this.pendingCount} items pending sync` : 'Offline — data will sync automatically';
+        this.syncState = this.isOnline && navigator.onLine ? 'CONNECTED' : 'DISCONNECTED';
+        this.statusMessage =
+          this.isOnline && navigator.onLine
+            ? `${this.pendingCount} items pending sync`
+            : 'Offline — data will sync automatically';
         this.notify();
       }
     } catch (err: any) {
@@ -265,7 +316,19 @@ class SyncWorkerService {
     });
 
     if (item.type === 'SESSION_START' || item.type === 'SESSION_STOP') {
-      const res = await agentApi.syncOfflineSession(item.payload);
+      let syncPayload = { ...item.payload };
+      if (syncPayload.sessionId && this.sessionIdMap[syncPayload.sessionId]) {
+        syncPayload.sessionId = this.sessionIdMap[syncPayload.sessionId];
+      }
+
+      if (!syncPayload.startedAt) {
+        syncPayload.startedAt = item.occurredAt || item.createdAt || new Date().toISOString();
+      }
+      if (item.type === 'SESSION_STOP' && !syncPayload.endedAt) {
+        syncPayload.endedAt = item.occurredAt || item.createdAt || new Date().toISOString();
+      }
+
+      const res = await agentApi.syncOfflineSession(syncPayload);
       if (item.payload?.clientSessionId && res?.id) {
         this.sessionIdMap[item.payload.clientSessionId] = res.id;
         if (this.onSessionMappedCallback) {
@@ -375,6 +438,7 @@ class SyncWorkerService {
         errorMsg.includes('does not belong') ||
         errorMsg.includes('Forbidden') ||
         errorMsg.includes('403') ||
+        errorMsg.includes('Invalid') ||
         item.type === 'HEARTBEAT')
     ) {
       console.warn(`[SYNC WORKER] Dropping permanently failed item ${item.id} (${item.type}): ${errorMsg}`);

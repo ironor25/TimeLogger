@@ -28,12 +28,16 @@ export class ActivityService {
       throw new NotFoundException('Work session not found or does not belong to this employee');
     }
 
-    if (session.status !== 'ACTIVE' && session.status !== 'PAUSED') {
-      throw new ForbiddenException(`Cannot record activity on a ${session.status.toLowerCase()} session`);
-    }
-
-    // 2. Parse capturedAt to UTC Date
     const capturedAt = new Date(dto.capturedAt);
+
+    // Allow heartbeats for ACTIVE/PAUSED sessions, and also for COMPLETED sessions if capturedAt falls within session timeframe (e.g. offline synchronization)
+    if (session.status !== 'ACTIVE' && session.status !== 'PAUSED') {
+      const sessEnd = session.endedAt ? new Date(session.endedAt) : null;
+      const sessStart = new Date(session.startedAt);
+      if (sessEnd && (capturedAt < new Date(sessStart.getTime() - 10000) || capturedAt > new Date(sessEnd.getTime() + 60000))) {
+        throw new ForbiddenException(`Cannot record activity outside session timeframe for a ${session.status.toLowerCase()} session`);
+      }
+    }
 
     // 3. Resolve Device
     let deviceId = dto.deviceId || session.deviceId;

@@ -6,13 +6,17 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { StartSessionDto, StopSessionDto, StartBreakDto, EndBreakDto } from './dto/start-session.dto';
 import { QuerySessionDto } from './dto/query-session.dto';
 import { WorkSessionStatus, AttendanceStatus } from '@pulsetime/types';
 
 @Injectable()
 export class WorkSessionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
   async startSession(
     organizationId: string,
@@ -589,14 +593,28 @@ export class WorkSessionsService {
 
     const totalActiveSeconds = Math.max(0, totalWorkedSeconds - totalBreakSeconds - totalIdleSeconds);
 
+    const recentScreenshotsWithUrls = await Promise.all(
+      screenshots.slice(0, 10).map(async (sc) => {
+        try {
+          const fileUrl = await this.storageService.getFileUrl(sc.storageKey);
+          return {
+            ...sc,
+            fileUrl,
+          };
+        } catch {
+          return sc;
+        }
+      }),
+    );
+
     return {
       date: todayStr,
-      workedSeconds: totalActiveSeconds,
+      workedSeconds: totalWorkedSeconds,
       activeSeconds: totalActiveSeconds,
       idleSeconds: totalIdleSeconds,
       breakSeconds: totalBreakSeconds,
       screenshotCount: screenshots.length,
-      recentScreenshots: screenshots.slice(0, 10),
+      recentScreenshots: recentScreenshotsWithUrls,
       lastPunchOutTime,
       activeSession: activeSession
         ? {
@@ -612,8 +630,9 @@ export class WorkSessionsService {
     organizationId: string,
     employeeId: string,
     dto: {
+      sessionId?: string;
       clientSessionId?: string;
-      startedAt: string;
+      startedAt?: string;
       endedAt?: string;
       durationSeconds?: number;
       projectId?: string;
@@ -622,23 +641,38 @@ export class WorkSessionsService {
       deviceId?: string;
     },
   ) {
-    const startedAt = new Date(dto.startedAt);
-    const endedAt = dto.endedAt ? new Date(dto.endedAt) : null;
-    const durationSeconds =
-      dto.durationSeconds !== undefined
-        ? dto.durationSeconds
-        : endedAt
-        ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000))
-        : 0;
-    const status = endedAt ? WorkSessionStatus.COMPLETED : WorkSessionStatus.ACTIVE;
+    // 1. Resolve and validate timestamps safely
+    const rawStarted = dto.startedAt ? new Date(dto.startedAt) : null;
+    const rawEnded = dto.endedAt ? new Date(dto.endedAt) : null;
+    const isStartedValid = rawStarted && !isNaN(rawStarted.getTime());
+    const isEndedValid = rawEnded && !isNaN(rawEnded.getTime());
+
+    const endedAt = isEndedValid ? rawEnded : null;
+    let startedAt = isStartedValid ? rawStarted : (endedAt || new Date());
 
     const employee = await this.prisma.employee.findFirst({
       where: { id: employeeId, organizationId },
     });
 
-    // 1. Idempotency Check: Look for an existing session with same clientSessionId in notes or same startedAt
+    // 2. Idempotency Check:
+    // a) Direct ID match if sessionId is provided
     let existingSession = null;
-    if (dto.clientSessionId) {
+    if (dto.sessionId && !dto.sessionId.startsWith('offline_')) {
+      existingSession = await this.prisma.workSession.findFirst({
+        where: {
+          id: dto.sessionId,
+          organizationId,
+          employeeId,
+        },
+        include: {
+          project: true,
+          task: true,
+        },
+      });
+    }
+
+    // b) Check clientSessionId tag in notes
+    if (!existingSession && dto.clientSessionId) {
       existingSession = await this.prisma.workSession.findFirst({
         where: {
           organizationId,
@@ -652,8 +686,8 @@ export class WorkSessionsService {
       });
     }
 
-    if (!existingSession) {
-      // Check for exact timestamp match within 3 seconds
+    // c) Check timestamp within 3 seconds window ONLY if startedAt is valid
+    if (!existingSession && isStartedValid && startedAt) {
       const minTime = new Date(startedAt.getTime() - 3000);
       const maxTime = new Date(startedAt.getTime() + 3000);
       existingSession = await this.prisma.workSession.findFirst({
@@ -668,6 +702,19 @@ export class WorkSessionsService {
         },
       });
     }
+
+    // If existing session found, use its real startedAt
+    if (existingSession && existingSession.startedAt) {
+      startedAt = existingSession.startedAt;
+    }
+
+    const durationSeconds =
+      dto.durationSeconds !== undefined
+        ? dto.durationSeconds
+        : endedAt && startedAt
+        ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000))
+        : 0;
+    const status = endedAt ? WorkSessionStatus.COMPLETED : WorkSessionStatus.ACTIVE;
 
     if (existingSession) {
       // If session exists and new payload contains an endedAt while existing is not completed, update it
@@ -715,13 +762,39 @@ export class WorkSessionsService {
           });
         }
 
+        // Ensure activity telemetry exists for this completed offline session
+        if (durationSeconds > 0) {
+          const existingAct = await this.prisma.activityRecord.findFirst({
+            where: {
+              organizationId,
+              employeeId,
+              workSessionId: existingSession.id,
+            },
+          });
+          if (!existingAct) {
+            await this.prisma.activityRecord.create({
+              data: {
+                organizationId,
+                employeeId,
+                workSessionId: existingSession.id,
+                deviceId: dto.deviceId || existingSession.deviceId || null,
+                capturedAt: startedAt,
+                activeSeconds: durationSeconds,
+                idleSeconds: 0,
+                activeApplication: 'Desktop Work Session (Offline)',
+                windowTitle: dto.notes || 'Offline Work Session',
+              },
+            });
+          }
+        }
+
         return updated;
       }
 
       return existingSession;
     }
 
-    // 2. Create new session with idempotency tag in notes
+    // 3. Create new session with idempotency tag in notes
     const noteTag = dto.clientSessionId
       ? `[ClientSessionId: ${dto.clientSessionId}]`
       : '[Offline Sync]';
@@ -749,7 +822,24 @@ export class WorkSessionsService {
       },
     });
 
-    // 3. Update or create today's AttendanceRecord
+    // 4. Ensure activity telemetry exists for the offline session
+    if (durationSeconds > 0 && endedAt) {
+      await this.prisma.activityRecord.create({
+        data: {
+          organizationId,
+          employeeId,
+          workSessionId: session.id,
+          deviceId: dto.deviceId || null,
+          capturedAt: startedAt,
+          activeSeconds: durationSeconds,
+          idleSeconds: 0,
+          activeApplication: 'Desktop Work Session (Offline)',
+          windowTitle: dto.notes || 'Offline Work Session',
+        },
+      });
+    }
+
+    // 5. Update or create today's AttendanceRecord
     const today = new Date(startedAt);
     today.setHours(0, 0, 0, 0);
 

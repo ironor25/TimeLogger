@@ -39,6 +39,10 @@ export const RecentScreenshots: React.FC<RecentScreenshotsProps> = ({ screenshot
               <img
                 src={sc.dataUrl}
                 alt="Captured screen"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64" viewBox="0 0 96 64" fill="%23f4f4f4"><rect width="96" height="64" fill="%23f4f4f4"/><text x="48" y="36" font-family="sans-serif" font-size="9" fill="%238d8d8d" text-anchor="middle">Preview</text></svg>';
+                }}
                 className="w-full h-full object-cover group-hover:brightness-75 transition-all"
               />
 

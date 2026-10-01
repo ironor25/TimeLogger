@@ -131,7 +131,11 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           const mapped: CapturedScreenshot[] = summary.recentScreenshots.map((sc: any) => ({
             id: sc.id,
             timestamp: sc.capturedAt,
-            dataUrl: sc.fileUrl || (sc.storageKey?.startsWith('http') || sc.storageKey?.startsWith('data:') ? sc.storageKey : `${storage.getServerUrl()}/agent/screenshots/${sc.id}/image`),
+            dataUrl:
+              sc.fileUrl ||
+              (sc.storageKey?.startsWith('http') || sc.storageKey?.startsWith('data:')
+                ? sc.storageKey
+                : `${storage.getServerUrl()}/storage/files?key=${encodeURIComponent(sc.storageKey || '')}`),
             activityPercentage: sc.activityPercentage ?? 100,
             storageKey: sc.storageKey || '',
           }));
@@ -690,6 +694,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             endpoint: '/agent/work-sessions/stop',
             payload: {
               sessionId: activeSession.id,
+              startedAt: activeSession.startedAt,
+              endedAt: now.toISOString(),
               notes: workNotes || undefined,
             },
             occurredAt: now.toISOString(),
@@ -701,6 +707,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           endpoint: '/agent/work-sessions/stop',
           payload: {
             sessionId: activeSession.id,
+            startedAt: activeSession.startedAt,
+            endedAt: now.toISOString(),
             notes: workNotes || undefined,
           },
           occurredAt: now.toISOString(),
@@ -877,6 +885,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             endpoint: '/agent/work-sessions/stop',
             payload: {
               sessionId: activeSession.id,
+              startedAt: activeSession.startedAt,
+              endedAt: now.toISOString(),
               notes: workNotes || undefined,
             },
             occurredAt: now.toISOString(),
@@ -888,6 +898,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           endpoint: '/agent/work-sessions/stop',
           payload: {
             sessionId: activeSession.id,
+            startedAt: activeSession.startedAt,
+            endedAt: now.toISOString(),
             notes: workNotes || undefined,
           },
           occurredAt: now.toISOString(),
