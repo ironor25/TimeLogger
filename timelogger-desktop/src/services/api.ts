@@ -65,6 +65,7 @@ async function refreshToken(): Promise<boolean> {
   const { refreshToken } = storage.getTokens();
   if (!refreshToken) return false;
 
+  
   try {
     const baseUrl = storage.getServerUrl();
     const res = await fetch(`${baseUrl}/auth/refresh`, {
