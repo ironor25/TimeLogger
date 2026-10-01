@@ -360,22 +360,39 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       activeBucketSecRef.current = 0;
       idleBucketSecRef.current = 0;
 
-      try {
-        await agentApi.sendHeartbeat({
-          sessionId: activeSession.id,
-          capturedAt: new Date().toISOString(),
-          activeSeconds: act,
-          idleSeconds: idl,
-          activeApplication: 'Desktop Work Session',
-          windowTitle: workNotes || 'TimeLogger Client',
+      const payload = {
+        sessionId: activeSession.id,
+        capturedAt: new Date().toISOString(),
+        activeSeconds: act,
+        idleSeconds: idl,
+        activeApplication: 'Desktop Work Session',
+        windowTitle: workNotes || 'TimeLogger Client',
+      };
+
+      if (syncStatus.isOnline && !activeSession.id.startsWith('offline_')) {
+        try {
+          await agentApi.sendHeartbeat(payload);
+        } catch (err: any) {
+          console.warn('[HEARTBEAT] Online send failed, queuing in durable store:', err?.message);
+          await durableOfflineStore.enqueueEvent({
+            type: 'HEARTBEAT',
+            endpoint: '/agent/activity/heartbeat',
+            payload,
+            occurredAt: payload.capturedAt,
+          });
+        }
+      } else {
+        await durableOfflineStore.enqueueEvent({
+          type: 'HEARTBEAT',
+          endpoint: '/agent/activity/heartbeat',
+          payload,
+          occurredAt: payload.capturedAt,
         });
-      } catch (err: any) {
-        console.warn('[HEARTBEAT] Warning:', err?.message);
       }
     }, 60000);
 
     return () => clearInterval(heartbeatInterval);
-  }, [status, activeSession, workNotes]);
+  }, [status, activeSession, workNotes, syncStatus.isOnline]);
 
   // 4. Robust Screenshot Capture Function (Strictly Cooldown-Enforced)
   const executeScreenshotCapture = async (sessionId: string, isInitial: boolean = false) => {
