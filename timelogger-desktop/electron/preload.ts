@@ -51,6 +51,8 @@ export interface ElectronAPI {
   };
   // Connectivity probe
   probeConnection: (targetUrl: string) => Promise<boolean>;
+  // Failsafe & Emergency Stop
+  onEmergencyStop: (callback: (reason?: string) => void) => () => void;
 }
 
 const api: ElectronAPI = {
@@ -88,6 +90,14 @@ const api: ElectronAPI = {
   },
   // Connectivity
   probeConnection: (targetUrl) => ipcRenderer.invoke('connectivity:probe', targetUrl),
+  // Failsafe Emergency Stop listener
+  onEmergencyStop: (callback: (reason?: string) => void) => {
+    const handler = (_event: any, reason?: string) => callback(reason);
+    ipcRenderer.on('app:emergency-stop', handler);
+    return () => {
+      ipcRenderer.removeListener('app:emergency-stop', handler);
+    };
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

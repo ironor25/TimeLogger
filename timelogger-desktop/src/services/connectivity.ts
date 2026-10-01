@@ -22,7 +22,7 @@ export const connectivity = {
       try {
         const reachable = await window.electronAPI.probeConnection(serverUrl);
         return {
-          isOnline: true,
+          isOnline: reachable,
           isBackendReachable: reachable,
         };
       } catch {
@@ -33,7 +33,7 @@ export const connectivity = {
     // 2. Direct HTTP probe
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
 
       const probeUrl = serverUrl.replace(/\/+$/, '');
       const res = await fetch(`${probeUrl}/health`, {
@@ -47,14 +47,14 @@ export const connectivity = {
       });
 
       clearTimeout(timeoutId);
+      const ok = res.status < 500;
       return {
-        isOnline: true,
-        isBackendReachable: res.status < 500,
+        isOnline: ok,
+        isBackendReachable: ok,
       };
     } catch {
-      // If navigator.onLine is true, assume network is online even if probe timed out
       return {
-        isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+        isOnline: false,
         isBackendReachable: false,
       };
     }

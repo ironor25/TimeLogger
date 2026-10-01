@@ -46,7 +46,15 @@ async function request<T = any>(
 
     return json.data !== undefined ? json.data : json;
   } catch (err: any) {
-    if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('network')) {
+    if (
+      err.name === 'TypeError' ||
+      err.message?.includes('fetch') ||
+      err.message?.includes('network') ||
+      err.message?.includes('Failed to fetch')
+    ) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('network:offline'));
+      }
       throw new Error('Network error: Unable to connect to PulseTime API server.');
     }
     throw err;
@@ -145,7 +153,12 @@ export const agentApi = {
     });
   },
 
-  async stopWorkSession(payload: { sessionId: string; notes?: string }) {
+  async stopWorkSession(payload: {
+    sessionId: string;
+    notes?: string;
+    durationSeconds?: number;
+    endedAt?: string;
+  }) {
     return await request<any>('/agent/work-sessions/stop', {
       method: 'POST',
       body: JSON.stringify(payload),

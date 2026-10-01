@@ -155,8 +155,10 @@ function createTray() {
     { type: 'separator' },
     {
       label: 'Quit TimeLogger',
-      click: () => {
+      click: async () => {
         isQuitting = true;
+        mainWindow?.webContents.send('app:emergency-stop', 'Tray Quit');
+        await handleEmergencyShutdown('Tray Quit');
         app.quit();
       },
     },
@@ -169,9 +171,85 @@ function createTray() {
   });
 }
 
+// Emergency Failsafe Shutdown Handler
+async function handleEmergencyShutdown(reason: string = 'App Exit / Shutdown') {
+  try {
+    const active = offlineDb.getActiveSession();
+    if (active) {
+      const now = new Date().toISOString();
+      const startedAtMs = new Date(active.startedAt).getTime();
+      const dur = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+
+      offlineDb.updateSession(active.localSessionId, {
+        endedAt: now,
+        durationSeconds: dur,
+        status: 'COMPLETED',
+      });
+
+      offlineDb.addEvent({
+        eventId: `emergency_stop_${Date.now()}`,
+        localSessionId: active.localSessionId,
+        serverSessionId: active.serverSessionId || null,
+        eventType: 'SESSION_STOP',
+        occurredAt: now,
+        payload: {
+          clientSessionId: active.localSessionId,
+          sessionId: active.serverSessionId || active.localSessionId,
+          startedAt: active.startedAt,
+          endedAt: now,
+          durationSeconds: dur,
+          notes: `[Auto-saved on ${reason}]`,
+        },
+        syncStatus: 'PENDING',
+        retries: 0,
+        createdAt: now,
+      });
+
+      // Attempt fast HTTP stop in main process if online
+      const creds = secureStorage.getCredentials();
+      const serverUrl = creds?.serverUrl;
+      const accessToken = creds?.tokens?.accessToken;
+      const targetSessionId = active.serverSessionId;
+
+      if (serverUrl && accessToken && targetSessionId && !targetSessionId.startsWith('offline_')) {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 2000);
+        await fetch(`${serverUrl.replace(/\/+$/, '')}/agent/work-sessions/stop`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            sessionId: targetSessionId,
+            durationSeconds: dur,
+            endedAt: now,
+            notes: `[Auto-saved on ${reason}]`,
+          }),
+          signal: controller.signal,
+        }).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.error('[Main Process] Emergency shutdown error:', err);
+  }
+}
+
 app.whenReady().then(() => {
   createWindow();
   createTray();
+
+  // Listen for System Shutdown & Sleep Events
+  powerMonitor.on('shutdown', () => {
+    console.log('[System] PowerMonitor shutdown detected. Executing failsafe emergency stop.');
+    mainWindow?.webContents.send('app:emergency-stop', 'System Shutdown');
+    handleEmergencyShutdown('System Shutdown');
+  });
+
+  powerMonitor.on('suspend', () => {
+    console.log('[System] PowerMonitor suspend/sleep detected.');
+    mainWindow?.webContents.send('app:emergency-stop', 'System Suspend');
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -185,6 +263,8 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  mainWindow?.webContents.send('app:emergency-stop', 'App Quit');
+  handleEmergencyShutdown('App Quit');
 });
 
 app.on('window-all-closed', () => {
@@ -397,7 +477,7 @@ ipcMain.handle('offline-db:clear-all', () => {
 ipcMain.handle('connectivity:probe', async (_event, targetUrl: string) => {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
     const probeUrl = (targetUrl || '').replace(/\/+$/, '');
     
     // Try /health or base URL

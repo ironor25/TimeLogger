@@ -62,11 +62,19 @@ export const offlineStore = {
     return session;
   },
 
-  async stopOfflineSession(localSessionId: string, notes?: string): Promise<LocalSessionRecord | null> {
+  async stopOfflineSession(
+    localSessionId: string,
+    notes?: string,
+    customDurationSeconds?: number,
+  ): Promise<LocalSessionRecord | null> {
     const now = new Date().toISOString();
     const active = await localDb.getActiveSession();
     const startedAtMs = active ? new Date(active.startedAt).getTime() : Date.now();
-    const durationSeconds = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+    const computedDur = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+    const durationSeconds =
+      customDurationSeconds !== undefined && customDurationSeconds > 0
+        ? Math.max(customDurationSeconds, computedDur)
+        : computedDur;
 
     const updated = await localDb.updateSession(localSessionId, {
       endedAt: now,

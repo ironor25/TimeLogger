@@ -12,6 +12,7 @@ import { storage } from '../services/storage';
 import { offlineStore } from '../local/offline-store';
 import { localDb } from '../local/database';
 import { offlineSync } from '../services/offline-sync';
+import { connectivity } from '../services/connectivity';
 import { LogOut } from 'lucide-react';
 import { SessionStatus, ActiveSession, CapturedScreenshot, IdleConfig } from '../types';
 
@@ -68,7 +69,13 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
   const activeBucketSecRef = useRef<number>(0);
   const idleBucketSecRef = useRef<number>(0);
 
-  const getTodayDateStr = () => new Date().toISOString().split('T')[0];
+  const getTodayDateStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const updatePendingCount = useCallback(async () => {
     try {
@@ -116,100 +123,131 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
       }
     });
 
-    // If internet is connected on mount, fetch authoritative server summary and set CONNECTED
-    const isNetOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-    if (isNetOnline) {
-      agentApi
-        .getTodaySummary(todayStr)
-        .then((summary) => {
-          if (!summary) return;
-          setTodayWorkedSeconds(summary.workedSeconds ?? summary.activeSeconds ?? 0);
-          setTodayActiveSeconds(summary.activeSeconds ?? summary.workedSeconds ?? 0);
-          setTodayIdleSeconds(summary.idleSeconds || 0);
-          setTodayBreakSeconds(summary.breakSeconds || 0);
-          setLastPunchOutTime(summary.lastPunchOutTime || '');
-          setConnectionState('CONNECTED');
-          setErrorMessage('');
+    // Check reachability on mount
+    connectivity.check().then((status) => {
+      if (status.isOnline && status.isBackendReachable) {
+        agentApi
+          .getTodaySummary(todayStr)
+          .then((summary) => {
+            if (!summary) return;
+            setTodayWorkedSeconds((prev) => Math.max(prev, summary.workedSeconds ?? summary.activeSeconds ?? 0));
+            setTodayActiveSeconds((prev) => Math.max(prev, summary.activeSeconds ?? summary.workedSeconds ?? 0));
+            setTodayIdleSeconds((prev) => Math.max(prev, summary.idleSeconds || 0));
+            setTodayBreakSeconds((prev) => Math.max(prev, summary.breakSeconds || 0));
+            setLastPunchOutTime(summary.lastPunchOutTime || '');
+            setConnectionState('CONNECTED');
+            setErrorMessage('');
 
-          if (summary.activeSession) {
-            setActiveSession(summary.activeSession);
-            const isPaused = summary.activeSession.status === 'PAUSED';
-            setStatus(isPaused ? 'BREAK' : 'ACTIVE');
+            if (summary.activeSession) {
+              setActiveSession(summary.activeSession);
+              const isPaused = summary.activeSession.status === 'PAUSED';
+              setStatus(isPaused ? 'BREAK' : 'ACTIVE');
 
-            const startMs = new Date(summary.activeSession.startedAt).getTime();
-            const curElapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
-            setSessionSeconds(curElapsed);
-            window.electronAPI?.updateTrayStatus(isPaused ? 'On Break' : 'Working');
-          } else {
-            // No active session on server
-            localDb.getActiveSession(employee?.id).then((localActive) => {
-              if (!localActive) {
-                setActiveSession(null);
-                setStatus('OFFLINE');
-                setSessionSeconds(0);
-                window.electronAPI?.updateTrayStatus('Offline');
-              }
-            });
-          }
+              const startMs = new Date(summary.activeSession.startedAt).getTime();
+              const curElapsed = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+              setSessionSeconds(curElapsed);
+              window.electronAPI?.updateTrayStatus(isPaused ? 'On Break' : 'Working');
+            } else {
+              // No active session on server
+              localDb.getActiveSession(employee?.id).then((localActive) => {
+                if (!localActive) {
+                  setActiveSession(null);
+                  setStatus('OFFLINE');
+                  setSessionSeconds(0);
+                  window.electronAPI?.updateTrayStatus('Offline');
+                }
+              });
+            }
 
-          storage.setDailyState(
-            {
-              date: todayStr,
-              workedSeconds: summary.workedSeconds ?? summary.activeSeconds ?? 0,
-              activeSeconds: summary.activeSeconds ?? summary.workedSeconds ?? 0,
-              idleSeconds: summary.idleSeconds || 0,
-              breakSeconds: summary.breakSeconds || 0,
-              lastPunchOutTime: summary.lastPunchOutTime || '',
-            },
-            employee,
-          );
-        })
-        .catch((err) => {
-          console.warn('Initial summary fetch error (offline or server starting):', err?.message);
-        });
-    }
+            storage.setDailyState(
+              {
+                date: todayStr,
+                workedSeconds: summary.workedSeconds ?? summary.activeSeconds ?? 0,
+                activeSeconds: summary.activeSeconds ?? summary.workedSeconds ?? 0,
+                idleSeconds: summary.idleSeconds || 0,
+                breakSeconds: summary.breakSeconds || 0,
+                lastPunchOutTime: summary.lastPunchOutTime || '',
+              },
+              employee,
+            );
+          })
+          .catch((err) => {
+            console.warn('Initial summary fetch error (switching to offline):', err?.message);
+            setConnectionState('OFFLINE');
+          });
+      } else {
+        setConnectionState('OFFLINE');
+      }
+    });
   }, []); // Run ONCE on mount
 
-  // Network State Change Listeners (No background sync worker!)
+  // Network State Change & Reachability Listeners (No background sync worker!)
   useEffect(() => {
     const handleOffline = () => {
-      console.log('[NETWORK] Connection lost. Switching tracker status to OFFLINE.');
+      console.log('[NETWORK] Connection lost / unreachable. Switching to OFFLINE.');
       setConnectionState('OFFLINE');
+      updatePendingCount();
     };
 
     const handleOnline = () => {
-      console.log('[NETWORK] Internet restored. Verifying server connection...');
-      const todayStr = getTodayDateStr();
-      agentApi
-        .getTodaySummary(todayStr)
-        .then((summary) => {
-          if (summary) {
-            setConnectionState('CONNECTED');
-            setErrorMessage('');
-            setTodayWorkedSeconds(summary.workedSeconds ?? summary.activeSeconds ?? 0);
-            setTodayActiveSeconds(summary.activeSeconds ?? summary.workedSeconds ?? 0);
-            setTodayIdleSeconds(summary.idleSeconds || 0);
-            setTodayBreakSeconds(summary.breakSeconds || 0);
-            if (summary.lastPunchOutTime) {
-              setLastPunchOutTime(summary.lastPunchOutTime);
-            }
-          }
-        })
-        .catch(() => {
-          // If server is not yet reachable, keep OFFLINE
+      console.log('[NETWORK] Internet change detected. Checking backend reachability...');
+      connectivity.check().then((netStatus) => {
+        if (netStatus.isOnline && netStatus.isBackendReachable) {
+          const todayStr = getTodayDateStr();
+          agentApi
+            .getTodaySummary(todayStr)
+            .then((summary) => {
+              if (summary) {
+                setConnectionState('CONNECTED');
+                setErrorMessage('');
+                setTodayWorkedSeconds((prev) => Math.max(prev, summary.workedSeconds ?? summary.activeSeconds ?? 0));
+                setTodayActiveSeconds((prev) => Math.max(prev, summary.activeSeconds ?? summary.workedSeconds ?? 0));
+                setTodayIdleSeconds((prev) => Math.max(prev, summary.idleSeconds || 0));
+                setTodayBreakSeconds((prev) => Math.max(prev, summary.breakSeconds || 0));
+                if (summary.lastPunchOutTime) {
+                  setLastPunchOutTime(summary.lastPunchOutTime);
+                }
+              }
+            })
+            .catch(() => {
+              setConnectionState('OFFLINE');
+            });
+        } else {
           setConnectionState('OFFLINE');
-        });
+        }
+      });
     };
 
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
+    window.addEventListener('network:offline', handleOffline);
 
+    // Periodic connectivity check (every 10s) to detect disconnected Wi-Fi / network loss on Windows
+    const connectivityInterval = setInterval(async () => {
+      try {
+        const net = await connectivity.check();
+        if (!net.isOnline || !net.isBackendReachable) {
+          if (connectionState === 'CONNECTED') {
+            console.log('[NETWORK] Server unreachable or network disconnected. Switching to OFFLINE.');
+            setConnectionState('OFFLINE');
+            updatePendingCount();
+          }
+        }
+      } catch {
+        if (connectionState === 'CONNECTED') {
+          setConnectionState('OFFLINE');
+          updatePendingCount();
+        }
+      }
+    }, 10000);
 
     return () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
+      window.removeEventListener('network:offline', handleOffline);
+      clearInterval(connectivityInterval);
     };
-  }, []);
+  }, [connectionState, updatePendingCount]);
 
   // MANUAL RECONNECT & SYNC (Triggered explicitly by user click)
   const handleManualReconnect = async () => {
@@ -299,14 +337,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
         setTodayWorkedSeconds((prev) => prev + 1);
         setTodayActiveSeconds((prev) => prev + 1);
 
-        // Activity bucket classification for screenshot telemetry
-        if (currentIdle < 2) {
-          windowActiveSecondsRef.current += 1;
-          activeBucketSecRef.current += 1;
-        } else {
-          windowIdleSecondsRef.current += 1;
-          idleBucketSecRef.current += 1;
-        }
+        // Active work within grace period contributes to active bucket
+        windowActiveSecondsRef.current += 1;
+        activeBucketSecRef.current += 1;
 
         if (currentIdle >= gracePeriod) {
           // Grace period elapsed -> enter IDLE_WARNING state
@@ -320,18 +353,13 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
           });
         }
       } else if (status === 'IDLE_WARNING') {
-        // During warning, session and worked seconds still progress until confirmed idle
+        // During warning countdown, user is still counted active until confirmed idle
         setSessionSeconds((prev) => prev + 1);
         setTodayWorkedSeconds((prev) => prev + 1);
         setTodayActiveSeconds((prev) => prev + 1);
 
-        if (currentIdle < 2) {
-          windowActiveSecondsRef.current += 1;
-          activeBucketSecRef.current += 1;
-        } else {
-          windowIdleSecondsRef.current += 1;
-          idleBucketSecRef.current += 1;
-        }
+        windowActiveSecondsRef.current += 1;
+        activeBucketSecRef.current += 1;
 
         if (currentIdle < gracePeriod) {
           // Activity detected during warning -> cancel warning, resume ACTIVE
@@ -356,7 +384,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
           setIdleWarningSecondsLeft(secLeft);
         }
       } else if (status === 'IDLE') {
-        // In confirmed IDLE state: Work timer is paused. Idle metrics increment!
+        // In confirmed IDLE state: Work timer is paused. Confirmed idle metrics increment!
         windowIdleSecondsRef.current += 1;
         idleBucketSecRef.current += 1;
         setCurrentIdlePeriodSeconds((prev) => prev + 1);
@@ -642,10 +670,10 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
       if (connectionState === 'CONNECTED' && !session.id.startsWith('offline_')) {
         const todaySum = await agentApi.getTodaySummary(todayStr).catch(() => null);
         if (todaySum) {
-          setTodayWorkedSeconds(todaySum.workedSeconds ?? todaySum.activeSeconds ?? 0);
-          setTodayActiveSeconds(todaySum.activeSeconds ?? todaySum.workedSeconds ?? 0);
-          setTodayIdleSeconds(todaySum.idleSeconds || 0);
-          setTodayBreakSeconds(todaySum.breakSeconds || 0);
+          setTodayWorkedSeconds((prev) => Math.max(prev, todaySum.workedSeconds ?? todaySum.activeSeconds ?? 0));
+          setTodayActiveSeconds((prev) => Math.max(prev, todaySum.activeSeconds ?? todaySum.workedSeconds ?? 0));
+          setTodayIdleSeconds((prev) => Math.max(prev, todaySum.idleSeconds || 0));
+          setTodayBreakSeconds((prev) => Math.max(prev, todaySum.breakSeconds || 0));
         }
       }
 
@@ -689,22 +717,58 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
 
   const handleStopSession = async () => {
     if (!activeSession) return;
+
+    // 1. Snapshot stopped values immediately at the exact instant user clicks Punch Out
+    const now = new Date();
+    const punchOutStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const todayStr = getTodayDateStr();
+
+    const stoppedActiveSec = todayActiveSeconds;
+    const stoppedWorkedSec = todayWorkedSeconds;
+    const stoppedSessionSec = sessionSeconds;
+    const currentSession = activeSession;
+    const act = activeBucketSecRef.current;
+    const idl = idleBucketSecRef.current;
+
+    // 2. Freeze the timer and UI state IMMEDIATELY (no lag, no ticking during network requests)
+    setStatus('OFFLINE');
+    setActiveSession(null);
+    setIsIdle(false);
+    setLastPunchOutTime(punchOutStr);
+    setSessionSeconds(0);
+    setBreakSeconds(0);
+    setCurrentIdlePeriodSeconds(0);
+    idleStartTimeRef.current = null;
+    activeBucketSecRef.current = 0;
+    idleBucketSecRef.current = 0;
+    windowActiveSecondsRef.current = 0;
+    windowIdleSecondsRef.current = 0;
+
+    window.electronAPI?.updateTrayStatus('Offline');
+
+    // Immediately persist stopped daily state to local storage so UI and offline state are authoritative
+    if (employee) {
+      storage.setDailyState(
+        {
+          date: todayStr,
+          workedSeconds: stoppedWorkedSec,
+          activeSeconds: stoppedActiveSec,
+          idleSeconds: todayIdleSeconds,
+          breakSeconds: todayBreakSeconds,
+          lastPunchOutTime: punchOutStr,
+        },
+        employee,
+      );
+    }
+
     setLoading(true);
     try {
-      const now = new Date();
-      const punchOutStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const todayStr = getTodayDateStr();
-
       // Flush any telemetry buffers before stopping
-      const act = activeBucketSecRef.current;
-      const idl = idleBucketSecRef.current;
       if (act > 0 || idl > 0) {
-        activeBucketSecRef.current = 0;
-        idleBucketSecRef.current = 0;
-        if (connectionState === 'CONNECTED' && !activeSession.id.startsWith('offline_')) {
+        if (connectionState === 'CONNECTED' && !currentSession.id.startsWith('offline_')) {
           await agentApi
             .sendHeartbeat({
-              sessionId: activeSession.id,
+              sessionId: currentSession.id,
               capturedAt: now.toISOString(),
               activeSeconds: act,
               idleSeconds: idl,
@@ -714,7 +778,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
             .catch(() => {});
         } else {
           await offlineStore.recordHeartbeat({
-            sessionId: activeSession.id,
+            sessionId: currentSession.id,
             capturedAt: now.toISOString(),
             activeSeconds: act,
             idleSeconds: idl,
@@ -724,61 +788,65 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
         }
       }
 
-      if (activeSession.id.startsWith('offline_')) {
-        await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
+      if (currentSession.id.startsWith('offline_')) {
+        await offlineStore.stopOfflineSession(currentSession.id, workNotes || undefined, stoppedSessionSec);
         await updatePendingCount();
       } else if (connectionState === 'CONNECTED') {
         try {
           await agentApi.stopWorkSession({
-            sessionId: activeSession.id,
+            sessionId: currentSession.id,
             notes: workNotes || undefined,
+            durationSeconds: stoppedSessionSec,
+            endedAt: now.toISOString(),
           });
 
           // Fetch authoritative server summary immediately after stop
           const serverSummary = await agentApi.getTodaySummary(todayStr).catch(() => null);
           if (serverSummary) {
-            setTodayWorkedSeconds(serverSummary.workedSeconds ?? serverSummary.activeSeconds ?? 0);
-            setTodayActiveSeconds(serverSummary.activeSeconds ?? serverSummary.workedSeconds ?? 0);
-            setTodayIdleSeconds(serverSummary.idleSeconds || 0);
-            setTodayBreakSeconds(serverSummary.breakSeconds || 0);
-            setLastPunchOutTime(serverSummary.lastPunchOutTime || punchOutStr);
-
-            storage.setDailyState(
-              {
-                date: todayStr,
-                workedSeconds: serverSummary.workedSeconds ?? serverSummary.activeSeconds ?? 0,
-                activeSeconds: serverSummary.activeSeconds ?? serverSummary.workedSeconds ?? 0,
-                idleSeconds: serverSummary.idleSeconds || 0,
-                breakSeconds: serverSummary.breakSeconds || 0,
-                lastPunchOutTime: serverSummary.lastPunchOutTime || punchOutStr,
-              },
-              employee,
+            const finalActiveSec = Math.max(
+              stoppedActiveSec,
+              serverSummary.activeSeconds ?? serverSummary.workedSeconds ?? 0,
             );
+            const finalWorkedSec = Math.max(
+              stoppedWorkedSec,
+              serverSummary.workedSeconds ?? serverSummary.activeSeconds ?? 0,
+            );
+            const finalIdleSec = Math.max(todayIdleSeconds, serverSummary.idleSeconds || 0);
+            const finalBreakSec = Math.max(todayBreakSeconds, serverSummary.breakSeconds || 0);
+            const finalPunchOutTime = serverSummary.lastPunchOutTime || punchOutStr;
+
+            setTodayWorkedSeconds(finalWorkedSec);
+            setTodayActiveSeconds(finalActiveSec);
+            setTodayIdleSeconds(finalIdleSec);
+            setTodayBreakSeconds(finalBreakSec);
+            setLastPunchOutTime(finalPunchOutTime);
+
+            if (employee) {
+              storage.setDailyState(
+                {
+                  date: todayStr,
+                  workedSeconds: finalWorkedSec,
+                  activeSeconds: finalActiveSec,
+                  idleSeconds: finalIdleSec,
+                  breakSeconds: finalBreakSec,
+                  lastPunchOutTime: finalPunchOutTime,
+                },
+                employee,
+              );
+            }
           }
         } catch {
-          await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
+          await offlineStore.stopOfflineSession(currentSession.id, workNotes || undefined, stoppedSessionSec);
           await updatePendingCount();
         }
       } else {
-        await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
+        await offlineStore.stopOfflineSession(currentSession.id, workNotes || undefined, stoppedSessionSec);
         await updatePendingCount();
       }
 
-      setStatus('OFFLINE');
-      setActiveSession(null);
-      setIsIdle(false);
-      setLastPunchOutTime(punchOutStr);
-      setSessionSeconds(0);
-      setBreakSeconds(0);
-      setCurrentIdlePeriodSeconds(0);
-      idleStartTimeRef.current = null;
-      activeBucketSecRef.current = 0;
-      idleBucketSecRef.current = 0;
-
-      window.electronAPI?.updateTrayStatus('Offline');
       window.electronAPI?.notify({
         title: 'Work Session Stopped',
-        body: `Punched out at ${punchOutStr}. Today Total: ${Math.floor(todayWorkedSeconds / 3600)}h ${Math.floor((todayWorkedSeconds % 3600) / 60)}m`,
+        body: `Punched out at ${punchOutStr}. Today Active: ${Math.floor(stoppedActiveSec / 3600)}h ${Math.floor((stoppedActiveSec % 3600) / 60)}m`,
       });
     } catch (err: any) {
       alert(err.message || 'Failed to stop session');
@@ -792,10 +860,17 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
     setLoading(true);
     try {
       if (connectionState === 'CONNECTED' && !activeSession.id.startsWith('offline_')) {
-        await agentApi.startBreak({
-          sessionId: activeSession.id,
-          reason,
-        });
+        try {
+          await agentApi.startBreak({
+            sessionId: activeSession.id,
+            reason,
+          });
+        } catch (netErr) {
+          console.warn('Network error starting break, recording offline break:', netErr);
+          setConnectionState('OFFLINE');
+          await offlineStore.recordBreakStart(activeSession.id, reason);
+          await updatePendingCount();
+        }
       } else {
         await offlineStore.recordBreakStart(activeSession.id, reason);
         await updatePendingCount();
@@ -823,7 +898,14 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
     setLoading(true);
     try {
       if (connectionState === 'CONNECTED' && !activeSession.id.startsWith('offline_')) {
-        await agentApi.endBreak({ sessionId: activeSession.id });
+        try {
+          await agentApi.endBreak({ sessionId: activeSession.id });
+        } catch (netErr) {
+          console.warn('Network error ending break, recording offline break end:', netErr);
+          setConnectionState('OFFLINE');
+          await offlineStore.recordBreakEnd(activeSession.id);
+          await updatePendingCount();
+        }
       } else {
         await offlineStore.recordBreakEnd(activeSession.id);
         await updatePendingCount();
@@ -888,42 +970,144 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
     window.electronAPI?.updateTrayStatus('Working');
   };
 
-  const handleLogoutWithReset = async () => {
-    const now = new Date();
-    const punchOutStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const todayStr = getTodayDateStr();
+  // Failsafe Emergency Stop: Stops active/idle/break session and sends/saves final metrics on shutdown, crash, quit, or auth expiration
+  const executeEmergencyStop = useCallback(
+    async (reason: string = 'Emergency Exit') => {
+      if (!activeSession && status === 'OFFLINE') return;
 
-    if (activeSession) {
-      if (activeSession.id.startsWith('offline_')) {
-        await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
+      console.log(`[FAILSAFE] Executing emergency stop. Reason: ${reason}`);
+
+      const now = new Date();
+      const punchOutStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const todayStr = getTodayDateStr();
+
+      const stoppedActiveSec = todayActiveSeconds;
+      const stoppedWorkedSec = todayWorkedSeconds;
+      const stoppedSessionSec = sessionSeconds;
+      const currentSession = activeSession;
+      const act = activeBucketSecRef.current;
+      const idl = idleBucketSecRef.current;
+
+      // 1. Immediately freeze timers and status
+      setStatus('OFFLINE');
+      setActiveSession(null);
+      setIsIdle(false);
+      setLastPunchOutTime(punchOutStr);
+      setSessionSeconds(0);
+      setBreakSeconds(0);
+      setCurrentIdlePeriodSeconds(0);
+      idleStartTimeRef.current = null;
+      activeBucketSecRef.current = 0;
+      idleBucketSecRef.current = 0;
+      windowActiveSecondsRef.current = 0;
+      windowIdleSecondsRef.current = 0;
+
+      window.electronAPI?.updateTrayStatus('Offline');
+
+      // 2. Persist local daily state immediately
+      if (employee) {
+        storage.setDailyState(
+          {
+            date: todayStr,
+            workedSeconds: stoppedWorkedSec,
+            activeSeconds: stoppedActiveSec,
+            idleSeconds: todayIdleSeconds,
+            breakSeconds: todayBreakSeconds,
+            lastPunchOutTime: punchOutStr,
+          },
+          employee,
+        );
+      }
+
+      if (!currentSession) return;
+
+      // 3. Flush remaining telemetry to backend or local DB
+      if (act > 0 || idl > 0) {
+        if (connectionState === 'CONNECTED' && !currentSession.id.startsWith('offline_')) {
+          agentApi
+            .sendHeartbeat({
+              sessionId: currentSession.id,
+              capturedAt: now.toISOString(),
+              activeSeconds: act,
+              idleSeconds: idl,
+              activeApplication: 'Desktop Work Session',
+              windowTitle: `[Failsafe Stop] ${reason}`,
+            })
+            .catch(() => {});
+        } else {
+          await offlineStore.recordHeartbeat({
+            sessionId: currentSession.id,
+            capturedAt: now.toISOString(),
+            activeSeconds: act,
+            idleSeconds: idl,
+            activeApplication: 'Desktop Work Session',
+            windowTitle: `[Failsafe Stop] ${reason}`,
+          });
+        }
+      }
+
+      // 4. Record stop in local offline DB and backend
+      if (currentSession.id.startsWith('offline_')) {
+        await offlineStore.stopOfflineSession(currentSession.id, `[Failsafe Stop] ${reason}`, stoppedSessionSec);
       } else if (connectionState === 'CONNECTED') {
         try {
           await agentApi.stopWorkSession({
-            sessionId: activeSession.id,
-            notes: workNotes || undefined,
+            sessionId: currentSession.id,
+            notes: `[Failsafe Stop] ${reason}`,
+            durationSeconds: stoppedSessionSec,
+            endedAt: now.toISOString(),
           });
         } catch {
-          await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
+          await offlineStore.stopOfflineSession(currentSession.id, `[Failsafe Stop] ${reason}`, stoppedSessionSec);
         }
       } else {
-        await offlineStore.stopOfflineSession(activeSession.id, workNotes || undefined);
+        await offlineStore.stopOfflineSession(currentSession.id, `[Failsafe Stop] ${reason}`, stoppedSessionSec);
       }
+    },
+    [
+      activeSession,
+      status,
+      todayActiveSeconds,
+      todayWorkedSeconds,
+      sessionSeconds,
+      todayIdleSeconds,
+      todayBreakSeconds,
+      connectionState,
+      employee,
+    ],
+  );
+
+  // Listen for emergency stop from Main Process, beforeunload, and auth:expired
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      executeEmergencyStop('Window BeforeUnload / Close');
+    };
+
+    const handleAuthExpired = () => {
+      executeEmergencyStop('Session Expired');
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleBeforeUnload);
+    window.addEventListener('auth:expired', handleAuthExpired);
+
+    let cleanupEmergency: (() => void) | undefined;
+    if (window.electronAPI?.onEmergencyStop) {
+      cleanupEmergency = window.electronAPI.onEmergencyStop((reason) => {
+        executeEmergencyStop(reason || 'IPC Emergency Stop');
+      });
     }
 
-    if (employee) {
-      storage.setDailyState(
-        {
-          date: todayStr,
-          workedSeconds: todayWorkedSeconds,
-          activeSeconds: todayActiveSeconds,
-          idleSeconds: todayIdleSeconds,
-          breakSeconds: todayBreakSeconds,
-          lastPunchOutTime: activeSession ? punchOutStr : lastPunchOutTime,
-        },
-        employee,
-      );
-    }
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleBeforeUnload);
+      window.removeEventListener('auth:expired', handleAuthExpired);
+      if (cleanupEmergency) cleanupEmergency();
+    };
+  }, [executeEmergencyStop]);
 
+  const handleLogoutWithReset = async () => {
+    await executeEmergencyStop('User Logout');
     setStatus('OFFLINE');
     setActiveSession(null);
     setIsIdle(false);

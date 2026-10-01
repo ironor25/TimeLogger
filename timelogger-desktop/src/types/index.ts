@@ -175,6 +175,8 @@ export interface ElectronAPI {
   };
   // Connectivity probe
   probeConnection: (targetUrl: string) => Promise<boolean>;
+  // Failsafe & Emergency Stop
+  onEmergencyStop: (callback: (reason?: string) => void) => () => void;
 }
 
 declare global {
