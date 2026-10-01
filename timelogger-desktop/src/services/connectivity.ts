@@ -26,20 +26,21 @@ export const connectivity = {
           isBackendReachable: reachable,
         };
       } catch {
-        // Fallback to fetch
+        // Fallback to direct fetch
       }
     }
 
     // 2. Direct HTTP probe
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      const res = await fetch(`${serverUrl}/health`, {
+      const probeUrl = serverUrl.replace(/\/+$/, '');
+      const res = await fetch(`${probeUrl}/health`, {
         method: 'GET',
         signal: controller.signal,
       }).catch(async () => {
-        return await fetch(serverUrl, {
+        return await fetch(probeUrl, {
           method: 'GET',
           signal: controller.signal,
         });
@@ -51,8 +52,9 @@ export const connectivity = {
         isBackendReachable: res.status < 500,
       };
     } catch {
+      // If navigator.onLine is true, assume network is online even if probe timed out
       return {
-        isOnline: true,
+        isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
         isBackendReachable: false,
       };
     }

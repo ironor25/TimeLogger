@@ -44,7 +44,11 @@ export const authService = {
       };
     } catch (err: any) {
       const msg = err?.message || 'Login failed';
-      const isInvalid = msg.toLowerCase().includes('credential') || msg.toLowerCase().includes('password') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('401');
+      const isInvalid =
+        msg.toLowerCase().includes('credential') ||
+        msg.toLowerCase().includes('password') ||
+        msg.toLowerCase().includes('unauthorized') ||
+        msg.toLowerCase().includes('401');
       return {
         success: false,
         isOnline: !msg.includes('Network error'),
@@ -71,8 +75,10 @@ export const authService = {
       storage.setServerUrl(saved.serverUrl);
     }
 
-    // If we have saved password, perform normal agent login
-    if (saved.password) {
+    const isNetOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+    // 1. If we have saved password and internet is connected, perform agent login
+    if (saved.password && isNetOnline) {
       try {
         const data = await agentApi.login({
           email: saved.email,
@@ -99,10 +105,14 @@ export const authService = {
       } catch (err: any) {
         const msg = err?.message || 'Auto-login failed';
         const isNetworkErr = msg.includes('Network error') || msg.includes('fetch');
-        const isInvalid = msg.toLowerCase().includes('credential') || msg.toLowerCase().includes('password') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('401');
+        const isInvalid =
+          msg.toLowerCase().includes('credential') ||
+          msg.toLowerCase().includes('password') ||
+          msg.toLowerCase().includes('unauthorized') ||
+          msg.toLowerCase().includes('401');
 
         if (isNetworkErr) {
-          // Restore state for offline mode
+          // Network unreachable -> Restore state for offline mode
           this.restoreSavedState(saved);
           return {
             success: true,
@@ -120,20 +130,36 @@ export const authService = {
       }
     }
 
-    // If password not stored but tokens exist, restore state
+    // 2. If password not stored but tokens exist (e.g. existing session / token auth)
     if (saved.tokens?.accessToken) {
       this.restoreSavedState(saved);
+      if (isNetOnline) {
+        try {
+          const summary = await agentApi.getTodaySummary();
+          if (summary) {
+            return {
+              success: true,
+              isOnline: true,
+              data: saved,
+            };
+          }
+        } catch {
+          // Token verification failed or server error
+        }
+      }
       return {
         success: true,
-        isOnline: false,
+        isOnline: isNetOnline,
         data: saved,
       };
     }
 
+    // 3. Fallback when offline
+    this.restoreSavedState(saved);
     return {
-      success: false,
-      isOnline: true,
-      error: 'Incomplete saved credentials',
+      success: true,
+      isOnline: false,
+      data: saved,
     };
   },
 

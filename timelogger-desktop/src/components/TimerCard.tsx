@@ -6,6 +6,7 @@ interface TimerCardProps {
   status: SessionStatus;
   sessionSeconds: number;
   todayWorkedSeconds: number;
+  todayActiveSeconds?: number;
   breakSeconds: number;
   isIdle: boolean;
   idleSeconds: number;
@@ -24,6 +25,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
   status,
   sessionSeconds,
   todayWorkedSeconds,
+  todayActiveSeconds,
   breakSeconds,
   isIdle,
   idleSeconds,
@@ -58,6 +60,8 @@ export const TimerCard: React.FC<TimerCardProps> = ({
   const isBreak = status === 'BREAK';
   const isIdleMode = status === 'IDLE';
   const isIdleWarning = status === 'IDLE_WARNING';
+
+  const activeWorkedSec = todayActiveSeconds !== undefined ? todayActiveSeconds : todayWorkedSeconds;
 
   return (
     <div className="bg-[#ffffff] border border-[#e0e0e0] rounded-none p-5 space-y-4 font-sans tracking-carbon">
@@ -129,21 +133,21 @@ export const TimerCard: React.FC<TimerCardProps> = ({
             ? formatTime(breakSeconds)
             : isIdleMode
             ? formatTime(currentIdleDuration)
-            : formatTime(todayWorkedSeconds)}
+            : formatTime(activeWorkedSec)}
         </div>
         <p className="text-xs text-[#525252] font-normal mt-1.5">
           {isBreak
-            ? `On Break: ${formatHoursMins(breakSeconds)} • Previous Worked: ${formatHoursMins(todayWorkedSeconds)}`
+            ? `On Break: ${formatHoursMins(breakSeconds)} • Active Worked: ${formatHoursMins(activeWorkedSec)}`
             : isIdleMode
-            ? `Inactivity Detected: ${formatHoursMins(currentIdleDuration)} • Total Worked: ${formatHoursMins(todayWorkedSeconds)}`
+            ? `Inactivity Detected: ${formatHoursMins(currentIdleDuration)} • Active Worked: ${formatHoursMins(activeWorkedSec)}`
             : isIdleWarning
-            ? `Inactivity Warning (${idleSeconds}s) • Total Worked: ${formatHoursMins(todayWorkedSeconds)}`
+            ? `Inactivity Warning (${idleSeconds}s) • Active Worked: ${formatHoursMins(activeWorkedSec)}`
             : isActive
-            ? `Session Active (${formatHoursMins(sessionSeconds)}) • Today Total: ${formatHoursMins(todayWorkedSeconds)}`
+            ? `Session Active (${formatHoursMins(sessionSeconds)}) • Active Worked: ${formatHoursMins(activeWorkedSec)}`
             : lastPunchOutTime
-            ? `Last Out: ${lastPunchOutTime} • Previous Total: ${formatHoursMins(todayWorkedSeconds)}`
-            : todayWorkedSeconds > 0
-            ? `Previous Total: ${formatHoursMins(todayWorkedSeconds)}`
+            ? `Last Out: ${lastPunchOutTime} • Active Worked: ${formatHoursMins(activeWorkedSec)}`
+            : activeWorkedSec > 0
+            ? `Active Worked: ${formatHoursMins(activeWorkedSec)}`
             : 'Ready to Punch In'}
         </p>
       </div>
@@ -157,7 +161,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
             className="col-span-2 py-3 px-4 rounded-none bg-[#0f62fe] hover:bg-[#0043ce] active:bg-[#002d9c] text-white font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
           >
             <Play className="w-4 h-4 fill-white" />
-            <span>{loading ? 'Starting...' : todayWorkedSeconds > 0 ? 'Punch In (Resume Today)' : 'Punch In (Start Work)'}</span>
+            <span>{loading ? 'Starting...' : activeWorkedSec > 0 ? 'Punch In (Resume Today)' : 'Punch In (Start Work)'}</span>
           </button>
         ) : isIdleMode ? (
           <>

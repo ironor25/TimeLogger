@@ -397,13 +397,14 @@ ipcMain.handle('offline-db:clear-all', () => {
 ipcMain.handle('connectivity:probe', async (_event, targetUrl: string) => {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-    const probeUrl = targetUrl.replace(/\/+$/, '');
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const probeUrl = (targetUrl || '').replace(/\/+$/, '');
+    
+    // Try /health or base URL
     const res = await fetch(`${probeUrl}/health`, {
       method: 'GET',
       signal: controller.signal,
     }).catch(async () => {
-      // Fallback probe to targetUrl directly
       return await fetch(probeUrl, {
         method: 'GET',
         signal: controller.signal,
@@ -415,4 +416,5 @@ ipcMain.handle('connectivity:probe', async (_event, targetUrl: string) => {
     return false;
   }
 });
+
 

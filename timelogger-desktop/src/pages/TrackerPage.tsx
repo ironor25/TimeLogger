@@ -116,8 +116,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
       }
     });
 
-    // If online on startup, fetch authoritative server summary
-    if (initialIsOnline && connectionState === 'CONNECTED') {
+    // If internet is connected on mount, fetch authoritative server summary and set CONNECTED
+    const isNetOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    if (isNetOnline) {
       agentApi
         .getTodaySummary(todayStr)
         .then((summary) => {
@@ -127,6 +128,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
           setTodayIdleSeconds(summary.idleSeconds || 0);
           setTodayBreakSeconds(summary.breakSeconds || 0);
           setLastPunchOutTime(summary.lastPunchOutTime || '');
+          setConnectionState('CONNECTED');
+          setErrorMessage('');
 
           if (summary.activeSession) {
             setActiveSession(summary.activeSession);
@@ -138,10 +141,15 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
             setSessionSeconds(curElapsed);
             window.electronAPI?.updateTrayStatus(isPaused ? 'On Break' : 'Working');
           } else {
-            setActiveSession(null);
-            setStatus('OFFLINE');
-            setSessionSeconds(0);
-            window.electronAPI?.updateTrayStatus('Offline');
+            // No active session on server
+            localDb.getActiveSession(employee?.id).then((localActive) => {
+              if (!localActive) {
+                setActiveSession(null);
+                setStatus('OFFLINE');
+                setSessionSeconds(0);
+                window.electronAPI?.updateTrayStatus('Offline');
+              }
+            });
           }
 
           storage.setDailyState(
@@ -170,13 +178,32 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
     };
 
     const handleOnline = () => {
-      console.log('[NETWORK] Internet restored. Prompting user to reconnect via status bar.');
-      // Keep state as OFFLINE until user clicks "Click here to go online"
-      // or if connection was already CONNECTED, retain it
+      console.log('[NETWORK] Internet restored. Verifying server connection...');
+      const todayStr = getTodayDateStr();
+      agentApi
+        .getTodaySummary(todayStr)
+        .then((summary) => {
+          if (summary) {
+            setConnectionState('CONNECTED');
+            setErrorMessage('');
+            setTodayWorkedSeconds(summary.workedSeconds ?? summary.activeSeconds ?? 0);
+            setTodayActiveSeconds(summary.activeSeconds ?? summary.workedSeconds ?? 0);
+            setTodayIdleSeconds(summary.idleSeconds || 0);
+            setTodayBreakSeconds(summary.breakSeconds || 0);
+            if (summary.lastPunchOutTime) {
+              setLastPunchOutTime(summary.lastPunchOutTime);
+            }
+          }
+        })
+        .catch(() => {
+          // If server is not yet reachable, keep OFFLINE
+          setConnectionState('OFFLINE');
+        });
     };
 
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
+
 
     return () => {
       window.removeEventListener('offline', handleOffline);
@@ -976,6 +1003,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
           status={status}
           sessionSeconds={sessionSeconds}
           todayWorkedSeconds={todayWorkedSeconds}
+          todayActiveSeconds={todayActiveSeconds}
           breakSeconds={breakSeconds}
           isIdle={isIdle}
           idleSeconds={idleSeconds}

@@ -25,10 +25,9 @@ export function App() {
         const saved = await credentials.get();
 
         if (hasCreds && saved && saved.email) {
-          // Saved credentials exist
-          const conn = await connectivity.check();
+          const isNetOnline = connectivity.isOnlineFast();
 
-          if (conn.isOnline && conn.isBackendReachable) {
+          if (isNetOnline) {
             // CASE A: Internet available -> Authenticate automatically
             const authRes = await authService.loginWithSavedCredentials();
             if (!isMounted) return;
@@ -40,7 +39,7 @@ export function App() {
               setIsAuthenticated(false);
               setAuthError('Your saved login session is no longer valid. Please log in again.');
             } else {
-              // Network / server glitch -> Open in OFFLINE mode
+              // Server glitch or unreachable -> Open in OFFLINE mode
               authService.restoreSavedState(saved);
               setIsAuthenticated(true);
               setInitialIsOnline(false);
