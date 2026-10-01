@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Header } from '../components/Header';
 import { TimerCard } from '../components/TimerCard';
 import { WorkNotesModal } from '../components/WorkNotesModal';
@@ -8,7 +8,9 @@ import { SettingsModal } from '../components/SettingsModal';
 import { IdleWarningModal } from '../components/IdleWarningModal';
 import { agentApi } from '../services/api';
 import { storage } from '../services/storage';
-import { LogOut, CloudOff, RefreshCw } from 'lucide-react';
+import { durableOfflineStore } from '../services/durable-offline-store';
+import { syncWorker, SyncStatusInfo } from '../services/sync-worker';
+import { LogOut, CloudOff, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { SessionStatus, ActiveSession, CapturedScreenshot, IdleConfig } from '../types';
 
 interface TrackerPageProps {
@@ -20,9 +22,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
   const organization = useMemo(() => storage.getOrganization(), []);
   const schedule = useMemo(() => storage.getSchedule(), []);
 
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatusInfo>(() => syncWorker.getStatus());
 
   // State Machine: OFFLINE | ACTIVE | IDLE_WARNING | IDLE | BREAK
   const [status, setStatus] = useState<SessionStatus>('OFFLINE');
@@ -62,16 +62,18 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
   const getTodayDateStr = () => new Date().toISOString().split('T')[0];
 
-  const updatePendingCount = useCallback(() => {
-    const qCount = storage.getOfflineQueue().length;
-    const scCount = storage.getOfflineScreenshots().length;
-    setPendingSyncCount(qCount + scCount);
-  }, []);
-
-  // 1. Initial Load: Load Cached Data and fetch authoritative Summary from DB ONCE
+  // 1. Initial Load: Load Cached Data, subscribe to Sync Worker, fetch authoritative Summary from DB ONCE
   useEffect(() => {
     const todayStr = getTodayDateStr();
-    updatePendingCount();
+
+    // Subscribe to background sync worker updates
+    const unsubscribeSync = syncWorker.subscribe((statusInfo) => {
+      setSyncStatus(statusInfo);
+    });
+
+    syncWorker.setSessionMappedCallback((oldId, newId) => {
+      setActiveSession((prev) => (prev && prev.id === oldId ? { ...prev, id: newId } : prev));
+    });
 
     // Check if this specific employee has an entry in the local array for today
     const employeeIdentifier = employee?.email || employee?.id;
@@ -133,69 +135,11 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       .catch((err) => {
         console.warn('Initial summary fetch error (offline or server starting):', err?.message);
       });
-  }, []); // Run ONCE on mount
-
-  // Online / Offline & Background Sync Worker
-  const runSync = useCallback(async () => {
-    if (!navigator.onLine || isSyncing) return;
-
-    try {
-      setIsSyncing(true);
-      const res = await agentApi.syncAllOfflineData(
-        activeSession?.id,
-        (oldId, newId) => {
-          if (activeSession?.id === oldId) {
-            setActiveSession((prev) => (prev ? { ...prev, id: newId } : prev));
-          }
-        },
-      );
-      updatePendingCount();
-
-      if (res.syncedSessions > 0 || res.syncedScreenshots > 0 || res.syncedTelemetry > 0) {
-        console.log(`[SYNC] Synced ${res.syncedSessions} sessions, ${res.syncedScreenshots} screenshots`);
-        const todayStr = getTodayDateStr();
-        const summary = await agentApi.getTodaySummary(todayStr);
-        if (summary) {
-          setTodayWorkedSeconds(summary.workedSeconds ?? summary.activeSeconds ?? 0);
-          setTodayActiveSeconds(summary.activeSeconds ?? summary.workedSeconds ?? 0);
-          setTodayBreakSeconds(summary.breakSeconds || 0);
-          if (summary.activeSession) {
-            setActiveSession(summary.activeSession);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('[SYNC] Sync attempt failed:', err);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isSyncing, updatePendingCount, activeSession]);
-
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      runSync();
-    };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    const syncInterval = setInterval(() => {
-      if (navigator.onLine) {
-        runSync();
-      }
-    }, 30000);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      clearInterval(syncInterval);
+      unsubscribeSync();
     };
-  }, [runSync]);
+  }, [employee]); // Run ONCE on mount
 
   // 2. High Resolution Timer & System-Wide Idle Detection State Machine (1s Tick)
   useEffect(() => {
@@ -299,7 +243,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           console.log(`[IDLE] Activity detected. Idle ended. Confirmed idle duration: ${idleDurationSec}s.`);
 
           // Record idle telemetry heartbeat immediately
-          if (activeSession && !activeSession.id.startsWith('offline_')) {
+          if (activeSession) {
             agentApi
               .sendHeartbeat({
                 sessionId: activeSession.id,
@@ -354,7 +298,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
   // 3. Telemetry Heartbeat Scheduler (Every 60s)
   useEffect(() => {
-    if (status === 'OFFLINE' || !activeSession || activeSession.id.startsWith('offline_')) return;
+    if (status === 'OFFLINE' || !activeSession) return;
 
     const heartbeatInterval = setInterval(async () => {
       const act = activeBucketSecRef.current;
@@ -377,13 +321,12 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       } catch (err: any) {
         console.warn('[HEARTBEAT] Warning:', err?.message);
       }
-      updatePendingCount();
     }, 60000);
 
     return () => clearInterval(heartbeatInterval);
-  }, [status, activeSession, workNotes, updatePendingCount]);
+  }, [status, activeSession, workNotes]);
 
-  // 4. Screenshot Pipeline with 1-Second Activity Bucket Ratio
+  // 4. Screenshot Pipeline with 1-Second Activity Bucket Ratio and Durable Offline Persistence
   const executeScreenshotCapture = async (sessionId: string) => {
     if (!window.electronAPI) return;
 
@@ -411,7 +354,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       windowActiveSecondsRef.current = 0;
       windowIdleSecondsRef.current = 0;
 
-      if (navigator.onLine && !sessionId.startsWith('offline_')) {
+      if (syncStatus.isOnline && !sessionId.startsWith('offline_')) {
         try {
           const res = await agentApi.uploadScreenshotPipeline({
             sessionId,
@@ -436,12 +379,12 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           setScreenshots((prev) => [newScreenshot, ...prev.slice(0, 19)]);
           return;
         } catch (uploadErr) {
-          console.warn('[SCREENSHOT] Online upload failed, saving offline:', uploadErr);
+          console.warn('[SCREENSHOT] Online upload failed, persisting to durable offline store:', uploadErr);
         }
       }
 
-      // Save to Offline Screenshot Queue
-      storage.addOfflineScreenshot({
+      // Save to Durable Offline Screenshot Storage (Disk JPEG file + SQLite / JSON queue)
+      await durableOfflineStore.enqueueScreenshot({
         sessionId,
         capturedAt: capture.capturedAt,
         fileSize: capture.fileSize,
@@ -450,10 +393,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         height: capture.height,
         activityPercentage: actPct,
         base64: capture.base64,
-        dataUrl: capture.dataUrl,
       });
-
-      updatePendingCount();
 
       const newScreenshot: CapturedScreenshot = {
         id: `offline_${Date.now()}`,
@@ -464,12 +404,15 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       };
 
       setScreenshots((prev) => [newScreenshot, ...prev.slice(0, 19)]);
+
+      // Request automatic sync in background if connection is healthy
+      syncWorker.triggerAutoSync(sessionId);
     } catch (err: any) {
       console.error('[SCREENSHOT] Capture error:', err);
     }
   };
 
-  // Automated Periodic Screenshot Pipeline (Default: 5 Minutes or organization / schedule configured interval)
+  // Automated Periodic Screenshot Pipeline (Default: 5 Minutes or organization configured interval)
   useEffect(() => {
     if (status === 'OFFLINE' || status === 'BREAK' || !activeSession) return;
 
@@ -496,14 +439,13 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     try {
       let session: ActiveSession;
 
-      if (navigator.onLine) {
+      if (syncStatus.isOnline) {
         try {
           session = await agentApi.startWorkSession({
             notes: workNotes || undefined,
           });
         } catch (netErr: any) {
           console.warn('Network / API response starting session:', netErr);
-          // If already active or error occurs, fetch current active server session first
           const current = await agentApi.getCurrentSession().catch(() => null);
           if (current) {
             session = current;
@@ -512,17 +454,17 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             if (todaySum?.activeSession) {
               session = todaySum.activeSession;
             } else {
-              session = createOfflineSession();
+              session = await createOfflineSession();
             }
           }
         }
       } else {
-        session = createOfflineSession();
+        session = await createOfflineSession();
       }
 
-      // Refresh authoritative today summary on start
+      // Refresh authoritative today summary on start if online
       const todayStr = getTodayDateStr();
-      if (navigator.onLine && !session.id.startsWith('offline_')) {
+      if (syncStatus.isOnline && !session.id.startsWith('offline_')) {
         const todaySum = await agentApi.getTodaySummary(todayStr).catch(() => null);
         if (todaySum) {
           setTodayWorkedSeconds(todaySum.workedSeconds ?? todaySum.activeSeconds ?? 0);
@@ -570,11 +512,11 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     }
   };
 
-  const createOfflineSession = (): ActiveSession => {
+  const createOfflineSession = async (): Promise<ActiveSession> => {
     const offlineId = `offline_sess_${Date.now()}`;
     const startedAt = new Date().toISOString();
 
-    storage.addToOfflineQueue({
+    await durableOfflineStore.enqueueEvent({
       type: 'SESSION_START',
       endpoint: '/agent/work-sessions/sync-offline',
       payload: {
@@ -582,8 +524,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         startedAt,
         notes: workNotes || undefined,
       },
+      occurredAt: startedAt,
     });
-    updatePendingCount();
 
     return {
       id: offlineId,
@@ -612,7 +554,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       // Flush any telemetry buffers before stopping
       const act = activeBucketSecRef.current;
       const idl = idleBucketSecRef.current;
-      if ((act > 0 || idl > 0) && !activeSession.id.startsWith('offline_') && navigator.onLine) {
+      if ((act > 0 || idl > 0) && !activeSession.id.startsWith('offline_') && syncStatus.isOnline) {
         activeBucketSecRef.current = 0;
         idleBucketSecRef.current = 0;
         await agentApi
@@ -628,7 +570,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       }
 
       if (activeSession.id.startsWith('offline_')) {
-        storage.addToOfflineQueue({
+        await durableOfflineStore.enqueueEvent({
           type: 'SESSION_STOP',
           endpoint: '/agent/work-sessions/sync-offline',
           payload: {
@@ -637,9 +579,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             endedAt: now.toISOString(),
             notes: workNotes || undefined,
           },
+          occurredAt: now.toISOString(),
         });
-        updatePendingCount();
-      } else if (navigator.onLine) {
+      } else if (syncStatus.isOnline) {
         try {
           await agentApi.stopWorkSession({
             sessionId: activeSession.id,
@@ -668,26 +610,26 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             );
           }
         } catch {
-          storage.addToOfflineQueue({
+          await durableOfflineStore.enqueueEvent({
             type: 'SESSION_STOP',
             endpoint: '/agent/work-sessions/stop',
             payload: {
               sessionId: activeSession.id,
               notes: workNotes || undefined,
             },
+            occurredAt: now.toISOString(),
           });
-          updatePendingCount();
         }
       } else {
-        storage.addToOfflineQueue({
+        await durableOfflineStore.enqueueEvent({
           type: 'SESSION_STOP',
           endpoint: '/agent/work-sessions/stop',
           payload: {
             sessionId: activeSession.id,
             notes: workNotes || undefined,
           },
+          occurredAt: now.toISOString(),
         });
-        updatePendingCount();
       }
 
       setStatus('OFFLINE');
@@ -706,6 +648,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
         title: 'Work Session Stopped',
         body: `Punched out at ${punchOutStr}. Today Total: ${Math.floor(todayWorkedSeconds / 3600)}h ${Math.floor((todayWorkedSeconds % 3600) / 60)}m`,
       });
+
+      // Automatically trigger sync worker
+      syncWorker.triggerAutoSync();
     } catch (err: any) {
       alert(err.message || 'Failed to stop session');
     } finally {
@@ -717,18 +662,18 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     if (!activeSession) return;
     setLoading(true);
     try {
-      if (navigator.onLine && !activeSession.id.startsWith('offline_')) {
+      if (syncStatus.isOnline && !activeSession.id.startsWith('offline_')) {
         await agentApi.startBreak({
           sessionId: activeSession.id,
           reason,
         });
       } else {
-        storage.addToOfflineQueue({
+        await durableOfflineStore.enqueueEvent({
           type: 'SESSION_BREAK_START',
           endpoint: '/agent/work-sessions/break/start',
           payload: { sessionId: activeSession.id, reason },
+          occurredAt: new Date().toISOString(),
         });
-        updatePendingCount();
       }
 
       setStatus('BREAK');
@@ -752,15 +697,15 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     if (!activeSession) return;
     setLoading(true);
     try {
-      if (navigator.onLine && !activeSession.id.startsWith('offline_')) {
+      if (syncStatus.isOnline && !activeSession.id.startsWith('offline_')) {
         await agentApi.endBreak({ sessionId: activeSession.id });
       } else {
-        storage.addToOfflineQueue({
+        await durableOfflineStore.enqueueEvent({
           type: 'SESSION_BREAK_END',
           endpoint: '/agent/work-sessions/break/end',
           payload: { sessionId: activeSession.id },
+          occurredAt: new Date().toISOString(),
         });
-        updatePendingCount();
       }
 
       setStatus('ACTIVE');
@@ -816,10 +761,9 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     const punchOutStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const todayStr = getTodayDateStr();
 
-    // 1. If currently in an active session or break or idle, gracefully punch out on the backend first!
     if (activeSession) {
       if (activeSession.id.startsWith('offline_')) {
-        storage.addToOfflineQueue({
+        await durableOfflineStore.enqueueEvent({
           type: 'SESSION_STOP',
           endpoint: '/agent/work-sessions/sync-offline',
           payload: {
@@ -828,36 +772,39 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
             endedAt: now.toISOString(),
             notes: workNotes || undefined,
           },
+          occurredAt: now.toISOString(),
         });
-      } else if (navigator.onLine) {
+      } else if (syncStatus.isOnline) {
         try {
           await agentApi.stopWorkSession({
             sessionId: activeSession.id,
             notes: workNotes || undefined,
           });
         } catch {
-          storage.addToOfflineQueue({
+          await durableOfflineStore.enqueueEvent({
             type: 'SESSION_STOP',
             endpoint: '/agent/work-sessions/stop',
             payload: {
               sessionId: activeSession.id,
               notes: workNotes || undefined,
             },
+            occurredAt: now.toISOString(),
           });
         }
       } else {
-        storage.addToOfflineQueue({
+        await durableOfflineStore.enqueueEvent({
           type: 'SESSION_STOP',
           endpoint: '/agent/work-sessions/stop',
           payload: {
             sessionId: activeSession.id,
             notes: workNotes || undefined,
           },
+          occurredAt: now.toISOString(),
         });
       }
     }
 
-    // 2. Save final daily state to employee array
+    // Save final daily state to employee array
     if (employee) {
       storage.setDailyState(
         {
@@ -872,7 +819,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
       );
     }
 
-    // 3. Clear local in-memory states and update tray
+    // Clear local in-memory states and update tray
     setStatus('OFFLINE');
     setActiveSession(null);
     setIsIdle(false);
@@ -887,7 +834,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
     setLastPunchOutTime('');
     window.electronAPI?.updateTrayStatus('Offline');
 
-    // 4. Trigger logout
+    // Trigger logout
     onLogout();
   };
 
@@ -897,11 +844,11 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden select-none bg-[#f4f4f4] text-[#161616] font-sans tracking-carbon">
-      <Header onOpenSettings={() => setIsSettingsOpen(true)} isOnline={isOnline} />
+      <Header onOpenSettings={() => setIsSettingsOpen(true)} isOnline={syncStatus.isOnline} />
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 scrollbar-thin scrollbar-thumb-[#e0e0e0]">
-        {/* Employee Bar & Online Status */}
+        {/* Employee Bar & Automatic Sync Status */}
         <div className="flex items-center justify-between bg-[#ffffff] border border-[#e0e0e0] rounded-none px-3 py-2 text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-7 h-7 rounded-none bg-[#0f62fe] text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
@@ -927,18 +874,41 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ onLogout }) => {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {pendingSyncCount > 0 && (
-              <button
-                type="button"
-                onClick={runSync}
-                disabled={isSyncing}
-                title="Sync offline records to server"
-                className="px-2 py-1 rounded-none bg-[#fdf2cc] border border-[#f1c21b] text-[#6d4f00] text-xs font-medium flex items-center gap-1 transition-colors hover:bg-[#fae79d] cursor-pointer"
+            {/* Real-time sync status indicator */}
+            {syncStatus.syncState === 'SYNCING' && (
+              <div className="px-2 py-1 rounded-none bg-[#edf5ff] border border-[#0f62fe] text-[#0f62fe] text-xs font-medium flex items-center gap-1.5 animate-pulse">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#0f62fe]" />
+                <span>
+                  Syncing {syncStatus.syncedCount > 0 ? `${syncStatus.syncedCount}/${syncStatus.totalToSync}` : '...'}
+                </span>
+              </div>
+            )}
+
+            {syncStatus.syncState === 'SYNC_COMPLETE' && (
+              <div className="px-2 py-1 rounded-none bg-[#defbe6] border border-[#24a148] text-[#0e6027] text-xs font-medium flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#24a148]" />
+                <span>Synced</span>
+              </div>
+            )}
+
+            {syncStatus.syncState === 'DISCONNECTED' && syncStatus.pendingCount > 0 && (
+              <div
+                className="px-2 py-1 rounded-none bg-[#fdf2cc] border border-[#f1c21b] text-[#6d4f00] text-xs font-medium flex items-center gap-1.5"
+                title="Offline: Saved locally and will sync automatically when reconnected."
               >
                 <CloudOff className="w-3.5 h-3.5 text-[#6d4f00]" />
-                <span>{isSyncing ? 'Syncing...' : `${pendingSyncCount} Offline`}</span>
-                <RefreshCw className={`w-3 h-3 ml-0.5 ${isSyncing ? 'animate-spin' : ''}`} />
-              </button>
+                <span>{syncStatus.pendingCount} Queued</span>
+              </div>
+            )}
+
+            {syncStatus.storageWarning && (
+              <div
+                className="px-2 py-1 rounded-none bg-[#fff1f1] border border-[#da1e28] text-[#da1e28] text-xs font-medium flex items-center gap-1.5"
+                title="Offline storage threshold reached. Data will continue syncing automatically."
+              >
+                <AlertCircle className="w-3.5 h-3.5 text-[#da1e28]" />
+                <span>Storage warning</span>
+              </div>
             )}
 
             {lastPunchOutTime && status === 'OFFLINE' && (

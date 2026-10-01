@@ -625,13 +625,107 @@ export class WorkSessionsService {
     const startedAt = new Date(dto.startedAt);
     const endedAt = dto.endedAt ? new Date(dto.endedAt) : null;
     const durationSeconds =
-      dto.durationSeconds ||
-      (endedAt ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)) : 0);
+      dto.durationSeconds !== undefined
+        ? dto.durationSeconds
+        : endedAt
+        ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000))
+        : 0;
     const status = endedAt ? WorkSessionStatus.COMPLETED : WorkSessionStatus.ACTIVE;
 
     const employee = await this.prisma.employee.findFirst({
       where: { id: employeeId, organizationId },
     });
+
+    // 1. Idempotency Check: Look for an existing session with same clientSessionId in notes or same startedAt
+    let existingSession = null;
+    if (dto.clientSessionId) {
+      existingSession = await this.prisma.workSession.findFirst({
+        where: {
+          organizationId,
+          employeeId,
+          notes: { contains: `[ClientSessionId: ${dto.clientSessionId}]` },
+        },
+        include: {
+          project: true,
+          task: true,
+        },
+      });
+    }
+
+    if (!existingSession) {
+      // Check for exact timestamp match within 3 seconds
+      const minTime = new Date(startedAt.getTime() - 3000);
+      const maxTime = new Date(startedAt.getTime() + 3000);
+      existingSession = await this.prisma.workSession.findFirst({
+        where: {
+          organizationId,
+          employeeId,
+          startedAt: { gte: minTime, lte: maxTime },
+        },
+        include: {
+          project: true,
+          task: true,
+        },
+      });
+    }
+
+    if (existingSession) {
+      // If session exists and new payload contains an endedAt while existing is not completed, update it
+      if (endedAt && existingSession.status !== WorkSessionStatus.COMPLETED) {
+        const updated = await this.prisma.workSession.update({
+          where: { id: existingSession.id },
+          data: {
+            endedAt,
+            durationSeconds,
+            status: WorkSessionStatus.COMPLETED,
+            endSource: 'OFFLINE_SYNC',
+            notes: dto.notes
+              ? existingSession.notes?.includes(dto.notes)
+                ? existingSession.notes
+                : `${existingSession.notes} | ${dto.notes}`
+              : existingSession.notes,
+          },
+          include: {
+            project: true,
+            task: true,
+          },
+        });
+
+        // Update attendance record
+        const today = new Date(startedAt);
+        today.setHours(0, 0, 0, 0);
+
+        const attendance = await this.prisma.attendanceRecord.findUnique({
+          where: {
+            organizationId_employeeId_date: {
+              organizationId,
+              employeeId,
+              date: today,
+            },
+          },
+        });
+
+        if (attendance) {
+          await this.prisma.attendanceRecord.update({
+            where: { id: attendance.id },
+            data: {
+              lastPunchOut: endedAt,
+              totalWorkSeconds: { increment: durationSeconds },
+            },
+          });
+        }
+
+        return updated;
+      }
+
+      return existingSession;
+    }
+
+    // 2. Create new session with idempotency tag in notes
+    const noteTag = dto.clientSessionId
+      ? `[ClientSessionId: ${dto.clientSessionId}]`
+      : '[Offline Sync]';
+    const finalNotes = dto.notes ? `${noteTag} ${dto.notes}` : noteTag;
 
     const session = await this.prisma.workSession.create({
       data: {
@@ -647,13 +741,58 @@ export class WorkSessionsService {
         timezone: employee?.timezone || 'UTC',
         startSource: 'DESKTOP_AGENT',
         endSource: endedAt ? 'OFFLINE_SYNC' : null,
-        notes: dto.notes ? `[Offline Sync] ${dto.notes}` : '[Offline Sync]',
+        notes: finalNotes,
       },
       include: {
         project: true,
         task: true,
       },
     });
+
+    // 3. Update or create today's AttendanceRecord
+    const today = new Date(startedAt);
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await this.prisma.attendanceRecord.findUnique({
+      where: {
+        organizationId_employeeId_date: {
+          organizationId,
+          employeeId,
+          date: today,
+        },
+      },
+    });
+
+    if (!attendance) {
+      await this.prisma.attendanceRecord.create({
+        data: {
+          organizationId,
+          employeeId,
+          date: today,
+          status: AttendanceStatus.PRESENT,
+          firstPunchIn: startedAt,
+          lastPunchOut: endedAt || null,
+          totalWorkSeconds: durationSeconds,
+        },
+      });
+    } else {
+      const dataToUpdate: any = {
+        status: AttendanceStatus.PRESENT,
+      };
+      if (!attendance.firstPunchIn || startedAt < attendance.firstPunchIn) {
+        dataToUpdate.firstPunchIn = startedAt;
+      }
+      if (endedAt && (!attendance.lastPunchOut || endedAt > attendance.lastPunchOut)) {
+        dataToUpdate.lastPunchOut = endedAt;
+      }
+      if (durationSeconds > 0) {
+        dataToUpdate.totalWorkSeconds = { increment: durationSeconds };
+      }
+      await this.prisma.attendanceRecord.update({
+        where: { id: attendance.id },
+        data: dataToUpdate,
+      });
+    }
 
     return session;
   }

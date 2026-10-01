@@ -1,4 +1,5 @@
 import { storage } from './storage';
+import { durableOfflineStore } from './durable-offline-store';
 import { Project, Task, ActiveSession } from '../types';
 
 declare global {
@@ -14,6 +15,17 @@ declare global {
       captureScreenshot: () => Promise<any>;
       notify: (payload: { title: string; body: string }) => Promise<void>;
       updateTrayStatus: (statusText: string) => Promise<void>;
+      offlineStore?: {
+        enqueueEvent: (params: any) => Promise<any>;
+        saveScreenshot: (params: any) => Promise<any>;
+        getPendingItems: (limit?: number) => Promise<any[]>;
+        getPendingCount: () => Promise<number>;
+        updateItemStatus: (params: any) => Promise<boolean>;
+        readScreenshot: (filePath: string) => Promise<{ base64: string; size: number } | null>;
+        removeItem: (id: string) => Promise<boolean>;
+        getStorageStats: () => Promise<any>;
+        clearAll: () => Promise<boolean>;
+      };
     };
   }
 }
@@ -64,7 +76,7 @@ async function request<T = any>(
     return json.data !== undefined ? json.data : json;
   } catch (err: any) {
     if (err.name === 'TypeError' || err.message?.includes('fetch') || err.message?.includes('network')) {
-      throw new Error('Network error: Unable to connect to PulseTime API server.');
+      throw new Error('Network error: Unable to connect to TimeLogger API server.');
     }
     throw err;
   }
@@ -95,6 +107,27 @@ async function refreshToken(): Promise<boolean> {
 }
 
 export const agentApi = {
+  async checkHealth(): Promise<boolean> {
+    try {
+      const baseUrl = storage.getServerUrl();
+      const res = await fetch(`${baseUrl}/health/ping`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      }).catch(() => null);
+
+      if (res && res.ok) return true;
+
+      const fallbackRes = await fetch(`${baseUrl}/health`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      }).catch(() => null);
+
+      return !!(fallbackRes && fallbackRes.ok);
+    } catch {
+      return false;
+    }
+  },
+
   async login(payload: { email: string; password: string }) {
     let deviceInfo = {
       deviceIdentifier: 'DESKTOP-DEFAULT',
@@ -205,13 +238,14 @@ export const agentApi = {
         body: JSON.stringify(fullPayload),
       });
     } catch (err: any) {
-      // Store in offline queue if server is unreachable
-      storage.addToOfflineQueue({
+      // Store in durable offline queue if server is unreachable
+      await durableOfflineStore.enqueueEvent({
         type: 'HEARTBEAT',
         endpoint: '/agent/activity/heartbeat',
         payload: fullPayload,
+        occurredAt: payload.capturedAt,
       });
-      console.warn('Network offline: Queued heartbeat telemetry locally');
+      console.warn('Network offline: Queued heartbeat telemetry in durable store');
       return { queuedOffline: true };
     }
   },

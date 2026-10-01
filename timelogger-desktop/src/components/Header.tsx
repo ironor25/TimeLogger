@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Minus, X, Pin, PinOff, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Minus, X, Pin, PinOff, Settings, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { syncWorker, SyncStatusInfo } from '../services/sync-worker';
 import appLogo from '../assets/icon.png';
 
 interface HeaderProps {
@@ -7,8 +8,16 @@ interface HeaderProps {
   isOnline?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const [alwaysOnTop, setAlwaysOnTop] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatusInfo>(() => syncWorker.getStatus());
+
+  useEffect(() => {
+    const unsubscribe = syncWorker.subscribe((status) => {
+      setSyncStatus(status);
+    });
+    return unsubscribe;
+  }, []);
 
   const handleMinimize = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -41,23 +50,72 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
     WebkitAppRegion: 'no-drag',
   } as React.CSSProperties;
 
+  // Render status badge
+  const renderStatusBadge = () => {
+    const { syncState, pendingCount, syncedCount, totalToSync } = syncStatus;
+
+    if (syncState === 'SYNCING') {
+      return (
+        <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#e0e0e0] text-[10px] text-[#0f62fe] font-medium animate-pulse">
+          <RefreshCw className="w-3 h-3 animate-spin text-[#0f62fe]" />
+          <span>
+            Syncing {syncedCount > 0 ? `${syncedCount}/${totalToSync}` : 'timeline...'}
+          </span>
+        </div>
+      );
+    }
+
+    if (syncState === 'SYNC_COMPLETE') {
+      return (
+        <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#e0e0e0] text-[10px] text-[#24a148] font-medium">
+          <CheckCircle2 className="w-3 h-3 text-[#24a148]" />
+          <span>Synced</span>
+        </div>
+      );
+    }
+
+    if (syncState === 'DISCONNECTED') {
+      return (
+        <div
+          className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#e0e0e0] text-[10px]"
+          title="Offline: All activity and screenshots are saved locally and will upload automatically when connected."
+        >
+          <span className="w-1.5 h-1.5 rounded-none bg-[#f1c21b]" />
+          <span className="text-[#6d4f00] font-medium truncate max-w-[150px]">
+            {pendingCount > 0 ? `Offline (${pendingCount} queued)` : 'Offline — auto sync active'}
+          </span>
+        </div>
+      );
+    }
+
+    if (syncState === 'SYNC_ERROR') {
+      return (
+        <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#e0e0e0] text-[10px] text-[#da1e28] font-medium">
+          <AlertCircle className="w-3 h-3 text-[#da1e28]" />
+          <span>Retrying sync...</span>
+        </div>
+      );
+    }
+
+    // Default: CONNECTED
+    return (
+      <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#e0e0e0] text-[10px]">
+        <span className="w-1.5 h-1.5 rounded-none bg-[#24a148]" />
+        <span className="text-[#525252] font-medium">
+          {pendingCount > 0 ? `Connected (${pendingCount} to sync)` : 'Connected'}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <header className="h-10 bg-[#ffffff] border-b border-[#e0e0e0] flex items-center justify-between px-3 select-none app-region-drag font-sans tracking-carbon">
-      {/* Brand & Status */}
+      {/* Brand & Live Sync Status */}
       <div className="flex items-center gap-2 app-region-no-drag" style={noDragStyle}>
         <img src={appLogo} alt="TimeLogger" className="w-5 h-5 rounded-none object-contain flex-shrink-0" />
         <span className="font-semibold text-xs text-[#161616] tracking-tight">TimeLogger</span>
 
-        <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-[#e0e0e0] text-[10px]">
-          <span
-            className={`w-1.5 h-1.5 rounded-none ${
-              isOnline ? 'bg-[#24a148] animate-pulse' : 'bg-[#f1c21b]'
-            }`}
-          />
-          <span className="text-[#525252] font-medium">
-            {isOnline ? 'Connected' : 'Offline Mode'}
-          </span>
-        </div>
+        {renderStatusBadge()}
       </div>
 
       {/* Window Actions */}

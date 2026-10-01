@@ -304,3 +304,51 @@ ipcMain.handle('system:notify', (_event, { title, body }: { title: string; body:
 ipcMain.handle('tray:update-status', (_event, statusText: string) => {
   tray?.setToolTip(`TimeLogger: ${statusText}`);
 });
+
+// ==========================================
+// Durable Offline Storage IPC Handlers
+// ==========================================
+import { offlineStore } from './offline-store';
+
+app.whenReady().then(() => {
+  offlineStore.init();
+});
+
+ipcMain.handle('offline:enqueue-event', (_event, params: any) => {
+  return offlineStore.enqueueEvent(params);
+});
+
+ipcMain.handle('offline:save-screenshot', (_event, params: any) => {
+  return offlineStore.enqueueScreenshot(params);
+});
+
+ipcMain.handle('offline:get-pending-items', (_event, limit?: number) => {
+  return offlineStore.getPendingItems(limit);
+});
+
+ipcMain.handle('offline:get-pending-count', () => {
+  return offlineStore.getPendingCount();
+});
+
+ipcMain.handle('offline:update-item-status', (_event, { id, status, updates }: any) => {
+  offlineStore.updateItemStatus(id, status, updates);
+  return true;
+});
+
+ipcMain.handle('offline:read-screenshot', (_event, filePath: string) => {
+  return offlineStore.readScreenshotData(filePath);
+});
+
+ipcMain.handle('offline:remove-item', (_event, id: string) => {
+  return offlineStore.removeCompletedItem(id);
+});
+
+ipcMain.handle('offline:get-storage-stats', () => {
+  return offlineStore.getStorageStats();
+});
+
+ipcMain.handle('offline:clear-all', () => {
+  offlineStore.clearAll();
+  return true;
+});
+

@@ -29,4 +29,14 @@ export class HealthController {
       uptimeSeconds: Math.floor(process.uptime()),
     };
   }
+
+  @Public()
+  @Get('ping')
+  @ApiOperation({ summary: 'Lightweight connectivity ping endpoint' })
+  ping() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+    };
+  }
 }
