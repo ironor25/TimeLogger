@@ -30,4 +30,12 @@ export class AgentAuthController {
     console.log(`✅ [Desktop Login] Login successful: ${result.employee.displayName} (${result.employee.employeeCode})`);
     return result;
   }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Desktop Agent token rotation and session refresh' })
+  async agentRefresh(@Body() body: { refreshToken: string }) {
+    return this.authService.refreshTokens(body.refreshToken);
+  }
 }

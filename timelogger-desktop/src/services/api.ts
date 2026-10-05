@@ -61,27 +61,64 @@ async function request<T = any>(
   }
 }
 
+let isDesktopRefreshing = false;
+let desktopRefreshSubscribers: ((success: boolean) => void)[] = [];
+
 async function refreshToken(): Promise<boolean> {
   const { refreshToken } = storage.getTokens();
   if (!refreshToken) return false;
 
-  
+  if (isDesktopRefreshing) {
+    return new Promise<boolean>((resolve) => {
+      desktopRefreshSubscribers.push(resolve);
+    });
+  }
+
+  isDesktopRefreshing = true;
+
   try {
     const baseUrl = storage.getServerUrl();
-    const res = await fetch(`${baseUrl}/auth/refresh`, {
+    // Try agent refresh first, fallback to standard refresh
+    let res = await fetch(`${baseUrl}/agent/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     });
 
-    if (!res.ok) return false;
+    if (!res.ok) {
+      res = await fetch(`${baseUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+    }
+
+    if (!res.ok) {
+      desktopRefreshSubscribers.forEach((cb) => cb(false));
+      desktopRefreshSubscribers = [];
+      isDesktopRefreshing = false;
+      return false;
+    }
+
     const data = await res.json();
-    if (data.success && data.data?.tokens) {
-      storage.setTokens(data.data.tokens.accessToken, data.data.tokens.refreshToken);
+    const payload = data.data || data;
+    const tokens = payload?.tokens || payload;
+    if (tokens?.accessToken) {
+      storage.setTokens(tokens.accessToken, tokens.refreshToken);
+      desktopRefreshSubscribers.forEach((cb) => cb(true));
+      desktopRefreshSubscribers = [];
+      isDesktopRefreshing = false;
       return true;
     }
+
+    desktopRefreshSubscribers.forEach((cb) => cb(false));
+    desktopRefreshSubscribers = [];
+    isDesktopRefreshing = false;
     return false;
   } catch {
+    desktopRefreshSubscribers.forEach((cb) => cb(false));
+    desktopRefreshSubscribers = [];
+    isDesktopRefreshing = false;
     return false;
   }
 }

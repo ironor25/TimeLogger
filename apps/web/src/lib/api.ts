@@ -4,6 +4,46 @@ export interface ApiFetchOptions extends RequestInit {
   params?: Record<string, any>;
 }
 
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function onTokenRefreshed(newToken: string) {
+  refreshSubscribers.forEach((cb) => cb(newToken));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
+async function tryRefreshToken(): Promise<string | null> {
+  const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('pulsetime_refresh') : null;
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return null;
+    const json = await res.json();
+    const payload = json.data || json;
+    const tokens = payload?.tokens || payload;
+    if (tokens?.accessToken) {
+      localStorage.setItem('pulsetime_token', tokens.accessToken);
+      if (tokens.refreshToken) {
+        localStorage.setItem('pulsetime_refresh', tokens.refreshToken);
+      }
+      return tokens.accessToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function apiFetch<T = any>(endpoint: string, options: ApiFetchOptions = {}): Promise<T> {
   const { params, headers = {}, ...customConfig } = options;
 
@@ -40,14 +80,44 @@ export async function apiFetch<T = any>(endpoint: string, options: ApiFetchOptio
     },
   };
 
-  const response = await fetch(url, config);
+  let response = await fetch(url, config);
 
-  if (response.status === 401 && typeof window !== 'undefined') {
-    // If not already on login page, clear token
-    if (!window.location.pathname.includes('/login')) {
-      localStorage.removeItem('pulsetime_token');
-      localStorage.removeItem('pulsetime_user');
-      window.location.href = '/login';
+  if (
+    response.status === 401 &&
+    typeof window !== 'undefined' &&
+    !endpoint.includes('/auth/login') &&
+    !endpoint.includes('/auth/refresh')
+  ) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      const newToken = await tryRefreshToken();
+      isRefreshing = false;
+      if (newToken) {
+        onTokenRefreshed(newToken);
+        const retryHeaders = {
+          ...config.headers,
+          Authorization: `Bearer ${newToken}`,
+        };
+        response = await fetch(url, { ...config, headers: retryHeaders });
+      } else {
+        if (!window.location.pathname.includes('/login')) {
+          localStorage.removeItem('pulsetime_token');
+          localStorage.removeItem('pulsetime_refresh');
+          localStorage.removeItem('pulsetime_user');
+          window.location.href = '/login';
+        }
+      }
+    } else {
+      const newToken = await new Promise<string | null>((resolve) => {
+        addRefreshSubscriber((token) => resolve(token));
+      });
+      if (newToken) {
+        const retryHeaders = {
+          ...config.headers,
+          Authorization: `Bearer ${newToken}`,
+        };
+        response = await fetch(url, { ...config, headers: retryHeaders });
+      }
     }
   }
 

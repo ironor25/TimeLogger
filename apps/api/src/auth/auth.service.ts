@@ -402,19 +402,22 @@ export class AuthService {
     const accessSecret = this.configService.get<string>('JWT_ACCESS_SECRET', 'pulsetime_dev_access_secret_super_secure_key_12345');
     const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET', 'pulsetime_dev_refresh_secret_super_secure_key_67890');
 
+    const accessExpiresIn = this.configService.get<string>('JWT_ACCESS_EXPIRES_IN', '24h');
+    const refreshExpiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '30d');
+
     const accessToken = this.jwtService.sign(accessPayload, {
       secret: accessSecret,
-      expiresIn: '15m',
+      expiresIn: accessExpiresIn,
     });
 
     const refreshToken = this.jwtService.sign(refreshPayload, {
       secret: refreshSecret,
-      expiresIn: '7d',
+      expiresIn: refreshExpiresIn,
     });
 
     const tokenHash = await bcrypt.hash(refreshToken, 10);
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    expiresAt.setDate(expiresAt.getDate() + 30);
 
     await this.prisma.refreshToken.create({
       data: {
@@ -429,7 +432,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 900, // 15 mins
+      expiresIn: 86400, // 24 hours
     };
   }
 
