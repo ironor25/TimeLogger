@@ -20,33 +20,39 @@ export class ScreenshotsController {
 
   @Get()
   @RequirePermissions('screenshots.view')
-  @ApiOperation({ summary: 'Admin: List paginated screenshots with employee and project filters' })
+  @ApiOperation({ summary: 'List paginated screenshots with employee and project filters' })
   async findAll(
     @CurrentTenant() orgId: string,
     @Query() query: QueryScreenshotDto,
+    @CurrentUser('role') role: string,
+    @CurrentUser('employeeId') employeeId: string,
   ) {
-    return this.screenshotsService.findAll(orgId, query);
+    return this.screenshotsService.findAll(orgId, query, role, employeeId);
   }
 
   @Get(':id')
   @RequirePermissions('screenshots.view')
-  @ApiOperation({ summary: 'Admin: Get single screenshot details and full resolution image' })
+  @ApiOperation({ summary: 'Get single screenshot details and full resolution image' })
   async findOne(
     @CurrentTenant() orgId: string,
     @Param('id') id: string,
+    @CurrentUser('role') role: string,
+    @CurrentUser('employeeId') employeeId: string,
   ) {
-    return this.screenshotsService.findOne(orgId, id);
+    return this.screenshotsService.findOne(orgId, id, role, employeeId);
   }
 
   @Delete(':id')
   @RequirePermissions('screenshots.delete')
-  @ApiOperation({ summary: 'Admin: Soft delete screenshot' })
+  @ApiOperation({ summary: 'Admin / Owner / Self: Soft delete screenshot' })
   async remove(
     @CurrentTenant() orgId: string,
     @Param('id') id: string,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: string,
+    @CurrentUser('employeeId') employeeId: string,
   ) {
-    return this.screenshotsService.delete(orgId, id, userId, role);
+    return this.screenshotsService.delete(orgId, id, userId, role, employeeId);
   }
 }
+

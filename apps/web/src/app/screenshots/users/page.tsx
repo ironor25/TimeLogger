@@ -20,16 +20,20 @@ import { useAuth } from '@/lib/auth-context';
 
 export default function UserScreenshotsPage() {
   const queryClient = useQueryClient();
-  const { hasPermission, organization } = useAuth();
+  const { hasPermission, organization, role, employee } = useAuth();
+  const isEmployeeRole = role === 'EMPLOYEE';
 
-  const [employeeId, setEmployeeId] = useState('');
+  const [employeeId, setEmployeeId] = useState(isEmployeeRole ? (employee?.id || '') : '');
   const [projectId, setProjectId] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [activeScreenshot, setActiveScreenshot] = useState<any | null>(null);
 
+  const effectiveEmpId = isEmployeeRole ? (employee?.id || '') : employeeId;
+
   const { data: employees } = useQuery({
     queryKey: ['employees-select'],
     queryFn: () => api.getEmployees({ limit: 100 }),
+    enabled: !isEmployeeRole,
   });
 
   const { data: projects } = useQuery({
@@ -38,8 +42,9 @@ export default function UserScreenshotsPage() {
   });
 
   const { data: screenshotsData, isLoading } = useQuery({
-    queryKey: ['screenshots', { employeeId, projectId, date: selectedDate }],
-    queryFn: () => api.getScreenshots({ employeeId, projectId, date: selectedDate, limit: 36 }),
+    queryKey: ['screenshots', { employeeId: effectiveEmpId, projectId, date: selectedDate }],
+    queryFn: () => api.getScreenshots({ employeeId: effectiveEmpId || undefined, projectId, date: selectedDate, limit: 36 }),
+    enabled: !isEmployeeRole || !!employee?.id,
   });
 
   const deleteMutation = useMutation({
@@ -50,7 +55,10 @@ export default function UserScreenshotsPage() {
     },
   });
 
-  const screenshots: any[] = Array.isArray(screenshotsData) ? screenshotsData : (screenshotsData?.data || []);
+  const rawScreenshots: any[] = Array.isArray(screenshotsData) ? screenshotsData : (screenshotsData?.data || []);
+  const screenshots: any[] = isEmployeeRole && employee?.id
+    ? rawScreenshots.filter((s: any) => s.employeeId === employee.id || s.employee?.id === employee.id)
+    : rawScreenshots;
   const employeeList: any[] = Array.isArray(employees) ? employees : (employees?.data || []);
 
   return (
@@ -59,24 +67,36 @@ export default function UserScreenshotsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e0e0e0] pb-4">
           <div>
-            <h1 className="text-2xl font-light text-[#161616] tracking-tight">User Screenshots Gallery</h1>
-            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">Automated visual monitoring and productivity audits</p>
+            <h1 className="text-2xl font-light text-[#161616] tracking-tight">
+              {isEmployeeRole ? 'My Screenshots Gallery' : 'User Screenshots Gallery'}
+            </h1>
+            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">
+              {isEmployeeRole ? 'Your personal captured screenshots history' : 'Automated visual monitoring and productivity audits'}
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5 text-xs">
-              <User className="w-3.5 h-3.5 text-[#525252]" />
-              <select
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal tracking-carbon cursor-pointer"
-              >
-                <option value="">All Employees</option>
-                {employeeList.map((emp: any) => (
-                  <option key={emp.id} value={emp.id}>{emp.displayName}</option>
-                ))}
-              </select>
-            </div>
+            {!isEmployeeRole ? (
+              <div className="flex items-center gap-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5 text-xs">
+                <User className="w-3.5 h-3.5 text-[#525252]" />
+                <select
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                  className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal tracking-carbon cursor-pointer"
+                >
+                  <option value="">All Employees</option>
+                  {employeeList.map((emp: any) => (
+                    <option key={emp.id} value={emp.id}>{emp.displayName}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5 text-xs text-[#161616]">
+                <User className="w-3.5 h-3.5 text-[#0f62fe]" />
+                <span className="font-medium tracking-carbon">{employee?.displayName || 'My Screenshots'}</span>
+              </div>
+            )}
+
 
             <div className="flex items-center gap-1.5 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5 text-xs">
               <FolderGit2 className="w-3.5 h-3.5 text-[#525252]" />

@@ -12,8 +12,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatSecondsToHours } from '@/lib/utils';
+import { useAuth } from '@/lib/auth-context';
 
 export default function AttendancePage() {
+  const { role, employee, organization } = useAuth();
+  const isEmployeeRole = role === 'EMPLOYEE';
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<'daily' | 'history'>('daily');
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,8 +43,39 @@ export default function AttendancePage() {
     activePercentage: 0,
   };
 
-  const employees = dailyData?.employees || [];
-  const historyRecords = (historyData || []).filter((r: any) => {
+  const rawEmployees = dailyData?.employees || [];
+  const employees = isEmployeeRole && employee?.id
+    ? rawEmployees.filter((emp: any) => emp.id === employee.id || emp.email === employee?.email)
+    : rawEmployees;
+
+  const myEmp = isEmployeeRole ? (employees[0] || null) : null;
+  const isWorking = myEmp ? myEmp.status === 'WORKING' : metrics.workingCount > 0;
+  const isOnBreak = myEmp ? myEmp.status === 'ON_BREAK' : metrics.breakCount > 0;
+
+  const displayStatus = isEmployeeRole
+    ? (isWorking ? 'Present' : isOnBreak ? 'On Break' : 'Offline')
+    : metrics.totalEmployees;
+
+  const displayWorkingCount = isEmployeeRole
+    ? (isWorking ? 1 : 0)
+    : metrics.workingCount;
+
+  const displayLoggedTime = isEmployeeRole
+    ? (myEmp?.formattedWorked || '00:00')
+    : (metrics.formattedTotalWorked || formatSecondsToHours(metrics.totalWorkSeconds));
+
+  const displayActiveRatio = isEmployeeRole
+    ? (myEmp?.todayWorkedSeconds ? 100 : 0)
+    : metrics.activePercentage;
+
+  const rawHistory = historyData || [];
+  const historyRecords = rawHistory.filter((r: any) => {
+    if (isEmployeeRole && employee?.id) {
+      if (r.employeeId !== employee.id && r.employee?.id !== employee.id) {
+        return false;
+      }
+    }
+
     const matchesSearch =
       !searchQuery ||
       r.employee?.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -63,7 +98,11 @@ export default function AttendancePage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e0e0e0] pb-4">
           <div>
             <h1 className="text-2xl font-light text-[#161616] tracking-tight">Attendance & Daily Overview</h1>
-            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">Authoritative presence tracking and punch telemetry derived from active work sessions</p>
+            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">
+              {isEmployeeRole
+                ? 'Personal presence tracking and punch telemetry derived from active work sessions'
+                : 'Authoritative presence tracking and punch telemetry derived from active work sessions'}
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -101,26 +140,48 @@ export default function AttendancePage() {
         {/* Metrics Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
-            <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">Total Team Size</span>
-            <div className="text-3xl font-light text-[#161616] tracking-tight">{metrics.totalEmployees}</div>
-            <div className="text-[11px] text-[#8c8c8c] mt-2 tracking-carbon">Acme Technologies</div>
+            <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">
+              {isEmployeeRole ? 'My Status' : 'Total Team Size'}
+            </span>
+            <div className="text-3xl font-light text-[#161616] tracking-tight">
+              {displayStatus}
+            </div>
+            <div className="text-[11px] text-[#8c8c8c] mt-2 tracking-carbon">
+              {isEmployeeRole ? (employee?.displayName || 'Personal Presence') : (organization?.name || 'Organization')}
+            </div>
           </div>
 
           <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
-            <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">Currently Working</span>
-            <div className="text-3xl font-light text-[#24a148] tracking-tight">{metrics.workingCount}</div>
-            <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">{metrics.breakCount} on break</div>
+            <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">
+              {isEmployeeRole ? 'Current Activity' : 'Currently Working'}
+            </span>
+            <div className="text-3xl font-light text-[#24a148] tracking-tight">
+              {isEmployeeRole ? (isWorking ? 'Working' : isOnBreak ? 'On Break' : 'Offline') : displayWorkingCount}
+            </div>
+            <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">
+              {isEmployeeRole
+                ? (isOnBreak ? 'On break' : isWorking ? 'Timer active' : 'Not tracking')
+                : `${metrics.breakCount} on break`}
+            </div>
           </div>
 
           <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
-            <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">Total Logged Time</span>
-            <div className="text-3xl font-light text-[#161616] tracking-tight">{metrics.formattedTotalWorked || formatSecondsToHours(metrics.totalWorkSeconds)}</div>
-            <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">Across all sessions</div>
+            <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">
+              {isEmployeeRole ? 'My Logged Time' : 'Total Logged Time'}
+            </span>
+            <div className="text-3xl font-light text-[#161616] tracking-tight">
+              {displayLoggedTime}
+            </div>
+            <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">
+              {isEmployeeRole ? 'Today worked total' : 'Across all sessions'}
+            </div>
           </div>
 
           <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
             <span className="text-[#525252] text-xs font-normal block mb-1 tracking-carbon">Active Ratio</span>
-            <div className="text-3xl font-light text-[#0f62fe] tracking-tight">{metrics.activePercentage}%</div>
+            <div className="text-3xl font-light text-[#0f62fe] tracking-tight">
+              {displayActiveRatio}%
+            </div>
             <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">Productivity index</div>
           </div>
         </div>
@@ -161,9 +222,13 @@ export default function AttendancePage() {
                     employees.map((emp: any) => (
                       <tr key={emp.id} className="hover:bg-[#f4f4f4] transition-colors">
                         <td className="px-5 py-3 font-normal">
-                          <Link href={`/employees/${emp.id}`} className="font-medium text-[#161616] hover:text-[#0f62fe] hover:underline">
-                            {emp.displayName}
-                          </Link>
+                          {!isEmployeeRole ? (
+                            <Link href={`/employees/${emp.id}`} className="font-medium text-[#161616] hover:text-[#0f62fe] hover:underline">
+                              {emp.displayName}
+                            </Link>
+                          ) : (
+                            <span className="font-medium text-[#161616]">{emp.displayName}</span>
+                          )}
                           <span className="text-[11px] text-[#8c8c8c] block">{emp.employeeCode}</span>
                         </td>
                         <td className="px-5 py-3 text-[#525252]">{emp.department || 'General'}</td>
@@ -283,9 +348,13 @@ export default function AttendancePage() {
                           })}
                         </td>
                         <td className="px-5 py-3">
-                          <Link href={`/employees/${r.employee?.id}`} className="font-medium text-[#161616] hover:text-[#0f62fe] hover:underline">
-                            {r.employee?.displayName}
-                          </Link>
+                          {!isEmployeeRole ? (
+                            <Link href={`/employees/${r.employee?.id}`} className="font-medium text-[#161616] hover:text-[#0f62fe] hover:underline">
+                              {r.employee?.displayName}
+                            </Link>
+                          ) : (
+                            <span className="font-medium text-[#161616]">{r.employee?.displayName}</span>
+                          )}
                           <span className="text-[11px] text-[#8c8c8c] block">{r.employee?.employeeCode}</span>
                         </td>
                         <td className="px-5 py-3">

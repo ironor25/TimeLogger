@@ -18,7 +18,12 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
+import { useAuth } from '@/lib/auth-context';
+
 export default function EmployeeSummaryReportPage() {
+  const { role, employee } = useAuth();
+  const isEmployeeRole = role === 'EMPLOYEE';
+
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Default to 7 days window
@@ -27,29 +32,34 @@ export default function EmployeeSummaryReportPage() {
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(todayStr);
   const [departmentId, setDepartmentId] = useState('');
-  const [employeeId, setEmployeeId] = useState('');
+  const [employeeId, setEmployeeId] = useState(isEmployeeRole ? (employee?.id || '') : '');
   const [formatMode, setFormatMode] = useState<'hhmm' | 'decimal'>('hhmm');
 
+  const effectiveEmpId = isEmployeeRole ? (employee?.id || '') : employeeId;
+
   const { data: summaryData, isLoading, refetch } = useQuery({
-    queryKey: ['employee-summary-report', { startDate, endDate, departmentId, employeeId }],
+    queryKey: ['employee-summary-report', { startDate, endDate, departmentId: isEmployeeRole ? undefined : departmentId, employeeId: effectiveEmpId }],
     queryFn: () =>
       api.getEmployeeSummary({
         startDate,
         endDate,
-        departmentId: departmentId || undefined,
-        employeeId: employeeId || undefined,
+        departmentId: isEmployeeRole ? undefined : (departmentId || undefined),
+        employeeId: effectiveEmpId || undefined,
       }),
   });
 
   const { data: departments } = useQuery({
     queryKey: ['departments-select'],
     queryFn: () => api.getDepartments(),
+    enabled: !isEmployeeRole,
   });
 
   const { data: employees } = useQuery({
     queryKey: ['employees-select'],
     queryFn: () => api.getEmployees({ limit: 100 }),
+    enabled: !isEmployeeRole,
   });
+
 
   const rows = Array.isArray(summaryData) ? summaryData : summaryData?.items || summaryData?.data || [];
 
@@ -231,33 +241,44 @@ export default function EmployeeSummaryReportPage() {
               />
             </div>
 
-            <div className="bg-[#f4f4f4] border border-[#e0e0e0] px-3 py-1.5 text-xs">
-              <select
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-                className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal tracking-carbon cursor-pointer"
-              >
-                <option value="">All Departments</option>
-                {departments?.map((d: any) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </div>
+            {!isEmployeeRole && (
+              <>
+                <div className="bg-[#f4f4f4] border border-[#e0e0e0] px-3 py-1.5 text-xs">
+                  <select
+                    value={departmentId}
+                    onChange={(e) => setDepartmentId(e.target.value)}
+                    className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal tracking-carbon cursor-pointer"
+                  >
+                    <option value="">All Departments</option>
+                    {departments?.map((d: any) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-            <div className="bg-[#f4f4f4] border border-[#e0e0e0] px-3 py-1.5 text-xs">
-              <select
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal tracking-carbon cursor-pointer"
-              >
-                <option value="">All Employees</option>
-                {employees?.data?.map((emp: any) => (
-                  <option key={emp.id} value={emp.id}>{emp.displayName}</option>
-                ))}
-              </select>
-            </div>
+                <div className="bg-[#f4f4f4] border border-[#e0e0e0] px-3 py-1.5 text-xs">
+                  <select
+                    value={employeeId}
+                    onChange={(e) => setEmployeeId(e.target.value)}
+                    className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal tracking-carbon cursor-pointer"
+                  >
+                    <option value="">All Employees</option>
+                    {employees?.data?.map((emp: any) => (
+                      <option key={emp.id} value={emp.id}>{emp.displayName}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+            {isEmployeeRole && (
+              <div className="flex items-center gap-1.5 bg-[#f4f4f4] border border-[#e0e0e0] px-3 py-1.5 text-xs text-[#161616]">
+                <User className="w-3.5 h-3.5 text-[#0f62fe]" />
+                <span className="font-medium tracking-carbon">{employee?.displayName || 'My Summary'}</span>
+              </div>
+            )}
           </div>
         </div>
+
 
         {/* Report Table */}
         <div className="bg-white border border-[#e0e0e0] overflow-hidden">

@@ -26,10 +26,13 @@ export class TimeEntriesController {
   @ApiOperation({ summary: 'List manual time entry requests' })
   async findAll(
     @CurrentTenant() orgId: string,
+    @CurrentUser('role') role: string,
+    @CurrentUser('employeeId') currentEmployeeId: string,
     @Query('status') status?: TimeApprovalStatus,
     @Query('employeeId') employeeId?: string,
   ) {
-    return this.timeService.findAll(orgId, { status, employeeId });
+    const effectiveEmpId = role === 'EMPLOYEE' ? currentEmployeeId : employeeId;
+    return this.timeService.findAll(orgId, { status, employeeId: effectiveEmpId });
   }
 
   @Post()
@@ -38,15 +41,17 @@ export class TimeEntriesController {
   async create(
     @CurrentTenant() orgId: string,
     @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
     @CurrentUser('employeeId') employeeId: string,
     @Body() dto: CreateManualTimeDto,
   ) {
-    const targetEmployeeId = dto.employeeId || employeeId;
+    const targetEmployeeId = role === 'EMPLOYEE' ? employeeId : (dto.employeeId || employeeId);
     if (!targetEmployeeId) {
       throw new BadRequestException('Target employee ID is required');
     }
     return this.timeService.create(orgId, targetEmployeeId, userId, dto);
   }
+
 
   @Post(':id/approve')
   @RequirePermissions('attendance.approve')

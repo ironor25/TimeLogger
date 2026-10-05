@@ -41,6 +41,7 @@ interface NavSection {
 export function Sidebar() {
   const pathname = usePathname();
   const { hasPermission, role, organization } = useAuth();
+  const isManagement = role === 'OWNER' || role === 'ADMIN' || role === 'MANAGER';
 
   const sections: NavSection[] = [
     {
@@ -55,36 +56,49 @@ export function Sidebar() {
       title: 'MONITORING',
       items: [
         { label: 'User Screenshots', href: '/screenshots/users', icon: Camera, permission: 'screenshots.view' },
-        { label: 'Project Screenshots', href: '/screenshots/projects', icon: ImageIcon, permission: 'screenshots.view' },
-        { label: 'Monitoring Room', href: '/screenshots/monitoring', icon: Radio, permission: 'screenshots.view', badge: 'Live' },
+        ...(isManagement
+          ? [
+              { label: 'Project Screenshots', href: '/screenshots/projects', icon: ImageIcon, permission: 'screenshots.view' },
+              { label: 'Monitoring Room', href: '/screenshots/monitoring', icon: Radio, permission: 'screenshots.view', badge: 'Live' },
+            ]
+          : []),
       ],
     },
     {
       title: 'MANAGEMENT',
       items: [
-        { label: 'Employees', href: '/employees', icon: Users, permission: 'employees.view' },
+        ...(isManagement
+          ? [{ label: 'Employees', href: '/employees', icon: Users, permission: 'employees.view' }]
+          : []),
         { label: 'Projects', href: '/projects', icon: FolderGit2, permission: 'projects.view' },
         { label: 'Tasks', href: '/tasks', icon: CheckSquare, permission: 'tasks.view' },
-        { label: 'Time Approvals', href: '/time/approvals', icon: FileCheck, permission: 'attendance.approve' },
+        ...(isManagement
+          ? [{ label: 'Time Approvals', href: '/time/approvals', icon: FileCheck, permission: 'attendance.approve' }]
+          : []),
         { label: 'Leave Requests', href: '/leaves/requests', icon: CalendarOff, permission: 'leaves.view' },
       ],
     },
-    {
-      title: 'REPORTS & PRODUCTIVITY',
-      items: [
-        { label: 'Employee Summary', href: '/reports/employee-summary', icon: BarChart3, permission: 'reports.view' },
-        { label: 'Activity Analytics', href: '/reports/activity', icon: TrendingUp, permission: 'reports.view' },
-      ],
-    },
-    {
-      title: 'SETTINGS',
-      items: [
-        { label: 'Organization Settings', href: '/settings/company', icon: Building2, permission: 'settings.view' },
-        { label: 'Work Schedules', href: '/settings/work-schedules', icon: CalendarRange, permission: 'settings.view' },
-        { label: 'Roles & Permissions', href: '/settings/roles', icon: ShieldCheck, permission: 'roles.view' },
-      ],
-    },
+    ...(isManagement
+      ? [
+          {
+            title: 'REPORTS & PRODUCTIVITY',
+            items: [
+              { label: 'Employee Summary', href: '/reports/employee-summary', icon: BarChart3, permission: 'reports.view' },
+              { label: 'Activity Analytics', href: '/reports/activity', icon: TrendingUp, permission: 'reports.view' },
+            ],
+          },
+          {
+            title: 'SETTINGS',
+            items: [
+              { label: 'Organization Settings', href: '/settings/company', icon: Building2, permission: 'settings.view' },
+              { label: 'Work Schedules', href: '/settings/work-schedules', icon: CalendarRange, permission: 'settings.view' },
+              { label: 'Roles & Permissions', href: '/settings/roles', icon: ShieldCheck, permission: 'roles.view' },
+            ],
+          },
+        ]
+      : []),
   ];
+
 
   return (
     <aside className="w-64 bg-[#161616] text-[#c6c6c6] flex flex-col h-screen fixed left-0 top-0 border-r border-[#262626] z-30 select-none">

@@ -27,9 +27,10 @@ export const dynamic = 'force-dynamic';
 function TimelinesPageContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const { hasPermission, organization } = useAuth();
+  const { hasPermission, organization, role, employee } = useAuth();
+  const isEmployeeRole = role === 'EMPLOYEE';
 
-  const initialEmpId = searchParams.get('employeeId') || '';
+  const initialEmpId = isEmployeeRole ? (employee?.id || '') : (searchParams.get('employeeId') || '');
   const initialDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
   const [employeeId, setEmployeeId] = useState(initialEmpId);
@@ -45,6 +46,7 @@ function TimelinesPageContent() {
   const { data: employeesData } = useQuery({
     queryKey: ['employees-select'],
     queryFn: () => api.getEmployees({ limit: 100 }),
+    enabled: !isEmployeeRole,
   });
 
   const employeeList: any[] = Array.isArray(employeesData)
@@ -63,13 +65,16 @@ function TimelinesPageContent() {
     );
   }, [employeeList, searchTerm]);
 
-  // Selected employee ID (fallback to first employee if none selected)
-  const activeEmpId = employeeId || (employeeList.length > 0 ? employeeList[0].id : '');
+  // Selected employee ID (locked to logged in employee if EMPLOYEE role)
+  const effectiveEmpId = isEmployeeRole
+    ? (employee?.id || '')
+    : (employeeId || searchParams.get('employeeId') || (employeeList.length > 0 ? employeeList[0].id : ''));
 
   // 2. Fetch Timeline Data for Selected Employee & Date
   const { data: timelineData, isLoading } = useQuery({
-    queryKey: ['timeline', activeEmpId, selectedDate],
-    queryFn: () => api.getTimeline({ employeeId: activeEmpId || undefined, date: selectedDate }),
+    queryKey: ['timeline', effectiveEmpId, selectedDate],
+    queryFn: () => api.getTimeline({ employeeId: effectiveEmpId || undefined, date: selectedDate }),
+    enabled: !isEmployeeRole || !!employee?.id,
   });
 
   // 3. Delete Session Mutation
@@ -145,29 +150,43 @@ function TimelinesPageContent() {
           <div>
             <h1 className="text-2xl font-light text-[#161616] tracking-tight">Visual Work Timelines</h1>
             <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">
-              Employee session telemetry, activity breakdowns, breaks, and periodic screen captures
+              {isEmployeeRole
+                ? 'Personal session telemetry, activity breakdowns, breaks, and periodic screen captures'
+                : 'Employee session telemetry, activity breakdowns, breaks, and periodic screen captures'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Employee Search & Selector */}
-            <div className="flex items-center gap-2 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5">
-              <User className="w-3.5 h-3.5 text-[#525252] shrink-0" />
-              <div className="relative">
-                <select
-                  value={activeEmpId}
-                  onChange={(e) => setEmployeeId(e.target.value)}
-                  className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal cursor-pointer pr-4 tracking-carbon"
-                >
-                  <option value="">All Employees</option>
-                  {filteredEmployees.map((emp: any) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.displayName} ({emp.employeeCode || emp.email})
-                    </option>
-                  ))}
-                </select>
+            {!isEmployeeRole ? (
+              <div className="flex items-center gap-2 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5">
+                <User className="w-3.5 h-3.5 text-[#525252] shrink-0" />
+                <div className="relative">
+                  <select
+                    value={effectiveEmpId}
+                    onChange={(e) => setEmployeeId(e.target.value)}
+                    className="focus:outline-none text-[#161616] bg-transparent text-xs font-normal cursor-pointer pr-4 tracking-carbon"
+                  >
+                    {filteredEmployees.map((emp: any) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.displayName} ({emp.employeeCode || emp.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5 text-xs text-[#161616]">
+                <User className="w-3.5 h-3.5 text-[#0f62fe] shrink-0" />
+                <span className="font-semibold tracking-carbon">{employee?.displayName || 'My Timeline'}</span>
+                {(employee?.employeeCode || employee?.email) && (
+                  <span className="text-[10px] text-[#8c8c8c] font-mono">
+                    ({employee.employeeCode || employee.email})
+                  </span>
+                )}
+              </div>
+            )}
+
 
             {/* Date Selector */}
             <div className="flex items-center gap-2 bg-[#f4f4f4] border border-[#e0e0e0] rounded-none px-3 py-1.5">
@@ -231,9 +250,13 @@ function TimelinesPageContent() {
           {/* 6. Employees Worked */}
           <div className="bg-white border border-[#e0e0e0] p-4 rounded-none flex flex-col justify-between min-h-[96px]">
             <div className="text-2xl font-light text-[#161616] tracking-tight">
-              {summary?.employeesWorkedCount ?? (sessions.length > 0 ? 1 : 0)}
+              {isEmployeeRole
+                ? (sessions.length > 0 ? 1 : 0)
+                : (summary?.employeesWorkedCount ?? (sessions.length > 0 ? 1 : 0))}
             </div>
-            <div className="text-xs font-normal text-[#525252] mt-1 tracking-carbon">Staff Count</div>
+            <div className="text-xs font-normal text-[#525252] mt-1 tracking-carbon">
+              {isEmployeeRole ? 'Personal Staff' : 'Staff Count'}
+            </div>
           </div>
         </div>
 

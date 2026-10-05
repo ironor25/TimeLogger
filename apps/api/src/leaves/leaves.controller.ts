@@ -32,10 +32,13 @@ export class LeavesController {
   @ApiOperation({ summary: 'Get employee leave balance allowances' })
   async getBalances(
     @CurrentTenant() orgId: string,
+    @CurrentUser('role') role: string,
+    @CurrentUser('employeeId') currentEmployeeId: string,
     @Query('employeeId') employeeId?: string,
     @Query('year') year?: number,
   ) {
-    return this.leavesService.getBalances(orgId, employeeId, year);
+    const effectiveEmpId = role === 'EMPLOYEE' ? currentEmployeeId : employeeId;
+    return this.leavesService.getBalances(orgId, effectiveEmpId, year);
   }
 
   @Get('requests')
@@ -43,11 +46,15 @@ export class LeavesController {
   @ApiOperation({ summary: 'List leave applications' })
   async getRequests(
     @CurrentTenant() orgId: string,
+    @CurrentUser('role') role: string,
+    @CurrentUser('employeeId') currentEmployeeId: string,
     @Query('status') status?: LeaveStatus,
     @Query('employeeId') employeeId?: string,
   ) {
-    return this.leavesService.getRequests(orgId, { status, employeeId });
+    const effectiveEmpId = role === 'EMPLOYEE' ? currentEmployeeId : employeeId;
+    return this.leavesService.getRequests(orgId, { status, employeeId: effectiveEmpId });
   }
+
 
   @Post('requests')
   @RequirePermissions('leaves.apply')

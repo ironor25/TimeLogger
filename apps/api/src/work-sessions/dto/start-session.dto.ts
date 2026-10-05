@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID, IsNumber } from 'class-validator';
 
 export class StartSessionDto {
   @ApiPropertyOptional({ example: 'UUID' })
@@ -33,6 +33,16 @@ export class StopSessionDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ example: 120 })
+  @IsOptional()
+  @IsNumber()
+  durationSeconds?: number;
+
+  @ApiPropertyOptional({ example: '2026-10-01T14:30:00.000Z' })
+  @IsOptional()
+  @IsString()
+  endedAt?: string;
 }
 
 export class StartBreakDto {

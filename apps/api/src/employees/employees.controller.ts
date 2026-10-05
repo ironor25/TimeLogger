@@ -27,9 +27,11 @@ export class EmployeesController {
   @ApiOperation({ summary: 'List employees with pagination, search, and department filters' })
   async findAll(
     @CurrentTenant() orgId: string,
+    @CurrentUser('role') role: string,
+    @CurrentUser('employeeId') employeeId: string,
     @Query() query: QueryEmployeeDto,
   ) {
-    return this.employeesService.findAll(orgId, query);
+    return this.employeesService.findAll(orgId, query, role, employeeId);
   }
 
   @Get(':id')
@@ -38,9 +40,12 @@ export class EmployeesController {
   async findOne(
     @CurrentTenant() orgId: string,
     @Param('id') id: string,
+    @CurrentUser('role') role: string,
+    @CurrentUser('employeeId') employeeId: string,
   ) {
-    return this.employeesService.findOne(orgId, id);
+    return this.employeesService.findOne(orgId, id, role, employeeId);
   }
+
 
   @Post()
   @RequirePermissions('employees.create')

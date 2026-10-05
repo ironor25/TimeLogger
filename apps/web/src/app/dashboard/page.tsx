@@ -19,8 +19,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatSecondsToHours } from '@/lib/utils';
+import { useAuth } from '@/lib/auth-context';
 
 export default function DashboardPage() {
+  const { role, employee } = useAuth();
+  const isEmployeeRole = role === 'EMPLOYEE';
+
   const { data: dailyOverview, isLoading: loadingDaily } = useQuery({
     queryKey: ['daily-overview'],
     queryFn: () => api.getDailyOverview(),
@@ -53,8 +57,30 @@ export default function DashboardPage() {
     activePercentage: 0,
   };
 
-  const screenshots: any[] = Array.isArray(screenshotsData) ? screenshotsData : (screenshotsData?.data || []);
-  const activeEmployees = dailyOverview?.employees?.filter((e: any) => e.status !== 'OFFLINE') || [];
+  const rawScreenshots: any[] = Array.isArray(screenshotsData) ? screenshotsData : (screenshotsData?.data || []);
+  const screenshots: any[] = isEmployeeRole && employee?.id
+    ? rawScreenshots.filter((s: any) => s.employeeId === employee.id || s.employee?.id === employee.id)
+    : rawScreenshots;
+
+  const rawActive = dailyOverview?.employees || [];
+  const activeEmployees = isEmployeeRole && employee?.id
+    ? rawActive.filter((e: any) => (e.id === employee.id || e.email === employee?.email) && e.status !== 'OFFLINE')
+    : rawActive.filter((e: any) => e.status !== 'OFFLINE');
+
+  const myEmp = isEmployeeRole && employee?.id
+    ? rawActive.find((e: any) => e.id === employee.id || e.email === employee?.email)
+    : null;
+
+  const isWorking = myEmp ? myEmp.status === 'WORKING' : metrics.workingCount > 0;
+  const isOnBreak = myEmp ? myEmp.status === 'ON_BREAK' : metrics.breakCount > 0;
+
+  const displayLoggedTime = isEmployeeRole
+    ? (myEmp?.formattedWorked || '00:00')
+    : (metrics.formattedTotalWorked || formatSecondsToHours(metrics.totalWorkSeconds));
+
+  const displayActiveRatio = isEmployeeRole
+    ? (myEmp?.todayWorkedSeconds ? 100 : 0)
+    : metrics.activePercentage;
 
   return (
     <AppLayout>
@@ -62,8 +88,14 @@ export default function DashboardPage() {
         {/* Page Title & Status */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e0e0e0] pb-4">
           <div>
-            <h1 className="text-2xl font-light text-[#161616] tracking-tight">Organization Dashboard</h1>
-            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">Real-time workforce telemetry, activity monitoring, and presence tracking</p>
+            <h1 className="text-2xl font-light text-[#161616] tracking-tight">
+              {isEmployeeRole ? 'Personal Workspace Dashboard' : 'Organization Dashboard'}
+            </h1>
+            <p className="text-xs text-[#525252] mt-0.5 tracking-carbon">
+              {isEmployeeRole
+                ? `Welcome back, ${employee?.displayName || 'User'}. Here is your real-time daily activity summary.`
+                : 'Real-time workforce telemetry, activity monitoring, and presence tracking'}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#defbe6] text-[#0e6027] border border-[#a7f0ba] text-xs font-normal tracking-carbon rounded-none">
@@ -77,24 +109,48 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
             <div className="flex items-center justify-between text-[#525252] text-xs mb-2">
-              <span className="font-normal tracking-carbon">Total Workforce</span>
+              <span className="font-normal tracking-carbon">
+                {isEmployeeRole ? 'My Status' : 'Total Workforce'}
+              </span>
               <Users className="w-4 h-4 text-[#8c8c8c]" />
             </div>
-            <div className="text-3xl font-light text-[#161616] tracking-tight">{metrics.totalEmployees}</div>
+            <div className="text-3xl font-light text-[#161616] tracking-tight">
+              {isEmployeeRole
+                ? (isWorking ? 'Active' : isOnBreak ? 'On Break' : 'Offline')
+                : metrics.totalEmployees}
+            </div>
             <div className="text-[11px] text-[#525252] mt-2 flex items-center gap-1 tracking-carbon">
-              <span className="text-[#24a148] font-medium">{metrics.workingCount} online</span>
-              <span>• {metrics.offlineCount} offline</span>
+              {isEmployeeRole ? (
+                <span className={isWorking ? 'text-[#24a148] font-medium' : isOnBreak ? 'text-[#6d4f00]' : 'text-[#8c8c8c]'}>
+                  {isWorking ? 'Currently punched in' : isOnBreak ? 'Currently on break' : 'No active session'}
+                </span>
+              ) : (
+                <>
+                  <span className="text-[#24a148] font-medium">{metrics.workingCount} online</span>
+                  <span>• {metrics.offlineCount} offline</span>
+                </>
+              )}
             </div>
           </div>
 
           <div className="bg-white p-5 border border-[#e0e0e0] rounded-none">
             <div className="flex items-center justify-between text-[#525252] text-xs mb-2">
-              <span className="font-normal tracking-carbon">Currently Working</span>
+              <span className="font-normal tracking-carbon">
+                {isEmployeeRole ? 'Current Activity' : 'Currently Working'}
+              </span>
               <PlayCircle className="w-4 h-4 text-[#0f62fe]" />
             </div>
-            <div className="text-3xl font-light text-[#0f62fe] tracking-tight">{metrics.workingCount}</div>
+            <div className="text-3xl font-light text-[#0f62fe] tracking-tight">
+              {isEmployeeRole
+                ? (isWorking ? 'Running' : isOnBreak ? 'On Break' : 'Stopped')
+                : metrics.workingCount}
+            </div>
             <div className="text-[11px] text-[#525252] mt-2 flex items-center gap-1 tracking-carbon">
-              <span className="text-[#6d4f00] font-medium">{metrics.breakCount} on break</span>
+              {isEmployeeRole ? (
+                <span>{myEmp?.status === 'WORKING' ? 'Standard tracking' : 'Punched out'}</span>
+              ) : (
+                <span className="text-[#6d4f00] font-medium">{metrics.breakCount} on break</span>
+              )}
             </div>
           </div>
 
@@ -104,10 +160,10 @@ export default function DashboardPage() {
               <Clock className="w-4 h-4 text-[#8c8c8c]" />
             </div>
             <div className="text-3xl font-light text-[#161616] tracking-tight">
-              {metrics.formattedTotalWorked || formatSecondsToHours(metrics.totalWorkSeconds)}
+              {displayLoggedTime}
             </div>
             <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">
-              Active: {metrics.formattedTotalActive || formatSecondsToHours(metrics.totalActiveSeconds)}
+              {isEmployeeRole ? 'Personal tracked total today' : `Active: ${metrics.formattedTotalActive || formatSecondsToHours(metrics.totalActiveSeconds)}`}
             </div>
           </div>
 
@@ -116,7 +172,7 @@ export default function DashboardPage() {
               <span className="font-normal tracking-carbon">Average Productivity</span>
               <TrendingUp className="w-4 h-4 text-[#24a148]" />
             </div>
-            <div className="text-3xl font-light text-[#24a148] tracking-tight">{metrics.activePercentage}%</div>
+            <div className="text-3xl font-light text-[#24a148] tracking-tight">{displayActiveRatio}%</div>
             <div className="text-[11px] text-[#525252] mt-2 tracking-carbon">Active vs idle ratio today</div>
           </div>
         </div>
@@ -125,8 +181,14 @@ export default function DashboardPage() {
         <div className="bg-white border border-[#e0e0e0] rounded-none overflow-hidden">
           <div className="px-5 py-4 border-b border-[#e0e0e0] flex items-center justify-between bg-white">
             <div>
-              <h2 className="text-sm font-medium text-[#161616]">Currently Active Team Members</h2>
-              <p className="text-xs text-[#525252] tracking-carbon">Live active sessions and current task allocations</p>
+              <h2 className="text-sm font-medium text-[#161616]">
+                {isEmployeeRole ? 'My Current Work Status' : 'Currently Active Team Members'}
+              </h2>
+              <p className="text-xs text-[#525252] tracking-carbon">
+                {isEmployeeRole
+                  ? 'Your active session telemetry and assigned task'
+                  : 'Live active sessions and current task allocations'}
+              </p>
             </div>
             <Link
               href="/attendance"
@@ -135,6 +197,7 @@ export default function DashboardPage() {
               View Daily Overview →
             </Link>
           </div>
+
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -159,9 +222,13 @@ export default function DashboardPage() {
                   activeEmployees.map((emp: any) => (
                     <tr key={emp.id} className="hover:bg-[#f4f4f4] transition-colors">
                       <td className="px-5 py-3 font-normal">
-                        <Link href={`/employees/${emp.id}`} className="font-medium text-[#161616] hover:text-[#0f62fe] hover:underline">
-                          {emp.displayName}
-                        </Link>
+                        {!isEmployeeRole ? (
+                          <Link href={`/employees/${emp.id}`} className="font-medium text-[#161616] hover:text-[#0f62fe] hover:underline">
+                            {emp.displayName}
+                          </Link>
+                        ) : (
+                          <span className="font-medium text-[#161616]">{emp.displayName}</span>
+                        )}
                         <span className="text-[10px] text-[#8c8c8c] block font-normal">{emp.employeeCode}</span>
                       </td>
                       <td className="px-5 py-3 text-[#525252]">{emp.department || 'General'}</td>
@@ -256,47 +323,70 @@ export default function DashboardPage() {
 
           {/* Pending Approvals & Quick Alerts (1 col) */}
           <div className="space-y-4">
-            {/* Pending Time Entries Card */}
-            <div className="bg-white border border-[#e0e0e0] rounded-none p-5">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-[#161616] flex items-center gap-2">
-                  <FileCheck className="w-4 h-4 text-[#0f62fe]" />
-                  Time Approvals
-                </span>
-                <span className="text-[10px] font-normal px-2 py-0.5 bg-[#edf5ff] text-[#0f62fe] border border-[#a6c8ff] rounded-none">
-                  {pendingTime?.length || 0}
-                </span>
+            {!isEmployeeRole ? (
+              /* Pending Time Entries Card for Management */
+              <div className="bg-white border border-[#e0e0e0] rounded-none p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-[#161616] flex items-center gap-2">
+                    <FileCheck className="w-4 h-4 text-[#0f62fe]" />
+                    Time Approvals
+                  </span>
+                  <span className="text-[10px] font-normal px-2 py-0.5 bg-[#edf5ff] text-[#0f62fe] border border-[#a6c8ff] rounded-none">
+                    {pendingTime?.length || 0}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#525252] mb-4 tracking-carbon">
+                  Manual time requests awaiting manager verification.
+                </p>
+                <Link
+                  href="/time/approvals"
+                  className="block text-center w-full py-2 bg-[#f4f4f4] hover:bg-[#e0e0e0] border border-[#e0e0e0] text-xs font-normal text-[#161616] rounded-none transition-colors tracking-carbon"
+                >
+                  Review Time Requests
+                </Link>
               </div>
-              <p className="text-[11px] text-[#525252] mb-4 tracking-carbon">
-                Manual time requests awaiting manager verification.
-              </p>
-              <Link
-                href="/time/approvals"
-                className="block text-center w-full py-2 bg-[#f4f4f4] hover:bg-[#e0e0e0] border border-[#e0e0e0] text-xs font-normal text-[#161616] rounded-none transition-colors tracking-carbon"
-              >
-                Review Time Requests
-              </Link>
-            </div>
+            ) : (
+              /* Personal Quick Navigation Card for Employee */
+              <div className="bg-white border border-[#e0e0e0] rounded-none p-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-[#161616] flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-[#0f62fe]" />
+                    My Work Timelines
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#525252] mb-4 tracking-carbon">
+                  Inspect your personal activity breakdown and daily punches.
+                </p>
+                <Link
+                  href="/timelines/daily"
+                  className="block text-center w-full py-2 bg-[#0f62fe] hover:bg-[#0043ce] text-white text-xs font-normal rounded-none transition-colors tracking-carbon"
+                >
+                  View My Timelines →
+                </Link>
+              </div>
+            )}
 
             {/* Pending Leaves Card */}
             <div className="bg-white border border-[#e0e0e0] rounded-none p-5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-[#161616] flex items-center gap-2">
                   <CalendarOff className="w-4 h-4 text-[#6929c4]" />
-                  Leave Applications
+                  {isEmployeeRole ? 'My Leave Applications' : 'Leave Applications'}
                 </span>
                 <span className="text-[10px] font-normal px-2 py-0.5 bg-[#f6f2ff] text-[#6929c4] border border-[#d4bbff] rounded-none">
                   {pendingLeaves?.length || 0}
                 </span>
               </div>
               <p className="text-[11px] text-[#525252] mb-4 tracking-carbon">
-                Employee leave requests requiring approval.
+                {isEmployeeRole
+                  ? 'Request PTO, sick leave, casual time off, or view approval status.'
+                  : 'Employee leave requests requiring approval.'}
               </p>
               <Link
                 href="/leaves/requests"
                 className="block text-center w-full py-2 bg-[#f4f4f4] hover:bg-[#e0e0e0] border border-[#e0e0e0] text-xs font-normal text-[#161616] rounded-none transition-colors tracking-carbon"
               >
-                Review Leave Requests
+                {isEmployeeRole ? 'Apply for Leave' : 'Review Leave Requests'}
               </Link>
             </div>
           </div>

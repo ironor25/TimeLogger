@@ -28,16 +28,12 @@ export class ActivityService {
       throw new NotFoundException('Work session not found or does not belong to this employee');
     }
 
-    const capturedAt = new Date(dto.capturedAt);
-
-    // Allow heartbeats for ACTIVE/PAUSED sessions, and also for COMPLETED sessions if capturedAt falls within session timeframe (e.g. offline synchronization)
     if (session.status !== 'ACTIVE' && session.status !== 'PAUSED') {
-      const sessEnd = session.endedAt ? new Date(session.endedAt) : null;
-      const sessStart = new Date(session.startedAt);
-      if (sessEnd && (capturedAt < new Date(sessStart.getTime() - 10000) || capturedAt > new Date(sessEnd.getTime() + 60000))) {
-        throw new ForbiddenException(`Cannot record activity outside session timeframe for a ${session.status.toLowerCase()} session`);
-      }
+      throw new ForbiddenException(`Cannot record activity on a ${session.status.toLowerCase()} session`);
     }
+
+    // 2. Parse capturedAt to UTC Date
+    const capturedAt = new Date(dto.capturedAt);
 
     // 3. Resolve Device
     let deviceId = dto.deviceId || session.deviceId;
@@ -55,26 +51,7 @@ export class ActivityService {
       }
     }
 
-    // 4. Idempotency Check: Prevent duplicate activity ingestion on retry
-    const existing = await this.prisma.activityRecord.findFirst({
-      where: {
-        organizationId,
-        employeeId,
-        workSessionId: session.id,
-        capturedAt,
-      },
-    });
-
-    if (existing) {
-      return {
-        recorded: true,
-        activityRecordId: existing.id,
-        capturedAt: existing.capturedAt,
-        duplicate: true,
-      };
-    }
-
-    // 5. Create Activity Record
+    // 4. Create Activity Record
     const record = await this.prisma.activityRecord.create({
       data: {
         organizationId,
@@ -117,14 +94,22 @@ export class ActivityService {
   async getActivitySummary(
     organizationId: string,
     options: { employeeId?: string; date?: string },
+    role?: string,
+    currentEmployeeId?: string,
   ) {
     const where: any = { organizationId };
-    if (options.employeeId) where.employeeId = options.employeeId;
+    if (role === 'EMPLOYEE') {
+      where.employeeId = currentEmployeeId || '__NONE__';
+    } else if (options.employeeId) {
+      where.employeeId = options.employeeId;
+    }
+
     if (options.date) {
       const startOfDay = new Date(`${options.date}T00:00:00.000Z`);
       const endOfDay = new Date(`${options.date}T23:59:59.999Z`);
       where.capturedAt = { gte: startOfDay, lte: endOfDay };
     }
+
 
     const records = await this.prisma.activityRecord.findMany({
       where,

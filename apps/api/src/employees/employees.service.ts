@@ -3,7 +3,9 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './dto/create-employee.dto';
 import { QueryEmployeeDto } from './dto/query-employee.dto';
@@ -14,32 +16,36 @@ import { UserStatus } from '@pulsetime/types';
 export class EmployeesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(organizationId: string, query: QueryEmployeeDto) {
+  async findAll(organizationId: string, query: QueryEmployeeDto, role?: string, currentEmployeeId?: string) {
     const { page = 1, limit = 20, search, departmentId, managerId, status } = query;
     const skip = (page - 1) * limit;
 
     const where: any = { organizationId };
 
-    if (status) {
-      where.status = status;
-    }
+    if (role === 'EMPLOYEE') {
+      where.id = currentEmployeeId || '__NONE__';
+    } else {
+      if (status) {
+        where.status = status;
+      }
 
-    if (departmentId) {
-      where.departmentId = departmentId;
-    }
+      if (departmentId) {
+        where.departmentId = departmentId;
+      }
 
-    if (managerId) {
-      where.managerId = managerId;
-    }
+      if (managerId) {
+        where.managerId = managerId;
+      }
 
-    if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { displayName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { employeeCode: { contains: search, mode: 'insensitive' } },
-      ];
+      if (search) {
+        where.OR = [
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { displayName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { employeeCode: { contains: search, mode: 'insensitive' } },
+        ];
+      }
     }
 
     const [total, items] = await Promise.all([
@@ -132,7 +138,11 @@ export class EmployeesService {
     };
   }
 
-  async findOne(organizationId: string, id: string) {
+  async findOne(organizationId: string, id: string, role?: string, currentEmployeeId?: string) {
+    if (role === 'EMPLOYEE' && id !== currentEmployeeId) {
+      throw new ForbiddenException('You do not have permission to view this employee profile');
+    }
+
     const emp = await this.prisma.employee.findFirst({
       where: { id, organizationId },
       include: {
@@ -181,6 +191,7 @@ export class EmployeesService {
 
     return emp;
   }
+
 
   async create(organizationId: string, dto: CreateEmployeeDto, actorUserId: string) {
     // 1. Verify employee code uniqueness in org

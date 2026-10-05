@@ -61,26 +61,6 @@ export class ScreenshotsService {
 
     const capturedAt = new Date(dto.capturedAt);
 
-    // Idempotency Check: Check if screenshot record already exists for this storageKey or (workSessionId, capturedAt)
-    const existing = await this.prisma.screenshot.findFirst({
-      where: {
-        organizationId,
-        employeeId,
-        OR: [
-          { storageKey: dto.storageKey },
-          { workSessionId: session.id, capturedAt },
-        ],
-      },
-    });
-
-    if (existing) {
-      const fileUrl = await this.storageService.getFileUrl(existing.storageKey);
-      return {
-        ...existing,
-        fileUrl,
-      };
-    }
-
     const record = await this.prisma.screenshot.create({
       data: {
         organizationId,
@@ -106,13 +86,18 @@ export class ScreenshotsService {
     };
   }
 
-  async findAll(organizationId: string, query: QueryScreenshotDto) {
+  async findAll(organizationId: string, query: QueryScreenshotDto, role?: string, currentEmployeeId?: string) {
     const { page = 1, limit = 24, employeeId, projectId, sessionId, date } = query;
     const skip = (page - 1) * limit;
 
     const where: any = { organizationId, isDeleted: false };
 
-    if (employeeId) where.employeeId = employeeId;
+    if (role === 'EMPLOYEE') {
+      where.employeeId = currentEmployeeId || '__NONE__';
+    } else if (employeeId) {
+      where.employeeId = employeeId;
+    }
+
     if (projectId) where.projectId = projectId;
     if (sessionId) where.workSessionId = sessionId;
     if (date) {
@@ -164,7 +149,7 @@ export class ScreenshotsService {
     };
   }
 
-  async findOne(organizationId: string, id: string) {
+  async findOne(organizationId: string, id: string, role?: string, currentEmployeeId?: string) {
     const item = await this.prisma.screenshot.findFirst({
       where: { id, organizationId, isDeleted: false },
       include: {
@@ -186,6 +171,10 @@ export class ScreenshotsService {
       throw new NotFoundException(`Screenshot with ID ${id} not found`);
     }
 
+    if (role === 'EMPLOYEE' && item.employeeId !== currentEmployeeId) {
+      throw new ForbiddenException('You do not have permission to view this screenshot');
+    }
+
     const fileUrl = await this.storageService.getFileUrl(item.storageKey);
 
     return {
@@ -194,7 +183,7 @@ export class ScreenshotsService {
     };
   }
 
-  async delete(organizationId: string, id: string, actorUserId: string, userRole: string) {
+  async delete(organizationId: string, id: string, actorUserId: string, userRole: string, currentEmployeeId?: string) {
     const org = await this.prisma.organization.findUnique({
       where: { id: organizationId },
     });
@@ -209,6 +198,10 @@ export class ScreenshotsService {
 
     if (!screenshot) {
       throw new NotFoundException(`Screenshot with ID ${id} not found`);
+    }
+
+    if (userRole === 'EMPLOYEE' && screenshot.employeeId !== currentEmployeeId) {
+      throw new ForbiddenException('You can only delete your own screenshots');
     }
 
     await this.prisma.screenshot.update({

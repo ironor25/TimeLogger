@@ -5,15 +5,37 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AttendanceService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getDailyOverview(organizationId: string, dateStr?: string) {
+  async getDailyOverview(organizationId: string, dateStr?: string, role?: string, currentEmployeeId?: string) {
     const todayStr = new Date().toISOString().split('T')[0];
     const targetStr = dateStr || todayStr;
     const startOfDay = new Date(`${targetStr}T00:00:00.000Z`);
     const endOfDay = new Date(`${targetStr}T23:59:59.999Z`);
 
+    const empWhere: any = { organizationId, status: 'ACTIVE' };
+    const sessionWhere: any = {
+      organizationId,
+      startedAt: { gte: startOfDay, lte: endOfDay },
+    };
+    const activityWhere: any = {
+      organizationId,
+      capturedAt: { gte: startOfDay, lte: endOfDay },
+    };
+    const attendanceWhere: any = {
+      organizationId,
+      date: { gte: startOfDay, lte: endOfDay },
+    };
+
+    if (role === 'EMPLOYEE') {
+      const targetEmpId = currentEmployeeId || '__NONE__';
+      empWhere.id = targetEmpId;
+      sessionWhere.employeeId = targetEmpId;
+      activityWhere.employeeId = targetEmpId;
+      attendanceWhere.employeeId = targetEmpId;
+    }
+
     const [allEmployees, todaySessions, activityRecords, attendanceRecords] = await Promise.all([
       this.prisma.employee.findMany({
-        where: { organizationId, status: 'ACTIVE' },
+        where: empWhere,
         include: {
           department: { select: { name: true } },
           devices: {
@@ -24,10 +46,7 @@ export class AttendanceService {
         orderBy: { displayName: 'asc' },
       }),
       this.prisma.workSession.findMany({
-        where: {
-          organizationId,
-          startedAt: { gte: startOfDay, lte: endOfDay },
-        },
+        where: sessionWhere,
         include: {
           breaks: true,
           project: { select: { name: true, code: true } },
@@ -36,10 +55,7 @@ export class AttendanceService {
         orderBy: { startedAt: 'desc' },
       }),
       this.prisma.activityRecord.findMany({
-        where: {
-          organizationId,
-          capturedAt: { gte: startOfDay, lte: endOfDay },
-        },
+        where: activityWhere,
         select: {
           employeeId: true,
           activeSeconds: true,
@@ -47,12 +63,10 @@ export class AttendanceService {
         },
       }),
       this.prisma.attendanceRecord.findMany({
-        where: {
-          organizationId,
-          date: { gte: startOfDay, lte: endOfDay },
-        },
+        where: attendanceWhere,
       }),
     ]);
+
 
     let workingCount = 0;
     let breakCount = 0;
@@ -172,6 +186,8 @@ export class AttendanceService {
   async getAttendanceList(
     organizationId: string,
     options: { date?: string; startDate?: string; endDate?: string; departmentId?: string },
+    role?: string,
+    currentEmployeeId?: string,
   ) {
     const todayStr = new Date().toISOString().split('T')[0];
     const startStr = options.date || options.startDate || todayStr;
@@ -181,7 +197,33 @@ export class AttendanceService {
     const endOfDay = new Date(`${endStr}T23:59:59.999Z`);
 
     const empWhere: any = { organizationId, status: 'ACTIVE' };
-    if (options.departmentId) {
+    const sessionWhere: any = {
+      organizationId,
+      startedAt: { gte: startOfDay, lte: endOfDay },
+    };
+    const activityWhere: any = {
+      organizationId,
+      capturedAt: { gte: startOfDay, lte: endOfDay },
+    };
+    const attendanceWhere: any = {
+      organizationId,
+      date: { gte: startOfDay, lte: endOfDay },
+    };
+    const leaveWhere: any = {
+      organizationId,
+      status: 'APPROVED',
+      startDate: { lte: endOfDay },
+      endDate: { gte: startOfDay },
+    };
+
+    if (role === 'EMPLOYEE') {
+      const targetEmpId = currentEmployeeId || '__NONE__';
+      empWhere.id = targetEmpId;
+      sessionWhere.employeeId = targetEmpId;
+      activityWhere.employeeId = targetEmpId;
+      attendanceWhere.employeeId = targetEmpId;
+      leaveWhere.employeeId = targetEmpId;
+    } else if (options.departmentId) {
       empWhere.departmentId = options.departmentId;
     }
 
@@ -194,20 +236,14 @@ export class AttendanceService {
         orderBy: { displayName: 'asc' },
       }),
       this.prisma.workSession.findMany({
-        where: {
-          organizationId,
-          startedAt: { gte: startOfDay, lte: endOfDay },
-        },
+        where: sessionWhere,
         include: {
           breaks: true,
         },
         orderBy: { startedAt: 'asc' },
       }),
       this.prisma.activityRecord.findMany({
-        where: {
-          organizationId,
-          capturedAt: { gte: startOfDay, lte: endOfDay },
-        },
+        where: activityWhere,
         select: {
           employeeId: true,
           activeSeconds: true,
@@ -216,20 +252,13 @@ export class AttendanceService {
         },
       }),
       this.prisma.attendanceRecord.findMany({
-        where: {
-          organizationId,
-          date: { gte: startOfDay, lte: endOfDay },
-        },
+        where: attendanceWhere,
       }),
       this.prisma.leaveRequest.findMany({
-        where: {
-          organizationId,
-          status: 'APPROVED',
-          startDate: { lte: endOfDay },
-          endDate: { gte: startOfDay },
-        },
+        where: leaveWhere,
       }),
     ]);
+
 
     const records: any[] = [];
     const curr = new Date(endOfDay);

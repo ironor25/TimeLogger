@@ -12,7 +12,7 @@ export class ReportsService {
     private readonly storageService: StorageService,
   ) {}
 
-  async getEmployeeSummary(organizationId: string, query: EmployeeSummaryQueryDto) {
+  async getEmployeeSummary(organizationId: string, query: EmployeeSummaryQueryDto, role?: string, currentEmployeeId?: string) {
     const todayStr = new Date().toISOString().split('T')[0];
     const startStr = query.startDate || todayStr;
     const endStr = query.endDate || todayStr;
@@ -21,8 +21,35 @@ export class ReportsService {
     const endOfDay = new Date(`${endStr}T23:59:59.999Z`);
 
     const empWhere: any = { organizationId, status: 'ACTIVE' };
-    if (query.departmentId) empWhere.departmentId = query.departmentId;
-    if (query.employeeId) empWhere.id = query.employeeId;
+    const sessionWhere: any = {
+      organizationId,
+      startedAt: { gte: startOfDay, lte: endOfDay },
+    };
+    const activityWhere: any = {
+      organizationId,
+      capturedAt: { gte: startOfDay, lte: endOfDay },
+    };
+    const screenshotWhere: any = {
+      organizationId,
+      capturedAt: { gte: startOfDay, lte: endOfDay },
+      isDeleted: false,
+    };
+
+    if (role === 'EMPLOYEE') {
+      const targetEmpId = currentEmployeeId || '__NONE__';
+      empWhere.id = targetEmpId;
+      sessionWhere.employeeId = targetEmpId;
+      activityWhere.employeeId = targetEmpId;
+      screenshotWhere.employeeId = targetEmpId;
+    } else {
+      if (query.departmentId) empWhere.departmentId = query.departmentId;
+      if (query.employeeId) {
+        empWhere.id = query.employeeId;
+        sessionWhere.employeeId = query.employeeId;
+        activityWhere.employeeId = query.employeeId;
+        screenshotWhere.employeeId = query.employeeId;
+      }
+    }
 
     const [employees, sessions, activityRecords, screenshots] = await Promise.all([
       this.prisma.employee.findMany({
@@ -33,19 +60,13 @@ export class ReportsService {
         orderBy: { displayName: 'asc' },
       }),
       this.prisma.workSession.findMany({
-        where: {
-          organizationId,
-          startedAt: { gte: startOfDay, lte: endOfDay },
-        },
+        where: sessionWhere,
         include: {
           breaks: true,
         },
       }),
       this.prisma.activityRecord.findMany({
-        where: {
-          organizationId,
-          capturedAt: { gte: startOfDay, lte: endOfDay },
-        },
+        where: activityWhere,
         select: {
           employeeId: true,
           activeSeconds: true,
@@ -53,11 +74,7 @@ export class ReportsService {
         },
       }),
       this.prisma.screenshot.findMany({
-        where: {
-          organizationId,
-          capturedAt: { gte: startOfDay, lte: endOfDay },
-          isDeleted: false,
-        },
+        where: screenshotWhere,
         select: { employeeId: true },
       }),
     ]);
@@ -165,18 +182,27 @@ export class ReportsService {
     };
   }
 
-  async getTimeline(organizationId: string, query: TimelineQueryDto) {
-    const targetDate = query.date ? new Date(query.date) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+  async getTimeline(organizationId: string, query: TimelineQueryDto, role?: string, currentEmployeeId?: string) {
+    const dateStr = query.date || new Date().toISOString().split('T')[0];
+    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+
+    const effectiveEmpId = role === 'EMPLOYEE' ? (currentEmployeeId || query.employeeId || '__NONE__') : query.employeeId;
 
     const whereSession: any = {
       organizationId,
-      startedAt: { gte: startOfDay, lte: endOfDay },
+      OR: [
+        { startedAt: { gte: startOfDay, lte: endOfDay } },
+        { endedAt: { gte: startOfDay, lte: endOfDay } },
+        { status: 'ACTIVE', startedAt: { lte: endOfDay } },
+      ],
     };
-    if (query.employeeId) whereSession.employeeId = query.employeeId;
+    if (effectiveEmpId && effectiveEmpId !== '__NONE__') whereSession.employeeId = effectiveEmpId;
+
+    const empSelectWhere: any = { organizationId, status: 'ACTIVE' };
+    if (role === 'EMPLOYEE') {
+      empSelectWhere.id = effectiveEmpId;
+    }
 
     const [sessions, breaks, activity, employees] = await Promise.all([
       this.prisma.workSession.findMany({
@@ -196,8 +222,11 @@ export class ReportsService {
       this.prisma.workSessionBreak.findMany({
         where: {
           organizationId,
-          startedAt: { gte: startOfDay, lte: endOfDay },
-          ...(query.employeeId ? { employeeId: query.employeeId } : {}),
+          OR: [
+            { startedAt: { gte: startOfDay, lte: endOfDay } },
+            { endedAt: { gte: startOfDay, lte: endOfDay } },
+          ],
+          ...(effectiveEmpId && effectiveEmpId !== '__NONE__' ? { employeeId: effectiveEmpId } : {}),
         },
         orderBy: { startedAt: 'asc' },
       }),
@@ -205,16 +234,17 @@ export class ReportsService {
         where: {
           organizationId,
           capturedAt: { gte: startOfDay, lte: endOfDay },
-          ...(query.employeeId ? { employeeId: query.employeeId } : {}),
+          ...(effectiveEmpId && effectiveEmpId !== '__NONE__' ? { employeeId: effectiveEmpId } : {}),
         },
         orderBy: { capturedAt: 'asc' },
       }),
       this.prisma.employee.findMany({
-        where: { organizationId, status: 'ACTIVE' },
+        where: empSelectWhere,
         select: { id: true, displayName: true, employeeCode: true },
         orderBy: { displayName: 'asc' },
       }),
     ]);
+
 
     // Format sessions with file URLs for screenshots
     const enrichedSessions = await Promise.all(
@@ -391,8 +421,8 @@ export class ReportsService {
     };
   }
 
-  async exportEmployeeSummaryCsv(organizationId: string, query: EmployeeSummaryQueryDto): Promise<string> {
-    const summary = await this.getEmployeeSummary(organizationId, query);
+  async exportEmployeeSummaryCsv(organizationId: string, query: EmployeeSummaryQueryDto, role?: string, currentEmployeeId?: string): Promise<string> {
+    const summary = await this.getEmployeeSummary(organizationId, query, role, currentEmployeeId);
 
     const rows = summary.items.map((item) => ({
       'Employee Code': item.employeeCode,
