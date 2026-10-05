@@ -53,6 +53,9 @@ export interface ElectronAPI {
   probeConnection: (targetUrl: string) => Promise<boolean>;
   // Failsafe & Emergency Stop
   onEmergencyStop: (callback: (reason?: string) => void) => () => void;
+  // App Lifecycle & Exit
+  quitApp: () => Promise<void>;
+  onCloseRequested: (callback: () => void) => () => void;
 }
 
 const api: ElectronAPI = {
@@ -96,6 +99,15 @@ const api: ElectronAPI = {
     ipcRenderer.on('app:emergency-stop', handler);
     return () => {
       ipcRenderer.removeListener('app:emergency-stop', handler);
+    };
+  },
+  // App Exit & Close Requested
+  quitApp: () => ipcRenderer.invoke('app:quit'),
+  onCloseRequested: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('app:close-requested', handler);
+    return () => {
+      ipcRenderer.removeListener('app:close-requested', handler);
     };
   },
 };

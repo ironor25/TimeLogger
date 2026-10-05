@@ -4,10 +4,11 @@ import appLogo from '../assets/icon.png';
 
 interface HeaderProps {
   onOpenSettings?: () => void;
+  onClose?: () => void;
   isOnline?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onClose, isOnline = true }) => {
   const [alwaysOnTop, setAlwaysOnTop] = useState(false);
 
   const handleMinimize = (e: React.MouseEvent) => {
@@ -21,7 +22,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
 
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.electronAPI?.close) {
+    if (onClose) {
+      onClose();
+    } else if (window.electronAPI?.close) {
       window.electronAPI.close();
     } else {
       console.warn('window.electronAPI.close not available');

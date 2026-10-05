@@ -184,5 +184,7 @@ export const authService = {
   async logout(): Promise<void> {
     await credentials.clear();
     storage.clearAuth();
+    storage.clearAllOfflineData();
   },
 };
+

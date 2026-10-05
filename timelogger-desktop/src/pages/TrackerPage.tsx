@@ -6,6 +6,7 @@ import { TodayStats } from '../components/TodayStats';
 import { RecentScreenshots } from '../components/RecentScreenshots';
 import { SettingsModal } from '../components/SettingsModal';
 import { IdleWarningModal } from '../components/IdleWarningModal';
+import { ExitConfirmationModal } from '../components/ExitConfirmationModal';
 import { OfflineStatusBar, ConnectionState } from '../components/OfflineStatusBar';
 import { agentApi } from '../services/api';
 import { storage } from '../services/storage';
@@ -58,6 +59,8 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
   // Modals & UI state
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+  const [isUploadingExit, setIsUploadingExit] = useState(false);
   const [workNotes, setWorkNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -638,6 +641,19 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
           session = await agentApi.startWorkSession({
             notes: workNotes || undefined,
           });
+          await localDb.saveSession({
+            localSessionId: session.id,
+            serverSessionId: session.id,
+            employeeId: employee?.id || '',
+            startedAt: session.startedAt,
+            durationSeconds: 0,
+            status: 'ACTIVE',
+            notes: workNotes || null,
+            isOffline: false,
+            syncStatus: 'SYNCED',
+            createdAt: session.startedAt,
+            updatedAt: session.startedAt,
+          });
         } catch (netErr: any) {
           console.warn('Network / API response starting session, falling back to local offline session:', netErr);
           setConnectionState('OFFLINE');
@@ -791,57 +807,64 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
       if (currentSession.id.startsWith('offline_')) {
         await offlineStore.stopOfflineSession(currentSession.id, workNotes || undefined, stoppedSessionSec);
         await updatePendingCount();
-      } else if (connectionState === 'CONNECTED') {
-        try {
-          await agentApi.stopWorkSession({
-            sessionId: currentSession.id,
-            notes: workNotes || undefined,
-            durationSeconds: stoppedSessionSec,
-            endedAt: now.toISOString(),
-          });
+      } else {
+        await localDb.updateSession(currentSession.id, {
+          status: 'COMPLETED',
+          endedAt: now.toISOString(),
+          durationSeconds: stoppedSessionSec,
+        });
+        if (connectionState === 'CONNECTED') {
+          try {
+            await agentApi.stopWorkSession({
+              sessionId: currentSession.id,
+              notes: workNotes || undefined,
+              durationSeconds: stoppedSessionSec,
+              endedAt: now.toISOString(),
+            });
 
-          // Fetch authoritative server summary immediately after stop
-          const serverSummary = await agentApi.getTodaySummary(todayStr).catch(() => null);
-          if (serverSummary) {
-            const finalActiveSec = Math.max(
-              stoppedActiveSec,
-              serverSummary.activeSeconds ?? serverSummary.workedSeconds ?? 0,
-            );
-            const finalWorkedSec = Math.max(
-              stoppedWorkedSec,
-              serverSummary.workedSeconds ?? serverSummary.activeSeconds ?? 0,
-            );
-            const finalIdleSec = Math.max(todayIdleSeconds, serverSummary.idleSeconds || 0);
-            const finalBreakSec = Math.max(todayBreakSeconds, serverSummary.breakSeconds || 0);
-            const finalPunchOutTime = serverSummary.lastPunchOutTime || punchOutStr;
-
-            setTodayWorkedSeconds(finalWorkedSec);
-            setTodayActiveSeconds(finalActiveSec);
-            setTodayIdleSeconds(finalIdleSec);
-            setTodayBreakSeconds(finalBreakSec);
-            setLastPunchOutTime(finalPunchOutTime);
-
-            if (employee) {
-              storage.setDailyState(
-                {
-                  date: todayStr,
-                  workedSeconds: finalWorkedSec,
-                  activeSeconds: finalActiveSec,
-                  idleSeconds: finalIdleSec,
-                  breakSeconds: finalBreakSec,
-                  lastPunchOutTime: finalPunchOutTime,
-                },
-                employee,
+            // Fetch authoritative server summary immediately after stop
+            const serverSummary = await agentApi.getTodaySummary(todayStr).catch(() => null);
+            if (serverSummary) {
+              const finalActiveSec = Math.max(
+                stoppedActiveSec,
+                serverSummary.activeSeconds ?? serverSummary.workedSeconds ?? 0,
               );
+              const finalWorkedSec = Math.max(
+                stoppedWorkedSec,
+                serverSummary.workedSeconds ?? serverSummary.activeSeconds ?? 0,
+              );
+              const finalIdleSec = Math.max(todayIdleSeconds, serverSummary.idleSeconds || 0);
+              const finalBreakSec = Math.max(todayBreakSeconds, serverSummary.breakSeconds || 0);
+              const finalPunchOutTime = serverSummary.lastPunchOutTime || punchOutStr;
+
+              setTodayWorkedSeconds(finalWorkedSec);
+              setTodayActiveSeconds(finalActiveSec);
+              setTodayIdleSeconds(finalIdleSec);
+              setTodayBreakSeconds(finalBreakSec);
+              setLastPunchOutTime(finalPunchOutTime);
+
+              if (employee) {
+                storage.setDailyState(
+                  {
+                    date: todayStr,
+                    workedSeconds: finalWorkedSec,
+                    activeSeconds: finalActiveSec,
+                    idleSeconds: finalIdleSec,
+                    breakSeconds: finalBreakSec,
+                    lastPunchOutTime: finalPunchOutTime,
+                  },
+                  employee,
+                );
+              }
             }
+          } catch {
+            await offlineStore.stopOfflineSession(currentSession.id, workNotes || undefined, stoppedSessionSec);
+            await updatePendingCount();
           }
-        } catch {
+        } else {
           await offlineStore.stopOfflineSession(currentSession.id, workNotes || undefined, stoppedSessionSec);
           await updatePendingCount();
         }
-      } else {
-        await offlineStore.stopOfflineSession(currentSession.id, workNotes || undefined, stoppedSessionSec);
-        await updatePendingCount();
       }
 
       window.electronAPI?.notify({
@@ -1125,6 +1148,84 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
     onLogout();
   };
 
+  const handleHeaderClose = () => {
+    if (status !== 'OFFLINE') {
+      setIsExitModalOpen(true);
+    } else {
+      if (window.electronAPI?.quitApp) {
+        window.electronAPI.quitApp();
+      } else if (window.electronAPI?.close) {
+        window.electronAPI.close();
+      }
+    }
+  };
+
+  const handlePunchOutAndExit = async () => {
+    setIsUploadingExit(true);
+    try {
+      // 1. Capture final screenshot if active
+      if (activeSession) {
+        try {
+          await executeScreenshotCapture(activeSession.id);
+        } catch (err) {
+          console.warn('[EXIT] Final screenshot capture error:', err);
+        }
+      }
+
+      // 2. Stop session and upload final duration and heartbeats
+      await handleStopSession();
+
+      // 3. Close modal
+      setIsExitModalOpen(false);
+
+      // 4. Terminate the app completely
+      if (window.electronAPI?.quitApp) {
+        await window.electronAPI.quitApp();
+      } else if (window.electronAPI?.close) {
+        await window.electronAPI.close();
+      }
+    } catch (err) {
+      console.error('[EXIT] Error during punch out and exit:', err);
+      if (window.electronAPI?.quitApp) {
+        await window.electronAPI.quitApp();
+      }
+    } finally {
+      setIsUploadingExit(false);
+    }
+  };
+
+  const handleMinimizeToTray = () => {
+    setIsExitModalOpen(false);
+    if (window.electronAPI?.hide) {
+      window.electronAPI.hide();
+      window.electronAPI.notify({
+        title: 'TimeLogger: Running in Background',
+        body: 'Your work timer continues tracking. Click tray icon to reopen.',
+      });
+    }
+  };
+
+  // Listen for Window Close Request from Electron Taskbar / Close Action
+  useEffect(() => {
+    let cleanupClose: (() => void) | undefined;
+    if (window.electronAPI?.onCloseRequested) {
+      cleanupClose = window.electronAPI.onCloseRequested(() => {
+        if (status !== 'OFFLINE') {
+          setIsExitModalOpen(true);
+        } else {
+          if (window.electronAPI?.quitApp) {
+            window.electronAPI.quitApp();
+          } else if (window.electronAPI?.close) {
+            window.electronAPI.close();
+          }
+        }
+      });
+    }
+    return () => {
+      if (cleanupClose) cleanupClose();
+    };
+  }, [status]);
+
   const timeoutMinutes = Math.round(
     ((idleConfig.gracePeriodSeconds || 60) + (idleConfig.warningDurationSeconds || 60)) / 60,
   );
@@ -1133,6 +1234,7 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
     <div className="flex-1 flex flex-col overflow-hidden select-none bg-[#f4f4f4] text-[#161616] font-sans tracking-carbon">
       <Header
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onClose={handleHeaderClose}
         isOnline={connectionState === 'CONNECTED'}
       />
 
@@ -1246,6 +1348,17 @@ export const TrackerPage: React.FC<TrackerPageProps> = ({ initialIsOnline = true
         onClose={() => setIsSettingsOpen(false)}
         onLogout={handleLogoutWithReset}
         onIdleConfigChange={(cfg) => setIdleConfig(cfg)}
+      />
+
+      {/* Exit Confirmation Modal when timer is running */}
+      <ExitConfirmationModal
+        isOpen={isExitModalOpen}
+        sessionSeconds={sessionSeconds}
+        todayActiveSeconds={todayActiveSeconds}
+        isUploading={isUploadingExit}
+        onPunchOutAndExit={handlePunchOutAndExit}
+        onMinimizeToTray={handleMinimizeToTray}
+        onCancel={() => setIsExitModalOpen(false)}
       />
     </div>
   );

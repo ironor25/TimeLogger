@@ -118,7 +118,9 @@ export const agentApi = {
     const prevEmployee = storage.getEmployee();
     if (prevEmployee && prevEmployee.id !== data.employee.id) {
       storage.clearAuth();
+      storage.clearAllOfflineData();
     }
+
 
     storage.setTokens(data.tokens.accessToken, data.tokens.refreshToken);
     storage.setEmployee(data.employee);

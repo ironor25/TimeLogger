@@ -90,11 +90,19 @@ function createWindow() {
     });
   }
 
-  // Handle minimize to tray instead of quitting on close
+  // Handle window close event (from taskbar, Alt+F4, or window 'X')
   mainWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow?.hide();
+    if (isQuitting) {
+      return;
+    }
+    event.preventDefault();
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.send('app:close-requested');
     }
   });
 
@@ -296,6 +304,11 @@ ipcMain.handle('window:hide', () => {
 
 ipcMain.handle('window:close', () => {
   mainWindow?.close();
+});
+
+ipcMain.handle('app:quit', async () => {
+  isQuitting = true;
+  app.quit();
 });
 
 ipcMain.handle('window:set-always-on-top', (_event, flag: boolean) => {

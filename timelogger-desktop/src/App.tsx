@@ -80,11 +80,26 @@ export function App() {
     };
 
     window.addEventListener('auth:expired', handleAuthExpired);
+
+    let cleanupClose: (() => void) | undefined;
+    if (window.electronAPI?.onCloseRequested) {
+      cleanupClose = window.electronAPI.onCloseRequested(() => {
+        if (!isAuthenticated) {
+          if (window.electronAPI?.quitApp) {
+            window.electronAPI.quitApp();
+          } else if (window.electronAPI?.close) {
+            window.electronAPI.close();
+          }
+        }
+      });
+    }
+
     return () => {
       isMounted = false;
       window.removeEventListener('auth:expired', handleAuthExpired);
+      if (cleanupClose) cleanupClose();
     };
-  }, []);
+  }, [isAuthenticated]);
 
   const handleLoginSuccess = (isOnline: boolean) => {
     setAuthError('');
@@ -97,6 +112,14 @@ export function App() {
     await authService.logout();
     setIsAuthenticated(false);
     setAuthError('');
+  };
+
+  const handleUnauthenticatedClose = () => {
+    if (window.electronAPI?.quitApp) {
+      window.electronAPI.quitApp();
+    } else if (window.electronAPI?.close) {
+      window.electronAPI.close();
+    }
   };
 
   if (checkingAuth) {
@@ -115,7 +138,10 @@ export function App() {
     <div className="h-screen w-screen flex flex-col bg-[#f4f4f4] text-[#161616] antialiased overflow-hidden font-sans border border-[#e0e0e0] rounded-none">
       {!isAuthenticated ? (
         <>
-          <Header isOnline={!isOfflineNoCreds} />
+          <Header
+            isOnline={!isOfflineNoCreds}
+            onClose={handleUnauthenticatedClose}
+          />
           <LoginPage
             onLoginSuccess={handleLoginSuccess}
             initialError={authError}
